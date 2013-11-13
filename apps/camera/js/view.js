@@ -1,65 +1,62 @@
+/*global define*/
+
 define(function(require) {
   'use strict';
 
-  var evt = require('evt');
+  var evt = require('libs/evt');
+  var mixin = require('utils/mixin');
 
-  var View = function(el, properties) {
-    this.el = (typeof el === 'string' ? document.querySelector(el) : el) || document.body;
+  /**
+   * Base view class. Accepts
+   * or creates a root element
+   * which we template into.
+   *
+   * @constructor
+   */
+  var View = function(el){
+    this.el = el || document.createElement(this.tag);
+    this.els = {};
 
-    this.mixin(properties || {});
-
-    this.render();
+    // Initialize our 'faux' constructor
+    this.initialize.apply(this, arguments);
   };
 
+  /**
+   * Base view prototype,
+   * mixed in event emitter.
+   *
+   * @type {Object}
+   */
   View.prototype = evt.mix({
-    el: null,
-
-    model: null,
-
-    mixin: function(properties) {
-      for (var property in properties) {
-        this[property] = properties[property];
-      }
-    },
-
-    attach: function(events) {
-      var el = this.el;
-
-      var eventHandler,
-          eventExpression,
-          eventName,
-          eventSelector;
-
-      for (var evt in events) {
-        eventHandler = typeof events[evt] === 'string' ? this[events[evt]] : events[evt].bind(this);
-        eventExpression = evt.split(' ');
-        eventName = eventExpression.shift();
-
-        // Add event listener directly to View element
-        if (eventExpression.length === 0) {
-          el.addEventListener(eventName, eventHandler.bind(this));
-        }
-
-        // Add event listener to window
-        else if (eventExpression.length === 1 && eventExpression[0] === 'window') {
-          window.addEventListener(eventName, eventHandler.bind(this));
-        }
-
-        // Add event listener to document
-        else if (eventExpression.length === 1 && eventExpression[0] === 'document') {
-          document.addEventListener(eventName, eventHandler.bind(this));
-        }
-
-        // Add event listener to a View child element
-        else {
-          eventSelector = eventExpression.join(' ');
-          el.querySelector(eventSelector).addEventListener(eventName, eventHandler.bind(this));
-        }
-      }
-    },
-
-    render: function() {} // NOOP
+    tag: 'div',
+    initialize: function(){},
   });
 
+  /**
+   * Extends the base view
+   * class with the given
+   * properties.
+   *
+   * @param  {Object} properties
+   * @return {Function}
+   */
+  View.extend = function(properties) {
+    // The child class constructor
+    // just calls the parent constructor
+    var Extended = function(){
+      View.apply(this, arguments);
+    };
+
+    // Base the Child prototype
+    // on the View's prototype.
+    Extended.prototype = Object.create(View.prototype);
+
+    // Mixin any given properties
+    mixin(Extended.prototype, properties);
+
+    return Extended;
+  };
+
+  // Exports
   return View;
 });
