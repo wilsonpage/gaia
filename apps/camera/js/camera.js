@@ -1,6 +1,7 @@
+/*global broadcast*/
+
 'use strict';
 
-// Utility functions
 function padLeft(num, length) {
   var r = String(num);
   while (r.length < length) {
@@ -10,10 +11,9 @@ function padLeft(num, length) {
 }
 
 var screenLock = null;
-var Camera = {
+var Camera = window.Camera = {
   _cameras: null,
   _captureMode: null,
-  _config: {},
 
   // In secure mode the user cannot browse to the gallery
   _secureMode: window.parent !== window,
@@ -240,13 +240,14 @@ var Camera = {
     }
   },
 
-  releaseScreenWakeLock: function camera_releaseScreenWakeLock() {
+  releaseScreenWakeLock: function() {
     if (screenLock && Filmstrip.isPreviewShown()) {
       screenLock.unlock();
       screenLock = null;
     }
   },
-  requestScreenWakeLock: function camera_requestScreenWakeLock() {
+
+  requestScreenWakeLock: function() {
     if (!screenLock && !Filmstrip.isPreviewShown()) {
       screenLock = navigator.requestWakeLock('screen');
     }
@@ -563,9 +564,15 @@ var Camera = {
                                          self.retakePressed.bind(self));
 
             } else {
-              Filmstrip.addVideo(videofile, video, poster,
-                                 data.width, data.height, data.rotation);
-              Filmstrip.show(FILMSTRIP_DURATION);
+
+              broadcast.emit('newVideo', {
+                file: videofile,
+                video: video,
+                poster: poster,
+                width: data.width,
+                height: data.height,
+                rotation: data.rotation
+              });
             }
           });
         }
@@ -882,8 +889,11 @@ var Camera = {
 
     // In either case, save the photo to device storage
     this._addPictureToStorage(blob, function(name, absolutePath) {
-      Filmstrip.addImage(absolutePath, blob);
-      Filmstrip.show(FILMSTRIP_DURATION);
+      broadcast.emit('newImage', {
+        path: absolutePath,
+        blob: blob
+      });
+
       this.checkStorageSpace();
     }.bind(this));
   },
@@ -1009,7 +1019,7 @@ var Camera = {
     }).bind(this);
   },
 
-  deviceStorageChangeHandler: function camera_deviceStorageChangeHandler(e) {
+  deviceStorageChangeHandler: function(e) {
     switch (e.reason) {
     case 'available':
     case 'unavailable':
@@ -1019,36 +1029,25 @@ var Camera = {
 
     // Remove filmstrip item if its correspondent file is deleted
     case 'deleted':
-      Filmstrip.deleteItem(e.path);
+      broadcast.emit('itemDeleted', { path: e.path });
       break;
     }
+
     this.checkStorageSpace();
   },
 
-  updateStorageState: function camera_updateStorageState(state) {
+  updateStorageState: function(state) {
     switch (state) {
     case 'available':
       this._storageState = STORAGE_STATE_TYPE.AVAILABLE;
       break;
     case 'unavailable':
       this._storageState = STORAGE_STATE_TYPE.NOCARD;
-      if (Filmstrip.isPreviewShown()) {
-        // If media frame is shown and storage is unavailable or shared, it may
-        // be a video or a picture is opened. We should go back to camera mode
-        // to prevent file deleted or file lock. If the video is playing, camera
-        // app will be killed becase of mounting as sdcard and file is locked.
-        Filmstrip.hidePreview();
-      }
+      broadcast.emit('storageUnavailable');
       break;
     case 'shared':
       this._storageState = STORAGE_STATE_TYPE.UNMOUNTED;
-      if (Filmstrip.isPreviewShown()) {
-        // If media frame is shown and storage is unavailable or shared, it may
-        // be a video or a picture is opened. We should go back to camera mode
-        // to prevent file deleted or file lock. If the video is playing, camera
-        // app will be killed becase of mounting as sdcard and file is locked.
-        Filmstrip.hidePreview();
-      }
+      broadcast.emit('storageShared');
       break;
     }
   },
