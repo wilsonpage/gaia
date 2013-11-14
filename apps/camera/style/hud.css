@@ -49,8 +49,11 @@ body:not(.filmstriphidden) .hud {
   float: right;
 }
 
-.toggle-camera[disabled=disabled],
-.toggle-flash[disabled=disabled] {
+/**
+ * @buttons-disabled
+ */
+
+.hud.buttons-disabled a {
   opacity: 0.5;
   pointer-events: none;
 }
@@ -59,6 +62,7 @@ body:not(.filmstriphidden) .hud {
  ---------------------------------------------------------*/
 
 .toggle-camera {
+  display: none;
   background-image: url(images/toggle_front-rear.png);
 }
 
@@ -68,6 +72,14 @@ body:not(.filmstriphidden) .hud {
 
 .is-toggling-camera .toggle-camera {
   background-color: #00b9df;
+}
+
+/**
+ * @has-front-camera
+ */
+
+.has-front-camera .toggle-camera {
+  display: block;
 }
 
 /**
@@ -83,6 +95,10 @@ body:not(.filmstriphidden) .hud {
 
 .toggle-flash {
   position: relative;
+}
+
+.toggle-flash[data-mode=none] {
+  display: none;
 }
 
 .toggle-flash[data-mode=on] {
