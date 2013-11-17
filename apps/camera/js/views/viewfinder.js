@@ -1,4 +1,3 @@
-/*global define*/
 
 define(function(require) {
   'use strict';
@@ -6,11 +5,13 @@ define(function(require) {
   var View = require('view');
   var bind = require('utils/bind');
   var Filmstrip = require('views/filmstrip');
+  var CameraState = require('models/state');
+  var Camera = require('camera');
 
-  var lastTouchA = null,
-      lastTouchB = null,
-      isScaling = false,
-      scale = 1.0;
+  var lastTouchA = null;
+  var lastTouchB = null;
+  var isScaling = false;
+  var scale = 1.0;
 
   var getNewTouchA = function(touches) {
     if (!lastTouchA) return null;
@@ -106,12 +107,35 @@ define(function(require) {
       this.el.mozSrcObject = previewStream;
     },
 
+    setStream: function(stream, done) {
+      this.setPreviewStream(stream);
+      this.startPreview();
+    },
+
     startPreview: function() {
       this.el.play();
     },
 
     stopPreview: function() {
-      this.el.stop();
+      this.el.pause();
+    },
+
+    fadeOut: function(done) {
+      var fadeTime = 800;
+      this.el.classList.add('fade-out');
+
+      if (done) {
+        setTimeout(done, fadeTime);
+      }
+    },
+
+    fadeIn: function(done) {
+      var fadeTime = 800;
+      this.el.classList.remove('fade-out');
+
+      if (done) {
+        setTimeout(done, fadeTime);
+      }
     },
 
     setPreviewSize: function(camera) {

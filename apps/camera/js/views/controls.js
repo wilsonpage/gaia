@@ -6,6 +6,7 @@ define(function(require) {
   var View = require('view');
   var bind = require('utils/bind');
   var find = require('utils/find');
+  var camera = require('camera');
 
   var setBooleanAttribute = function(el, attribute, value) {
     if (value) {
@@ -37,7 +38,7 @@ define(function(require) {
       this.els.cancelPickButton = find('#cancel-pick', this.el);
 
       // Bind events
-      bind(this.els.modeButton, 'click', this.modeButtonHandler);
+      bind(this.els.modeButton, 'click', this.modeButtonHandler, this);
       bind(this.els.captureButton, 'click', this.captureButtonHandler);
       bind(this.els.galleryButton, 'click', this.galleryButtonHandler);
       bind(this.els.cancelPickButton, 'click', this.cancelPickButtonHandler);
@@ -79,14 +80,12 @@ define(function(require) {
       setBooleanClass(this.els.cancelPickButton, 'hidden', hidden);
     },
 
-    modeButtonHandler: function controls_modeButtonHandler(event) {
+    modeButtonHandler: function(event) {
       if (event.target.getAttribute('disabled')) {
         return;
       }
 
-      var newMode = (Camera._captureMode === CAMERA_MODE_TYPE.CAMERA) ?
-        CAMERA_MODE_TYPE.VIDEO : CAMERA_MODE_TYPE.CAMERA;
-      Camera.changeMode(newMode);
+      this.emit('modeButtonToggle');
     },
 
     captureButtonHandler: function controls_captureButtonHandler(event) {
@@ -94,15 +93,16 @@ define(function(require) {
         return;
       }
 
-      Camera.capture();
+      camera.capture();
     },
 
     galleryButtonHandler: function controls_galleryButtonHandler(event) {
       // Can't launch the gallery if the lockscreen is locked.
       // The button shouldn't even be visible in this case, but
       // let's be really sure here.
-      if (Camera._secureMode)
+      if (camera._secureMode) {
         return;
+      }
 
       // Launch the gallery with an activity
       var a = new MozActivity({
@@ -114,7 +114,7 @@ define(function(require) {
     },
 
     cancelPickButtonHandler: function controls_cancelPickButtonHandler(event) {
-      Camera.cancelPick();
+      camera.cancelPick();
     }
   });
 });
