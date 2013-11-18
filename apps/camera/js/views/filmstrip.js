@@ -8,6 +8,7 @@ define(function(require) {
 
   var broadcast = require('broadcast');
   var orientation = require('orientation');
+  var cameraState = require('models/state');
   var camera = require('camera');
 
   // This array holds all the data we need for image and video previews
@@ -40,12 +41,13 @@ define(function(require) {
   deleteButton.onclick = deleteCurrentItem;
   shareButton.onclick = shareCurrentItem;
   mediaFrame.addEventListener('swipe', handleSwipe);
-  broadcast.on('newVideo', onNewVideo);
-  broadcast.on('newImage', onNewImage);
+  camera.on('newVideo', onNewVideo);
+  camera.on('newImage', onNewImage);
   broadcast.on('itemDeleted', onItemDeleted);
   broadcast.on('storageUnavailable', hidePreview);
   broadcast.on('storageShared', hidePreview);
   orientation.on('orientation', setOrientation);
+  cameraState.on('change:recording', onRecordingChange);
 
   // Create the MediaFrame for previews
   var frame = new MediaFrame(mediaFrame);
@@ -87,18 +89,30 @@ define(function(require) {
    */
   function show(time) {
     document.body.classList.remove('filmstriphidden');
+
     if (hideTimer) {
       clearTimeout(hideTimer);
       hideTimer = null;
     }
-    if (time)
+
+    if (time) {
       hideTimer = setTimeout(hide, time);
+    }
+  }
+
+  function toggle() {
+    if (isShown()) {
+      hide();
+    } else {
+      show();
+    }
   }
 
   filmstrip.onclick = function(event) {
     var target = event.target;
-    if (!target || !target.classList.contains('thumbnail'))
+    if (!target || !target.classList.contains('thumbnail')) {
       return;
+    }
 
     var index = parseInt(target.dataset.index);
     previewItem(index);
@@ -124,6 +138,16 @@ define(function(require) {
 
   function onItemDeleted(data) {
     deleteItem(data.path);
+  }
+
+  function onRecordingChange(evt) {
+    var recording = evt.value;
+
+    // Hide the filmstrip to prevent the users from entering the
+    // preview mode after Camera starts recording button pressed
+    if (recording && isShown()) {
+      hide();
+    }
   }
 
   function previewItem(index) {
@@ -566,6 +590,7 @@ define(function(require) {
     isShown: isShown,
     hide: hide,
     show: show,
+    toggle: toggle,
     addImage: addImage,
     addVideo: addVideo,
     deleteItem: deleteItem,

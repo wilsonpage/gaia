@@ -1,30 +1,33 @@
-/*global broadcast*/
 
 'use strict';
 
-function padLeft(num, length) {
-  var r = String(num);
-  while (r.length < length) {
-    r = '0' + r;
-  }
-  return r;
-}
-
 define(function(require){
-  var cameraState = require('models/state');
 
-  var Camera = {
+  var cameraState = require('models/state');
+  var soundEffect = require('soundeffect');
+  var padLeft = require('utils/padleft');
+  var broadcast = require('broadcast');
+  var evt = require('libs/evt');
+  var dcf = require('dcf');
+
+  var Camera = evt.mix({
     _cameras: null,
     _captureMode: null,
 
-    // In secure mode the user cannot browse to the gallery
+    // In secure mode the user
+    // cannot browse to the gallery
     _secureMode: window.parent !== window,
     _currentOverlay: null,
 
     _videoTimer: null,
     _videoStart: null,
-    _videoPath: null, // file path relative to video root directory
-    _videoRootDir: null, // video root directory string
+
+    // file path relative
+    // to video root directory
+    _videoPath: null,
+
+    // video root directory string
+    _videoRootDir: null,
 
     _autoFocusSupport: {},
     _callAutoFocus: false,
@@ -43,23 +46,44 @@ define(function(require){
     _pictureSize: null,
     _previewConfig: null,
 
-    // We can recieve multiple FileSizeLimitReached events
-    // when recording, since we stop recording on this event
-    // only show one alert per recording
+    // We can recieve multiple
+    // 'FileSizeLimitReached' events
+    // when recording, since we stop
+    // recording on this event only
+    // show one alert per recording
     _sizeLimitAlertActive: false,
 
     _flashState: {
       camera: {
-        defaultMode: 1, // default flash mode is 'auto'
-        supported: [], // delay the array initialization to enableCameraFeatures.
+
+        // default flash
+        // mode is 'auto'
+        defaultMode: 1,
+
+        // Delay the array initialization
+        // to enableCameraFeatures.
+        supported: [],
+
         modes: ['off', 'auto', 'on'],
-        currentMode: [] // delay the array initialization when needed
+
+        // Delay the array
+        // initialization when needed
+        currentMode: []
       },
       video: {
-        defaultMode: 0, // default flash mode is 'off'
-        supported: [], // delay the array initialization to enableCameraFeatures.
+
+        // Default flash
+        // mode is 'off'
+        defaultMode: 0,
+
+        // Delay the array initialization
+        // to enableCameraFeatures.
+        supported: [],
         modes: ['off', 'torch'],
-        currentMode: [] // delay the array initialization when needed.
+
+        // Delay the array
+        // initialization when needed.
+        currentMode: []
       }
     },
 
@@ -117,110 +141,41 @@ define(function(require){
       return document.getElementById('overlay-menu-storage');
     },
 
-    delayedInit: function() {
-
-      if (!this._pendingPick) {
-        cameraState.set({
-          modeButtonHidden: false,
-          galleryButtonHidden: false
-        });
-      }
-
-      this.enableButtons();
-      this.checkStorageSpace();
-
-      this.overlayCloseButton
-        .addEventListener('click', this.cancelPick.bind(this));
-      this.storageSettingButton
-        .addEventListener('click', this.storageSettingPressed.bind(this));
-
-      if (!navigator.mozCameras) {
-        cameraState.set('captureButtonEnabled', false);
-        return;
-      }
-
-      if (this._secureMode) {
-        cameraState.set('galleryButtonEnabled', false);
-      }
-
-      SoundEffect.init();
-
-      if ('mozSettings' in navigator) {
-        this.getPreferredSizes();
-      }
-
-      this._storageState = STORAGE_STATE_TYPE.INIT;
-      this._pictureStorage = navigator.getDeviceStorage('pictures');
-      this._videoStorage = navigator.getDeviceStorage('videos'),
-
-      this._pictureStorage
-        .addEventListener('change', this.deviceStorageChangeHandler.bind(this));
-
-      this.previewEnabled();
-
-      cameraState.set('initialized', true);
-
-      DCFApi.init();
-      PerformanceTestingHelper.dispatch('startup-path-done');
-    },
-
-    enableButtons: function camera_enableButtons() {
+    // @deprecated
+    enableButtons: function() {
       cameraState.enableButtons();
     },
 
-    disableButtons: function camera_disableButtons() {
+    // @deprecated
+    disableButtons: function() {
       cameraState.disableButtons();
     },
 
-    cancelPick: function camera_cancelPick() {
+    cancelPick: function() {
       if (this._pendingPick) {
         this._pendingPick.postError('pick cancelled');
       }
+
       this._pendingPick = null;
     },
 
-    changeMode: function(mode, done) {
-      done = done || function(){};
-
-      this.disableButtons();
-      this.setCaptureMode(mode);
-      this.setFlashMode();
-      this.enableCameraFeatures(this._cameraObj.capabilities);
-      this.setFocusMode();
-
-      Camera._cameraObj.onPreviewStateChange = function(state) {
-        // We disabled the buttons above. Now we wait for the preview
-        // stream to actually start up before we enable them again. If we
-        // do this in the getPreviewStream() callback it might be too early
-        // and we can still cause deadlock in the camera hardware.
-        // See Bug 890427.
-        if (state === 'started') {
-          Camera.enableButtons();
-          // Only do this once
-          Camera._cameraObj.onPreviewStateChange = null;
-        }
-      };
-      if (this._captureMode === CAMERA_MODE_TYPE.CAMERA) {
-        this._cameraObj.getPreviewStream(
-          this._previewConfig, done);
-      } else {
-        this._videoProfile.rotation = window.orientation.get();
-        this._cameraObj.getPreviewStreamVideoMode(
-          this._videoProfile, done);
-      }
+    getMode: function() {
+      return this._captureMode;
     },
 
-    toggleCamera: function(done) {
+    toggleMode: function() {
+      var currentMode = this._captureMode;
+      var isCameraMode = currentMode === CAMERA_MODE_TYPE.CAMERA;
+      var newMode = isCameraMode
+        ? CAMERA_MODE_TYPE.VIDEO
+        : CAMERA_MODE_TYPE.CAMERA;
+
+      return this.setCaptureMode(newMode);
+    },
+
+    toggleCamera: function() {
       var cameraNumber = 1 - cameraState.get('cameraNumber');
-      this.loadCameraPreview(cameraNumber, done);
       cameraState.set('cameraNumber', cameraNumber);
-    },
-
-    turnOffFlash: function() {
-      var flash = this._flashState[this._captureMode];
-      var cameraNumber = cameraState.get('cameraNumber');
-      flash.currentMode[cameraNumber] = 0;
-      this.setFlashMode();
     },
 
     toggleFlash: function() {
@@ -295,7 +250,6 @@ define(function(require){
     },
 
     startRecording: function() {
-      // document.body.classList.add('recording');
       this._sizeLimitAlertActive = false;
 
       var onerror = function() {
@@ -345,13 +299,13 @@ define(function(require){
           config.maxFileSizeBytes = Math.min(config.maxFileSizeBytes,
                                              maxFileSizeBytes);
         }
-        SoundEffect.playRecordingStartSound();
+        soundEffect.playRecordingStartSound();
         this._cameraObj.startRecording(config,
                                        this._videoStorage, this._videoPath,
                                        onsuccess, onerror);
       }).bind(this);
 
-      DCFApi.createDCFFilename(this._videoStorage,
+      dcf.createDCFFilename(this._videoStorage,
                                'video',
                                (function(path, name) {
         this._videoPath = path + name;
@@ -395,11 +349,10 @@ define(function(require){
     },
 
     stopRecording: function() {
-      // document.body.classList.remove('recording');
       var self = this;
       this._cameraObj.stopRecording();
       // play camcorder shutter sound while stop recording.
-      SoundEffect.playRecordingEndSound();
+      soundEffect.playRecordingEndSound();
 
       cameraState.set('recording', false);
 
@@ -421,14 +374,18 @@ define(function(require){
                   video: video,
                   poster: poster
                 };
-                ConfirmDialog.confirmVideo(video, poster,
-                                           data.width, data.height, data.rotation,
-                                           self.selectPressed.bind(self),
-                                           self.retakePressed.bind(self));
 
+                ConfirmDialog.confirmVideo(
+                  video,
+                  poster,
+                  data.width,
+                  data.height,
+                  data.rotation,
+                  self.selectPressed.bind(self),
+                  self.retakePressed.bind(self));
               } else {
 
-                broadcast.emit('newVideo', {
+                Camera.emit('newVideo', {
                   file: videofile,
                   video: video,
                   poster: poster,
@@ -526,16 +483,46 @@ define(function(require){
     },
 
     setCaptureMode: function(mode) {
-      if (this._captureMode) {
-        document.body.classList.remove(this._captureMode);
-      }
       this._captureMode = mode;
-      document.body.classList.add(mode);
+      this.emit('captureModeChange', mode);
+      return mode;
+    },
+
+    /**
+     * Loads a camera stream
+     * into a given video element.
+     *
+     * @param  {Element}   videoEl
+     * @param  {Function} done
+     */
+    loadStreamInto: function(videoEl, done) {
+      var cameraNumber = cameraState.get('cameraNumber');
+
+      this.loadCameraPreview(cameraNumber, function(stream) {
+        videoEl.mozSrcObject = stream;
+
+        // Even though we have the stream now,
+        // the camera hardware hasn't started
+        // displaying it yet.
+        //
+        // We need to wait until the preview
+        // has actually started displaying
+        // before calling the callback.
+        //
+        // Bug 890427.
+        Camera._cameraObj.onPreviewStateChange = function(state) {
+          if (state === 'started') {
+            Camera._cameraObj.onPreviewStateChange = null;
+            done();
+          }
+        };
+      });
     },
 
     loadCameraPreview: function(cameraNumber, callback) {
-      this._cameras = navigator.mozCameras.getListOfCameras();
-      var options = { camera: this._cameras[cameraNumber] };
+      var mozCameras = navigator.mozCameras;
+      var cameras = this._cameras = mozCameras.getListOfCameras();
+
       this._timeoutId = 0;
 
       function gotPreviewScreen(stream) {
@@ -544,24 +531,6 @@ define(function(require){
         if (callback) {
           callback(stream);
         }
-
-        // This is commented out because
-        // `onPreviewStateChange` was not firing.
-        // Need more info on this...
-
-        //if (callback) {
-          // Even though we have the stream now, the camera hardware hasn't
-          // started displaying it yet. We need to wait until the preview
-          // has actually started displaying before calling the callback.
-          // Ssee Bug 890427.
-          // Camera._cameraObj.onPreviewStateChange = function(state) {
-          //   console.log('onPreviewStateChange', callback);
-          //   if (state === 'started') {
-          //     Camera._cameraObj.onPreviewStateChange = null;
-          //     //callback(stream);
-          //   }
-          // };
-        //}
       }
 
       function gotCamera(camera) {
@@ -575,7 +544,6 @@ define(function(require){
         Camera._cameraObj = camera;
 
         cameraState.set('autoFocusSupported', autoFocusSupported);
-
         Camera.pickPictureSize(camera);
 
         thumbnailSize = Camera.selectThumbnailSize(
@@ -590,6 +558,7 @@ define(function(require){
           var recorderProfiles = camera.capabilities.recorderProfiles;
           Camera._videoProfile = Camera.pickVideoProfile(recorderProfiles);
 
+          // 'Video' Mode
           if (Camera._captureMode === CAMERA_MODE_TYPE.VIDEO) {
             Camera._videoProfile.rotation = window.orientation.get();
 
@@ -602,21 +571,22 @@ define(function(require){
         Camera.enableCameraFeatures(camera.capabilities);
         Camera.setFocusMode();
 
-        // This allows viewfinder to update
-        // the size of the video element.
-        broadcast.emit('cameraChange', camera);
-
         camera.onShutter = function() {
-          SoundEffect.playCameraShutterSound();
+          soundEffect.playCameraShutterSound();
         };
 
         camera.onRecorderStateChange = Camera.recordingStateChanged.bind(Camera);
 
+        // 'Camera' Mode
         if (Camera._captureMode === CAMERA_MODE_TYPE.CAMERA) {
           camera.getPreviewStream(
             Camera._previewConfig,
             gotPreviewScreen.bind(Camera));
         }
+
+        // This allows viewfinder to update
+        // the size of the video element.
+        Camera.emit('cameraChange', camera);
       }
 
       // If there is already a
@@ -629,7 +599,7 @@ define(function(require){
       }
 
       function getCamera() {
-        navigator.mozCameras.getCamera(options, gotCamera);
+        navigator.mozCameras.getCamera({ camera: cameras[cameraNumber] }, gotCamera);
       }
     },
 
@@ -691,7 +661,7 @@ define(function(require){
 
     startPreview: function() {
       var cameraNumber = cameraState.get('cameraNumber');
-      this.loadCameraPreview(cameraNumber, this.previewEnabled.bind(this));
+      this.loadCameraPreview(cameraNumber, null, this.previewEnabled.bind(this));
     },
 
     previewEnabled: function() {
@@ -739,7 +709,7 @@ define(function(require){
 
       // In either case, save the photo to device storage
       this._addPictureToStorage(blob, function(name, absolutePath) {
-        broadcast.emit('newImage', {
+        Camera.emit('newImage', {
           path: absolutePath,
           blob: blob
         });
@@ -792,7 +762,7 @@ define(function(require){
     },
 
     _addPictureToStorage: function(blob, callback) {
-      DCFApi.createDCFFilename(this._pictureStorage, 'image',
+      dcf.createDCFFilename(this._pictureStorage, 'image',
                                function(path, name) {
         var addreq = this._pictureStorage.addNamed(blob, path + name);
         addreq.onsuccess = function(e) {
@@ -928,7 +898,7 @@ define(function(require){
       return true;
     },
 
-    prepareTakePicture: function camera_takePicture() {
+    prepareTakePicture: function() {
       this.disableButtons();
 
       if (this._callAutoFocus) {
@@ -939,7 +909,7 @@ define(function(require){
       }
     },
 
-    autoFocusDone: function camera_autoFocusDone(success) {
+    autoFocusDone: function(success) {
       if (!success) {
         this.enableButtons();
         this.focusRing.setAttribute('data-state', 'fail');
@@ -950,22 +920,28 @@ define(function(require){
       this.takePicture();
     },
 
-    takePicture: function camera_takePicture() {
+    takePicture: function() {
       this._config.rotation = window.orientation.get();
       this._cameraObj.pictureSize = this._pictureSize;
       this._config.dateTime = Date.now() / 1000;
-      // We do not attach our current position to the exif of photos
-      // that are taken via an activity as that leaks position information
+
+      // We do not attach our current
+      // position to the exif of photos
+      // that are taken via an activity.
+      //
+      // As it leaks position information
       // to other apps without permission
       if (this._position && !this._pendingPick) {
         this._config.position = this._position;
       }
-      this._cameraObj
-        .takePicture(this._config, this.takePictureSuccess.bind(this),
-                     this.takePictureError);
+
+      this._cameraObj.takePicture(
+        this._config,
+        this.takePictureSuccess.bind(this),
+        this.takePictureError);
     },
 
-    showOverlay: function camera_showOverlay(id) {
+    showOverlay: function(id) {
       this._currentOverlay = id;
 
       if (id === null) {
@@ -1055,47 +1031,72 @@ define(function(require){
       var pictureSizes = camera.capabilities.pictureSizes;
 
       if (this._pendingPick && this._pendingPick.source.data.maxFileSizeBytes) {
-        // we use worse case of all compression method: gif, jpg, png
+
+        // We use worse case of all
+        // compression method: gif, jpg, png
         targetFileSize = this._pendingPick.source.data.maxFileSizeBytes;
       }
       if (this._pendingPick && this._pendingPick.source.data.width &&
           this._pendingPick.source.data.height) {
-        // if we have pendingPick with width and height, set it as target size.
-        targetSize = {'width': this._pendingPick.source.data.width,
-                      'height': this._pendingPick.source.data.height};
+
+        // if we have pendingPick
+        // with width and height,
+        // set it as target size.
+        targetSize = {
+          width: this._pendingPick.source.data.width,
+          height: this._pendingPick.source.data.height
+        };
       }
 
-      // CONFIG_MAX_IMAGE_PIXEL_SIZE is maximum image resolution for still photos
-      // taken with camera. It's from config.js which is generated in build time,
-      // 5 megapixels by default (see build/application-data.js). It should be
-      // synced with Gallery app and update carefully.
+      // CONFIG_MAX_IMAGE_PIXEL_SIZE is
+      // maximum image resolution for still
+      // photos taken with camera.
+      //
+      // It's from config.js which is
+      // generatedin build time, 5 megapixels
+      // by default (see build/application-data.js).
+      // It should be synced with Gallery app
+      // and update carefully.
       var maxRes = CONFIG_MAX_IMAGE_PIXEL_SIZE;
       var size = pictureSizes.reduce(function(acc, size) {
         var mp = size.width * size.height;
-        // we don't need the resolution larger than maxRes
+
+        // we don't need the
+        // resolution larger
+        // than maxRes
         if (mp > maxRes) {
           return acc;
         }
-        // We assume the relationship between MP to file size is linear.
-        // This may be inaccurate on all cases.
+
+        // We assume the relationship
+        // between MP to file size is
+        // linear. This may be
+        // inaccurate on all cases.
         var estimatedFileSize = mp * ESTIMATED_JPEG_FILE_SIZE / maxRes;
         if (targetFileSize > 0 && estimatedFileSize > targetFileSize) {
           return acc;
         }
 
         if (targetSize) {
-          // find a resolution both width and height are large than pick size
+
+          // find a resolution both width
+          // and height are large than pick size
           if (size.width < targetSize.width || size.height < targetSize.height) {
             return acc;
           }
+
           // it's first pictureSize.
           if (!acc.width || acc.height) {
             return size;
           }
-          // find large enough but as small as possible.
+
+          // find large enough but
+          // as small as possible.
           return (mp < acc.width * acc.height) ? size : acc;
         } else {
-          // no target size, find as large as possible.
+
+          // no target size, find
+          // as large as possible.
           return (mp > acc.width * acc.height && mp <= maxRes) ? size : acc;
         }
       }, {width: 0, height: 0});
@@ -1107,8 +1108,9 @@ define(function(require){
       }
     },
 
-    pickVideoProfile: function camera_pickVideoProfile(profiles) {
-      var profileName, matchedProfileName;
+    pickVideoProfile: function(profiles) {
+      var matchedProfileName;
+      var profileName;
 
       if (this.preferredRecordingSizes) {
         for (var i = 0; i < this.preferredRecordingSizes.length; i++) {
@@ -1164,8 +1166,9 @@ define(function(require){
     },
 
     release: function(callback) {
-      if (!this._cameraObj)
+      if (!this._cameraObj) {
         return;
+      }
 
       this._cameraObj.release(function cameraReleased() {
         Camera._cameraObj = null;
@@ -1193,7 +1196,7 @@ define(function(require){
         }
       }.bind(this));
     }
-  };
+  });
 
   return Camera;
 
