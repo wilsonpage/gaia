@@ -8,7 +8,7 @@
 
     <link rel="stylesheet" type="text/css" href="style/app.css" />
     <link rel="stylesheet" type="text/css" href="style/viewfinder.css" />
-    <link rel="stylesheet" type="text/css" href="style/focus-ring.css" />
+    <link rel="stylesheet" type="text/css" href="style/focusring.css" />
     <link rel="stylesheet" type="text/css" href="style/controls.css" />
     <link rel="stylesheet" type="text/css" href="style/overlay.css" />
     <link rel="stylesheet" type="text/css" href="style/hud.css" />
@@ -42,16 +42,15 @@
     <script defer src="js/main.js"></script>
   </head>
   <body class="filmstriphidden">
-    <div id="focus-ring" class="focus-ring"></div>
-    <video id="viewfinder" class="viewfinder" autoplay></video>
+    <video class="viewfinder js-viewfinder" autoplay></video>
 
-    <div id="controls" class="controls">
-      <a id="switch-button" class="switch-button hidden" name="Switch source" disabled="disabled"><span class="rotates"></span></a>
-      <a id="capture-button" class="capture-button" name="Capture" disabled="disabled"><span class="rotates"></span></a>
-      <div id="misc-button" class="misc-button">
-        <a id="gallery-button" class="gallery-button hidden" name="View Gallery"><span class="rotates"></span></a>
-        <a id="cancel-pick" class="cancel-pick hidden"><span></span></a>
-        <span id="video-timer" class="video-timer">00:00</span>
+    <div class="controls js-controls">
+      <a class="switch-button js-switch" name="switch"><span class="rotates"></span></a>
+      <a class="capture-button js-capture" name="capture"><span class="rotates"></span></a>
+      <div class="misc-button">
+        <a class="gallery-button js-gallery" name="gallery"><span class="rotates"></span></a>
+        <a class="cancel-pick js-cancel-pick" name="cancel"><span></span></a>
+        <span class="video-timer js-video-timer">00:00</span>
       </div>
     </div>
 

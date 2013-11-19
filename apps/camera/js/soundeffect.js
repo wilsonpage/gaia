@@ -70,4 +70,4 @@ define(function() {
     playRecordingStartSound: playRecordingStartSound,
     playRecordingEndSound: playRecordingEndSound
   };
-})();
+});

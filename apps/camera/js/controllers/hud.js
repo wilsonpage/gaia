@@ -2,17 +2,17 @@
 define(function(require) {
   'use strict';
 
-  var broadcast = require('broadcast');
   var camera = require('camera');
 
-  return function(hud, viewfinder) {
+  return function(hud, viewfinder, controls) {
 
     // Event wiring
     hud.on('flashToggle', onFlashToggle);
     hud.on('cameraToggle', onCameraToggle);
-    broadcast.on('cameraConfigured', onCameraConfigured);
-    broadcast.on('cameraToggleStart', hud.disableButtons.bind(hud));
-    broadcast.on('cameraToggleEnd', hud.enableButtons.bind(hud));
+    camera.on('configured', onCameraConfigured);
+    camera.on('previewResumed', hud.enableButtons);
+    camera.on('preparingToTakePicture', hud.disableButtons);
+    camera.state.on('change:recording', onRecordingChange);
 
     function onCameraConfigured() {
       var hasFrontCamera = camera.hasFrontCamera();
@@ -20,7 +20,6 @@ define(function(require) {
 
       hud.showCameraToggleButton(hasFrontCamera);
       hud.setFlashMode(flashMode);
-      console.log('onCameraConfigured', flashMode);
     }
 
     function onFlashToggle() {
@@ -29,12 +28,27 @@ define(function(require) {
     }
 
     function onCameraToggle() {
+      controls.disableButtons();
+
+      hud
+        .disableButtons()
+        .highlightCameraButton(true);
+
       viewfinder.fadeOut(function() {
         camera.toggleCamera();
         camera.loadStreamInto(viewfinder.el, function() {
           viewfinder.fadeIn();
+          controls.enableButtons();
+
+          hud
+            .enableButtons()
+            .highlightCameraButton(false);
         });
       });
+    }
+
+    function onRecordingChange(e) {
+      hud.toggleDisableButtons(e.value);
     }
   };
 });

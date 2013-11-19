@@ -3,16 +3,16 @@
 define(function(require) {
   'use strict';
 
-  var evt = require('libs/evt');
   var HudView = require('views/hud');
-  var cameraState = require('models/state');
   var ViewfinderView = require('views/viewfinder');
   var ControlsView = require('views/controls');
   var filmstrip = require('views/filmstrip');
+  var FocusRing = require('views/focusring');
   var soundEffect = require('soundeffect');
   var lockscreen = require('lockscreen');
   var broadcast = require('broadcast');
   var find = require('utils/find');
+  var bind = require('utils/bind');
   var camera = require('camera');
   var dcf = require('dcf');
 
@@ -22,70 +22,74 @@ define(function(require) {
     viewfinder: require('controllers/viewfinder')
   };
 
-  var AppController = function() {
+  return function() {
+    var body = document.body;
 
     // View Instances
     var hud = new HudView();
-    var controls = new ControlsView(find('#controls'));
-    var viewfinder = new ViewfinderView(find('#viewfinder'));
+    var controls = new ControlsView(find('.js-controls'));
+    var viewfinder = new ViewfinderView(find('.js-viewfinder'));
+    var focusRing = new FocusRing();
 
     // Wire Up Views
-    controllers.hud(hud, viewfinder);
+    controllers.hud(hud, viewfinder, controls);
     controllers.controls(controls, viewfinder);
     controllers.viewfinder(viewfinder, filmstrip);
 
     // Inject stuff into Dom
-    document.body.appendChild(hud.el);
+    hud.appendTo(body);
+    focusRing.appendTo(body);
 
     /**
      * Misc Crap
      */
 
+    var focusTimeout;
+    camera.state.on('change:focusState', function(value) {
+      focusRing.setState(value);
+      clearTimeout(focusTimeout);
+
+      if (value === 'fail') {
+        focusTimeout = setTimeout(function() {
+          focusRing.setState(null);
+        }, 1000);
+      }
+    });
+
+    if (!navigator.mozCameras) {
+      // TODO: Need to clarify what we
+      // should do in this condition.
+    }
+
     // This needs to be global so that
-    // the filmstrip module can see it.
+    // the filmstrip.js can see it.
     window.ViewfinderView = viewfinder;
 
     PerformanceTestingHelper.dispatch('initialising-camera-preview');
 
-    // The activity may have defined a captureMode, otherwise
-    // be default we use the camera
-    if (camera._captureMode === null) {
-      camera.setCaptureMode(CAMERA_MODE_TYPE.CAMERA);
-    }
+    // Set the initial capture
+    // mode (defaults to 'camera').
+    camera.setCaptureMode(camera._captureMode || CAMERA_MODE_TYPE.CAMERA);
 
+    // Prevent the phone
+    // from going to sleep.
     lockscreen.disableTimeout();
+
+    // Load the stream
     setupCamera();
 
     // This must be tidied, but the
     // important thing is it's out
     // of camera.js
     window.LazyL10n.get(function() {
+      var onStorageChange = camera.deviceStorageChangeHandler.bind(camera);
+      var onStorageSettingPress = camera.storageSettingPressed.bind(camera);
+      var onCancelPick = camera.cancelPick.bind(camera);
 
-      if (!camera._pendingPick) {
-        cameraState.set({
-          modeButtonHidden: false,
-          galleryButtonHidden: false
-        });
-      }
+      bind(camera.overlayCloseButton, 'click', onCancelPick);
+      bind(camera.storageSettingButton, 'click', onStorageSettingPress);
 
-      camera.enableButtons();
       camera.checkStorageSpace();
-
-      camera.overlayCloseButton
-        .addEventListener('click', camera.cancelPick.bind(camera));
-      camera.storageSettingButton
-        .addEventListener('click', camera.storageSettingPressed.bind(camera));
-
-      if (!navigator.mozCameras) {
-        cameraState.set('captureButtonEnabled', false);
-        return;
-      }
-
-      if (camera._secureMode) {
-        cameraState.set('galleryButtonEnabled', false);
-      }
-
-      soundEffect.init();
 
       if ('mozSettings' in navigator) {
         camera.getPreferredSizes();
@@ -94,20 +98,16 @@ define(function(require) {
       camera._storageState = STORAGE_STATE_TYPE.INIT;
       camera._pictureStorage = navigator.getDeviceStorage('pictures');
       camera._videoStorage = navigator.getDeviceStorage('videos'),
-
-      camera._pictureStorage
-        .addEventListener('change', camera.deviceStorageChangeHandler.bind(camera));
-
-      camera.previewEnabled();
-
-      cameraState.set('initialized', true);
+      camera._pictureStorage.addEventListener('change', onStorageChange);
 
       dcf.init();
+      soundEffect.init();
+
       PerformanceTestingHelper.dispatch('startup-path-done');
     });
 
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('beforeunload', onBeforeUnload);
+    bind(document, 'visibilitychange', onVisibilityChange);
+    bind(window, 'beforeunload', onBeforeUnload);
 
     /**
      * Manages switching to
@@ -125,14 +125,12 @@ define(function(require) {
       window.clearTimeout(camera._timeoutId);
       delete camera._timeoutId;
       viewfinder.setPreviewStream(null);
-      console.log('beforeunload');
     }
 
     function setupCamera() {
       camera.loadStreamInto(viewfinder.el, onStreamLoaded);
 
       function onStreamLoaded(stream) {
-        camera.enableButtons();
         PerformanceTestingHelper.dispatch('camera-preview-loaded');
         if (!camera._pendingPick) {
           setTimeout(camera.initPositionUpdate.bind(camera), PROMPT_DELAY);
@@ -141,20 +139,18 @@ define(function(require) {
     }
 
     function teardownCamera() {
-      camera.turnOffFlash();
-      camera.cancelPick();
+      var recording = camera.state.get('recording');
+
       camera.cancelPositionUpdate();
+      camera.cancelPick();
 
       try {
-        var recording = cameraState.get('recording');
         if (recording) {
           camera.stopRecording();
         }
 
-        camera.hideFocusRing();
-        camera.disableButtons();
         viewfinder.stopPreview();
-        cameraState.set('previewActive', false);
+        camera.state.set('previewActive', false);
         viewfinder.setPreviewStream(null);
       } catch (ex) {
         console.error('error while stopping preview', ex.message);
@@ -182,10 +178,4 @@ define(function(require) {
       lockscreen.disableTimeout();
     });
   };
-
-  AppController.prototype = evt.mix({
-    views: null
-  });
-
-  return AppController;
 });

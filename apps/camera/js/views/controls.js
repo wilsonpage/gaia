@@ -1,4 +1,3 @@
-/*global define*/
 
 define(function(require) {
   'use strict';
@@ -6,119 +5,50 @@ define(function(require) {
   var View = require('view');
   var bind = require('utils/bind');
   var find = require('utils/find');
-  var camera = require('camera');
-
-  var setBooleanAttribute = function(el, attribute, value) {
-    if (value) {
-      el.setAttribute(attribute, attribute);
-    }
-
-    else {
-      el.removeAttribute(attribute);
-    }
-  };
-
-  var setBooleanClass = function(el, className, value) {
-    if (value) {
-      el.classList.add(className);
-    }
-
-    else {
-      el.classList.remove(className);
-    }
-  };
 
   return View.extend({
+    buttonsDisabledClass: 'buttons-disabled',
     initialize: function() {
 
+      // Bind Context
+      this.enableButtons = this.enableButtons.bind(this);
+      this.disableButtons = this.disableButtons.bind(this);
+      this.onButtonClick = this.onButtonClick.bind(this);
+
       // Find elements
-      this.els.modeButton = find('#switch-button', this.el);
-      this.els.captureButton = find('#capture-button', this.el);
-      this.els.galleryButton = find('#gallery-button', this.el);
-      this.els.cancelPickButton = find('#cancel-pick', this.el);
+      this.els.switchButton = find('.js-switch', this.el);
+      this.els.captureButton = find('.js-capture', this.el);
+      this.els.galleryButton = find('.js-gallery', this.el);
+      this.els.cancelPickButton = find('.js-cancel-pick', this.el);
+      this.els.timer = find('.js-video-timer', this.el);
 
       // Bind events
-      bind(this.els.modeButton, 'click', this.modeButtonHandler, this);
-      bind(this.els.captureButton, 'click', this.captureButtonHandler);
-      bind(this.els.galleryButton, 'click', this.galleryButtonHandler);
-      bind(this.els.cancelPickButton, 'click', this.cancelPickButtonHandler);
+      bind(this.els.switchButton, 'click', this.onButtonClick);
+      bind(this.els.captureButton, 'click', this.onButtonClick);
+      bind(this.els.galleryButton, 'click', this.onButtonClick);
+      bind(this.els.cancelPickButton, 'click', this.onButtonClick);
     },
 
-    setRecording: function(recording) {
-      setBooleanClass(document.body, 'recording', recording);
+    set: function(key, value) {
+      this.el.setAttribute('data-' + key, value);
     },
 
-    setCaptureMode: function(mode) {
-      this.el.setAttribute('data-mode', mode);
+    enableButtons: function() {
+      this.el.classList.remove(this.buttonsDisabledClass);
     },
 
-    setModeButtonEnabled: function(enabled) {
-      setBooleanAttribute(this.els.modeButton, 'disabled', !enabled);
+    disableButtons: function() {
+      this.el.classList.add(this.buttonsDisabledClass);
     },
 
-    setCaptureButtonEnabled: function(enabled) {
-      setBooleanAttribute(this.els.captureButton, 'disabled', !enabled);
+    setVideoTimer: function(time) {
+      this.els.timer.textContent = time;
     },
 
-    setGalleryButtonEnabled: function(enabled) {
-      setBooleanAttribute(this.els.galleryButton, 'disabled', !enabled);
-    },
-
-    setCancelPickButtonEnabled: function(enabled) {
-      setBooleanAttribute(this.els.cancelPickButton, 'disabled', !enabled);
-    },
-
-    setModeButtonHidden: function(hidden) {
-      setBooleanClass(this.els.modeButton, 'hidden', hidden);
-    },
-
-    setCaptureButtonHidden: function(hidden) {
-      setBooleanClass(this.els.captureButton, 'hidden', hidden);
-    },
-
-    setGalleryButtonHidden: function(hidden) {
-      setBooleanClass(this.els.galleryButton, 'hidden', hidden);
-    },
-
-    setCancelPickButtonHidden: function(hidden) {
-      setBooleanClass(this.els.cancelPickButton, 'hidden', hidden);
-    },
-
-    modeButtonHandler: function(event) {
-      if (event.target.getAttribute('disabled')) {
-        return;
-      }
-
-      this.emit('modeButtonToggle');
-    },
-
-    captureButtonHandler: function controls_captureButtonHandler(event) {
-      if (event.target.getAttribute('disabled')) {
-        return;
-      }
-
-      camera.capture();
-    },
-
-    galleryButtonHandler: function controls_galleryButtonHandler(event) {
-      // Can't launch the gallery if the lockscreen is locked.
-      // The button shouldn't even be visible in this case, but
-      // let's be really sure here.
-      if (camera._secureMode) {
-        return;
-      }
-
-      // Launch the gallery with an activity
-      var a = new MozActivity({
-        name: 'browse',
-        data: {
-          type: 'photos'
-        }
-      });
-    },
-
-    cancelPickButtonHandler: function controls_cancelPickButtonHandler(event) {
-      camera.cancelPick();
+    onButtonClick: function(event) {
+      var el  = event.currentTarget;
+      var name = el.getAttribute('name');
+      this.emit('click:' + name);
     }
   });
 });
