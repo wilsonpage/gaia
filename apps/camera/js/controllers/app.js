@@ -18,7 +18,6 @@ define(function(require) {
   var soundEffect = require('soundeffect');
   var lockscreen = require('lockscreen');
   var broadcast = require('broadcast');
-  var find = require('utils/find');
   var bind = require('utils/bind');
   var camera = require('camera');
   var dcf = require('dcf');
@@ -45,8 +44,8 @@ define(function(require) {
 
     // View Instances
     var hud = new HudView();
-    var controls = new ControlsView(find('.js-controls'));
-    var viewfinder = new ViewfinderView(find('.js-viewfinder'));
+    var controls = new ControlsView();
+    var viewfinder = new ViewfinderView();
     var focusRing = new FocusRing();
 
     // Wire Up Views
@@ -56,7 +55,9 @@ define(function(require) {
 
     // Inject stuff into Dom
     hud.appendTo(body);
+    controls.appendTo(body);
     focusRing.appendTo(body);
+    viewfinder.appendTo(body);
 
     /**
      * Misc Crap
