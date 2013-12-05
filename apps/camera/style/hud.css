@@ -92,14 +92,23 @@ body:not(.filmstriphidden) .hud {
 /** Flash Button
  ---------------------------------------------------------*/
 
+/**
+ * 1. Required to position the flash text.
+ */
+
 .toggle-flash {
-  position: relative;
-  opacity: 1;
+  position: relative; /* 1 */
+  visibility: hidden;
+  opacity: 0;
   transition: opacity 300ms;
 }
 
-.toggle-flash[data-mode=none] {
-  opacity: 0;
+.toggle-flash[data-mode=on],
+.toggle-flash[data-mode=off],
+.toggle-flash[data-mode=auto],
+.toggle-flash[data-mode=torch] {
+  visibility: visible;
+  opacity: 1;
 }
 
 .toggle-flash[data-mode=on] {
