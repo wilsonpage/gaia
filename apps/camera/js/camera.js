@@ -1,4 +1,5 @@
 define(function(require, exports, module){
+/*global CONFIG_MAX_IMAGE_PIXEL_SIZE*/
 /*jshint laxbreak:true*/
 
 'use strict';
@@ -10,7 +11,6 @@ define(function(require, exports, module){
 var Model = require('model');
 var constants = require('constants');
 var soundEffect = require('soundeffect');
-var padLeft = require('utils/padleft');
 var broadcast = require('broadcast');
 var evt = require('libs/evt');
 var dcf = require('dcf');
@@ -56,8 +56,7 @@ function Camera() {
     previewActive: false
   });
 
-  this._videoTimer = null;
-  this._videoStart = null;
+  this.videoTimer = null;
 
   // file path relative
   // to video root directory
@@ -110,18 +109,15 @@ function Camera() {
     current: null
   };
 
-
   this.fileFormat = 'jpeg';
   this.preferredRecordingSizes = null;
-
-  this._watchId = null;
-  this._position = null;
 
   this._pendingPick = null;
   this._savedMedia = null;
 
   // Bind context
   this.storageCheck = this.storageCheck.bind(this);
+  this.updateVideoElapsed = this.updateVideoElapsed.bind(this);
   this.onStorageChange = this.onStorageChange.bind(this);
 
   // Whenever the camera is
@@ -140,18 +136,42 @@ proto.configureStorage = function() {
   this._pictureStorage.addEventListener('change', this.onStorageChange);
 };
 
+/**
+ * Returns the current
+ * capture mode.
+ *
+ * @return {String} 'camera'|'video'
+ */
 proto.getMode = function() {
   return this.state.get('mode');
-},
+};
 
+/**
+ * States if the camera is
+ * in 'camera' capture mode.
+ *
+ * @return {Boolean}
+ */
 proto.isCameraMode = function() {
   return this.getMode() === CAMERA;
 };
 
+/**
+ * States if the camera is
+ * in 'video' capture mode.
+ *
+ * @return {Boolean}
+ */
 proto.isVideoMode = function() {
   return this.getMode() === VIDEO;
 };
 
+/**
+ * Toggles between 'camera'
+ * and 'video' capture modes.
+ *
+ * @return {String}
+ */
 proto.toggleMode = function() {
   var newMode = this.isCameraMode()
     ? VIDEO
@@ -159,19 +179,41 @@ proto.toggleMode = function() {
 
   this.setCaptureMode(newMode);
   this.configureFlashModes(this.flash.all);
+  return newMode;
 },
 
+/**
+ * Sets the capture mode.
+ *
+ * @param {String} mode
+ * @returns {String}
+ */
 proto.setCaptureMode = function(mode) {
   this.state.set('mode', mode);
-  this.emit('captureModeChange', mode);
   return mode;
 };
 
+/**
+ * Toggles the camera number
+ * between back (0) and front(1).
+ *
+ * @return {Number}
+ */
 proto.toggleCamera = function() {
   var cameraNumber = 1 - this.state.get('cameraNumber');
   this.state.set('cameraNumber', cameraNumber);
-},
+  return cameraNumber;
+};
 
+/**
+ * Cycles through flash
+ * modes available for the
+ * current camera (0/1) and
+ * capture mode ('camera'/'video')
+ * combination.
+ *
+ * @return {String}
+ */
 proto.toggleFlash = function() {
   var available = this.flash.available;
   var current = this.flash.current;
@@ -181,31 +223,70 @@ proto.toggleFlash = function() {
 
   this.setFlashMode(next);
   return name;
-},
+};
 
+/**
+ * Gets the name of the
+ * current flash mode.
+ *
+ * @return {String}
+ */
 proto.getFlashMode = function() {
   var index = this.flash.current;
   return this.flash.available[index];
-},
+};
 
+/**
+ * Sets the current flash mode,
+ * both on the Camera instance
+ * and on the cameraObj hardware.
+ *
+ * @param {Number} index
+ */
 proto.setFlashMode = function(index) {
   var name = this.flash.available[index];
   this._cameraObj.flashMode = name;
   this.flash.current = index;
-},
+};
 
-proto.capture = function() {
+/**
+ * States if the current
+ * device has a front camera.
+ *
+ * @return {Boolean}
+ */
+proto.hasFrontCamera = function() {
+  return this.numCameras > 1;
+};
+
+/**
+ * Takes a photo, or begins/ends
+ * a video capture session.
+ *
+ * Options:
+ *
+ *   - `position` {Object} - geolocation to store in EXIF
+ *
+ * @param  {Object} options
+ * @api public
+ */
+proto.capture = function(options) {
+  var self = this;
 
   // Camera
   if (this.isCameraMode()) {
-    this.prepareTakePicture();
-    return;
+    this.prepareTakePicture(function() {
+      self.takePicture(options);
+    });
   }
 
-  // Video
-  if (this.state.get('recording')) {
+  // Video (stop)
+  else if (this.state.get('recording')) {
     this.stopRecording();
-  } else {
+  }
+
+  // Video (start)
+  else {
     this.startRecording();
   }
 },
@@ -322,32 +403,35 @@ proto.startRecording = function() {
   }
 },
 
+/**
+ * Sets a start time and begins
+ * updating the elapsed time
+ * every second.
+ *
+ * @api private
+ */
 proto.startRecordingTimer = function() {
-  var updateVideoTimer = this.updateVideoTimer.bind(this);
+  this.state.set('videoStart', new Date().getTime());
+  this.videoTimer = setInterval(this.updateVideoElapsed, 1000);
+  this.updateVideoElapsed();
+};
 
-  // Store a timestamp for when
-  // the video started recording
-  this._videoStart = new Date().getTime();
-
-  // Keep a reference to the timer
-  this._videoTimer = setInterval(updateVideoTimer, 1000);
-
-  // Run it once before the
-  // first setInterval fires.
-  updateVideoTimer();
-},
-
-proto.updateVideoTimer = function() {
-  var timestamp = new Date().getTime();
-  var ms = timestamp - this._videoStart;
-  var secs = Math.round(ms / 1000);
-  var formatted = this.formatTimer(secs);
-
-  // Fire an event so that
-  // our views can listen
-  // and visualise the event.
-  this.emit('videoTimeUpdate', formatted);
-},
+/**
+ * Calculates the elapse time
+ * and updateds the 'videoElapsed'
+ * value.
+ *
+ * We listen for the 'change:'
+ * event emitted elsewhere to
+ * update the UI accordingly.
+ *
+ * @api private
+ */
+proto.updateVideoElapsed = function() {
+  var now = new Date().getTime();
+  var start = this.state.get('videoStart');
+  this.state.set('videoElapsed', (now - start));
+};
 
 proto.stopRecording = function() {
   var videoStorage = this._videoStorage;
@@ -356,7 +440,7 @@ proto.stopRecording = function() {
 
   this._cameraObj.stopRecording();
   this.state.set('recording', false);
-  clearInterval(this._videoTimer);
+  clearInterval(this.videoTimer);
 
   // play camcorder shutter
   // sound while stop recording.
@@ -413,7 +497,7 @@ proto.stopRecording = function() {
       });
     }
   }
-},
+};
 
 /**
  * Given the filename of a newly
@@ -503,19 +587,6 @@ proto.saveVideoPosterImage = function(filename, callback) {
   function onError() {
     console.warn('saveVideoPosterImage:', filename);
   }
-};
-
-proto.formatTimer = function(time) {
-  var minutes = Math.floor(time / 60);
-  var seconds = Math.round(time % 60);
-  if (minutes < 60) {
-    return padLeft(minutes, 2) + ':' + padLeft(seconds, 2);
-  } else {
-    var hours = Math.floor(minutes / 60);
-    minutes = Math.round(minutes % 60);
-    return hours + ':' + padLeft(minutes, 2) + ':' + padLeft(seconds, 2);
-  }
-  return '';
 };
 
 /**
@@ -642,10 +713,6 @@ proto.recordingStateChanged = function(msg) {
     alert(navigator.mozL10n.get(alertText));
     this.sizeLimitAlertActive = false;
   }
-};
-
-proto.hasFrontCamera = function() {
-  return this.numCameras > 1;
 };
 
 proto.configureFlashModes = function(allModes) {
@@ -889,7 +956,9 @@ proto.setStorageState = function(value) {
   this.state.set('storage', value);
 };
 
-proto.prepareTakePicture = function() {
+proto.prepareTakePicture = function(done) {
+  var self = this;
+
   this.emit('preparingToTakePicture');
 
   if (this._autoFocusSupport[FOCUS_MODE_TYPE.MANUALLY_TRIGGERED]) {
@@ -898,6 +967,12 @@ proto.prepareTakePicture = function() {
   } else {
     this.takePicture();
   }
+
+  this.state.set('focusState', 'focusing');
+  this._cameraObj.autoFocus(function() {
+    self.autoFocusDone();
+    done();
+  });
 };
 
 proto.autoFocusDone = function(success) {
@@ -918,24 +993,22 @@ proto.autoFocusDone = function(success) {
   this.takePicture();
 };
 
-proto.takePicture = function() {
+proto.takePicture = function(options) {
+  var position = options && options.position;
   var config = {
     rotation: window.orientation.get(),
     dateTime: Date.now() / 1000,
     fileFormat: this.fileFormat
   };
 
-  this._cameraObj.pictureSize = this._pictureSize;
-
-  // We do not attach our current
-  // position to the exif of photos
-  // that are taken via an activity.
-  //
-  // As it leaks position information
-  // to other apps without permission
-  if (this._position && !this._pendingPick) {
-    config.position = this._position;
+  // If position has been
+  // passed in, add it to
+  // the config object.
+  if (position) {
+    config.position = position;
   }
+
+  this._cameraObj.pictureSize = this._pictureSize;
 
   this._cameraObj.takePicture(
     config,
@@ -1111,29 +1184,15 @@ proto.pickVideoProfile = function(profiles) {
   };
 };
 
-proto.initPositionUpdate = function() {
-  if (this._watchId || document.hidden) {
-    return;
-  }
-  this._watchId = navigator.geolocation
-    .watchPosition(this.updatePosition.bind(this));
-};
+/**
+ * Releases the camera hardware.
+ *
+ * @param  {Function} done
+ * @api public
+ */
+proto.release = function(done) {
+  done = done || function(){};
 
-proto.updatePosition = function(position) {
-  this._position = {
-    timestamp: position.timestamp,
-    altitude: position.coords.altitude,
-    latitude: position.coords.latitude,
-    longitude: position.coords.longitude
-  };
-};
-
-proto.cancelPositionUpdate = function() {
-  navigator.geolocation.clearWatch(this._watchId);
-  this._watchId = null;
-};
-
-proto.release = function(callback) {
   if (!this._cameraObj) {
     return;
   }
@@ -1143,34 +1202,30 @@ proto.release = function(callback) {
 
   function onSuccess() {
     self._cameraObj = null;
-    if (callback) {
-      callback();
-    }
+    done();
   }
 
   function onError() {
     console.warn('Camera: failed to release hardware?');
-    if (callback) {
-      callback();
-    }
+    done();
   }
 };
 
-proto.getPreferredSizes = function(callback) {
+proto.getPreferredSizes = function(done) {
+  done = done || function(){};
+
   var key = 'camera.recording.preferredSizes';
   var self = this;
 
-  if (this.preferredRecordingSizes && callback) {
-    callback();
+  if (this.preferredRecordingSizes) {
+    done(this.preferredRecordingSizes);
     return;
   }
 
   var req = navigator.mozSettings.createLock().get(key);
   req.onsuccess = function() {
     self.preferredRecordingSizes = req.result[key] || [];
-    if (callback) {
-      callback();
-    }
+    done(self.preferredRecordingSizes);
   };
 };
 
