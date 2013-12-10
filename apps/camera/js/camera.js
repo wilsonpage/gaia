@@ -259,30 +259,6 @@ proto.hasFrontCamera = function() {
   return this.numCameras > 1;
 };
 
-proto.setFocusMode = function() {
-  this._callAutoFocus = false;
-
-  // Camera
-  if (this.isCameraMode()) {
-    if (this._autoFocusSupport[FOCUS_MODE_TYPE.CONTINUOUS_CAMERA]) {
-      this._cameraObj.focusMode = FOCUS_MODE_TYPE.CONTINUOUS_CAMERA;
-      return;
-    }
-
-  // Video
-  } else {
-    if (this._autoFocusSupport[FOCUS_MODE_TYPE.CONTINUOUS_VIDEO]) {
-      this._cameraObj.focusMode = FOCUS_MODE_TYPE.CONTINUOUS_VIDEO;
-      return;
-    }
-  }
-
-  if (this._autoFocusSupport[FOCUS_MODE_TYPE.MANUALLY_TRIGGERED]) {
-    this._cameraObj.focusMode = FOCUS_MODE_TYPE.MANUALLY_TRIGGERED;
-    this._callAutoFocus = true;
-  }
-},
-
 /**
  * Takes a photo, or begins/ends
  * a video capture session.
@@ -694,7 +670,6 @@ proto.loadCameraPreview = function(cameraNumber, callback) {
     });
 
     self.enableCameraFeatures(camera.capabilities);
-    self.setFocusMode();
 
     camera.onShutter = function() {
       soundEffect.playCameraShutterSound();
@@ -800,7 +775,10 @@ proto.takePictureError = function() {
 proto.takePictureSuccess = function(blob) {
   var self = this;
 
-  this.state.set('manuallyFocused', false);
+  this.state.set({
+    manuallyFocused: false,
+    focusState: 'none'
+  });
 
   if (this._pendingPick) {
 
@@ -983,9 +961,11 @@ proto.prepareTakePicture = function(done) {
 
   this.emit('preparingToTakePicture');
 
-  if (!this._callAutoFocus) {
-    done();
-    return;
+  if (this._autoFocusSupport[FOCUS_MODE_TYPE.MANUALLY_TRIGGERED]) {
+    this.state.set('focusState', 'focusing');
+    this._cameraObj.autoFocus(this.autoFocusDone.bind(this));
+  } else {
+    this.takePicture();
   }
 
   this.state.set('focusState', 'focusing');
@@ -996,13 +976,21 @@ proto.prepareTakePicture = function(done) {
 };
 
 proto.autoFocusDone = function(success) {
+  var state = this.state;
+
   if (!success) {
-    this.state.set('focusState', 'fail');
+    state.set('focusState', 'fail');
     this.emit('focusFailed');
+
+    window.setTimeout(function() {
+      state.set('focusState', 'none');
+    }, 1000);
+
     return;
   }
 
-  this.state.set('focusState', 'focused');
+  state.set('focusState', 'focused');
+  this.takePicture();
 };
 
 proto.takePicture = function(options) {
