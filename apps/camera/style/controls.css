@@ -38,7 +38,7 @@
   pointer-events: none;
   background-position: center center;
   background-repeat: no-repeat;
-  background-size: 3rem;
+  background-size: 100%;
   display: block;
   position: absolute;
   top: 50%;
@@ -116,7 +116,7 @@
  ---------------------------------------------------------*/
 
 .cancel-pick span {
-  background-image: url(images/actionicon_cancel.png);
+  background-image: url(images/cancel.png);
 }
 
 /** Video Timer
