@@ -44,6 +44,7 @@ proto.bindEvents = function() {
   camera.on('focusFailed', controls.enableButtons);
   camera.on('previewResumed', controls.enableButtons);
   camera.on('preparingToTakePicture', controls.disableButtons);
+  camera.on('shutter', this.onCameraShutter);
   camera.state.on('change:videoElapsed', this.onVideoTimeUpdate);
   camera.state.on('change:recording', this.onRecordingChange);
   camera.state.on('change:mode', this.onCameraModeChange);
@@ -70,18 +71,18 @@ proto.setup = function() {
   var showGallery = !activity.active
     && !this.app.inSecureMode;
 
-  controls.set('mode', mode);
-  controls.set('gallery', showGallery);
-  controls.set('cancel', isCancellable);
-  controls.set('switchable', isSwitchable);
+  controls.data('mode', mode);
+  controls.data('gallery', showGallery);
+  controls.data('cancel', isCancellable);
+  controls.data('switchable', isSwitchable);
 };
 
 proto.onCameraModeChange = function(value) {
-  this.controls.set('mode', value);
+  this.controls.data('mode', value);
 };
 
 proto.onRecordingChange = function(value) {
-  this.controls.set('recording', value);
+  this.controls.data('recording', value);
 };
 
 proto.onVideoTimeUpdate = function(value) {
@@ -152,6 +153,10 @@ proto.onGalleryButtonClick = function() {
     name: 'browse',
     data: { type: 'photos' }
   });
+};
+
+proto.onCameraShutter = function() {
+
 };
 
 /**
