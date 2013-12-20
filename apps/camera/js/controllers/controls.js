@@ -41,16 +41,17 @@ proto.bindEvents = function() {
   var camera = this.camera;
 
   // Bind events
+  camera.on('newimage', this.onNewImage);
+  camera.on('shutter', this.onCameraShutter);
   camera.on('focusFailed', controls.enableButtons);
   camera.on('previewResumed', controls.enableButtons);
   camera.on('preparingToTakePicture', controls.disableButtons);
-  camera.on('shutter', this.onCameraShutter);
   camera.state.on('change:videoElapsed', this.onVideoTimeUpdate);
   camera.state.on('change:recording', this.onRecordingChange);
   camera.state.on('change:mode', this.onCameraModeChange);
 
   // Respond to UI events
-  controls.on('click:switch', this.onSwitchButtonClick);
+  controls.on('change:mode', this.onModeChange);
   controls.on('click:capture', this.onCaptureButtonClick);
   controls.on('click:cancel', this.onCancelButtonClick);
   controls.on('click:gallery', this.onGalleryButtonClick);
@@ -82,7 +83,7 @@ proto.onCameraModeChange = function(value) {
 };
 
 proto.onRecordingChange = function(value) {
-  this.controls.data('recording', value);
+  this.controls.data('capturing', value);
 };
 
 proto.onVideoTimeUpdate = function(value) {
@@ -97,13 +98,13 @@ proto.onVideoTimeUpdate = function(value) {
  *
  * @api private
  */
-proto.onSwitchButtonClick = function() {
+proto.onModeChange = function(mode) {
   var controls = this.controls;
   var viewfinder = this.viewfinder;
   var camera = this.camera;
 
-  camera.toggleMode();
-  controls.disableButtons();
+  controls.disable('capture');
+  camera.setCaptureMode(mode);
   viewfinder.fadeOut(onFadeOut);
 
   function onFadeOut() {
@@ -111,7 +112,7 @@ proto.onSwitchButtonClick = function() {
   }
 
   function onStreamLoaded() {
-    controls.enableButtons();
+    controls.enable('capture');
     viewfinder.fadeIn();
   }
 };
@@ -156,7 +157,7 @@ proto.onGalleryButtonClick = function() {
 };
 
 proto.onCameraShutter = function() {
-
+  this.controls.data('capturing', false);
 };
 
 /**
@@ -167,7 +168,23 @@ proto.onCameraShutter = function() {
  */
 proto.onCaptureButtonClick = function() {
   var position = this.app.geolocation.position;
-  this.camera.capture({ position: position });
+  var isRecording = this.camera.state.get('recording');
+  var isCameraMode = this.camera.isCameraMode();
+
+  if (isCameraMode) {
+    this.camera.capture({ position: position });
+    this.controls.data('capturing', true);
+  } else if (isRecording) {
+    this.controls.data('capturing', false);
+    this.camera.stopRecording();
+  } else {
+    this.controls.data('capturing', true);
+    this.camera.startRecording();
+  }
+};
+
+proto.onNewImage = function() {
+
 };
 
 });

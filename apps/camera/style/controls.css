@@ -88,6 +88,10 @@
   margin-top: -27px;
 }
 
+.capture-button[disabled] {
+  pointer-events: none;
+}
+
 /** Circle
  ---------------------------------------------------------*/
 
@@ -114,12 +118,11 @@
 
 .middle-circle {
   background-color: rgb(26,203,255);
-  transform: translateZ(1px) scale(0.57);
+  transform: scale(0.57);
   transition-property: transform;
   transition-duration: 200ms;
   transition-timing-function: ease-in;
   animation: pulse 240ms ease-out;
-  text-align: center;
 }
 
 /**
@@ -127,7 +130,7 @@
  */
 
 [data-capturing=true] .middle-circle {
-  transform: translateZ(1px) scale(1);
+  transform: scale(1);
   transition-duration: 140ms;
   animation: none;
 }
@@ -154,7 +157,7 @@
 
 .inner-circle {
   background-color: rgb(24, 189, 240);
-  transform: translateZ(1px) scale(0.29);
+  transform: scale(0.29);
   transition: opacity 200ms ease-in-out;
 }
 
@@ -181,7 +184,7 @@
  */
 
 [data-mode=video][data-capturing=true] .inner-circle {
-  transform: translateZ(1px) scale(0.57);
+  transform: scale(0.57);
   transition-duration: 220ms;
 }
 
@@ -198,8 +201,6 @@
   opacity: 0;
   border-radius: 50%;
   background: #FFF;
-  /*transition-property: opacity;*/
-  /*transition-duration: 200ms;*/
 }
 
 /**
@@ -207,7 +208,6 @@
  */
 
 [data-capturing=true] .capture-button .center {
-  /*transition-duration: 140ms;*/
   opacity: 1;
 }
 

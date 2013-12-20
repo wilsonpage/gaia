@@ -33,7 +33,7 @@ module.exports = View.extend({
 
     // Bind events
     bind(this.els.toggle, 'change', this.onModeToggle);
-    bind(this.els.capture, 'click', this.onCaptureClick);
+    bind(this.els.capture, 'click', this.onButtonClick);
     // bind(this.els.galleryButton, 'click', this.onButtonClick);
     // bind(this.els.cancelPickButton, 'click', this.onButtonClick);
   },
@@ -66,6 +66,48 @@ module.exports = View.extend({
     }
   },
 
+  /**
+   * Disable an element(s).
+   *
+   * If no element is given, all
+   * elements are disabled.
+   *
+   * @param {String|Array} names
+   * @api public
+   */
+  disable: function(names) {
+    var els = this.els;
+    names = names || Object.keys(els);
+    names = [].concat.call(names);
+    names.forEach(function(name) {
+      var el = els[name];
+      if (el) {
+        el.disabled = true;
+      }
+    });
+  },
+
+  /**
+   * Enable an element(s).
+   *
+   * If no element is given, all
+   * elements are enabled.
+   *
+   * @param {String|Array} names
+   * @api public
+   */
+  enable: function(names) {
+    var els = this.els;
+    names = names || Object.keys(els);
+    names = [].concat.call(names);
+    names.forEach(function(name) {
+      var el = els[name];
+      if (el) {
+        el.disabled = true;
+      }
+    });
+  },
+
   enableButtons: function() {
     this.el.classList.remove(this.buttonsDisabledClass);
   },
@@ -75,8 +117,8 @@ module.exports = View.extend({
   },
 
   setVideoTimer: function(ms) {
-    var formatted = formatTimer(ms);
-    this.els.timer.textContent = formatted;
+    // var formatted = formatTimer(ms);
+    // this.els.timer.textContent = formatted;
   },
 
   onButtonClick: function(event) {
@@ -88,11 +130,7 @@ module.exports = View.extend({
   onModeToggle: function(e) {
     var mode = this.els.toggle.checked ? 'video' : 'camera';
     this.data('mode', mode);
-  },
-
-  onCaptureClick: function() {
-    this.data('capturing', !this.data('capturing'));
-    //this.emit('click:capture');
+    this.emit('change:mode', mode);
   }
 });
 
