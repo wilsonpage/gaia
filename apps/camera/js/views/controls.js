@@ -25,14 +25,14 @@ module.exports = View.extend({
     this.el.innerHTML = this.template();
 
     // Find elements
-    this.els.switchButton = find('.js-switch', this.el);
+    this.els.toggle = find('.js-toggle', this.el);
     this.els.capture = find('.js-capture', this.el);
     this.els.galleryButton = find('.js-gallery', this.el);
     this.els.cancelPickButton = find('.js-cancel-pick', this.el);
     this.els.timer = find('.js-video-timer', this.el);
 
     // Bind events
-    // bind(this.els.switchButton, 'click', this.onButtonClick);
+    bind(this.els.toggle, 'change', this.onModeToggle);
     bind(this.els.capture, 'click', this.onCaptureClick);
     // bind(this.els.galleryButton, 'click', this.onButtonClick);
     // bind(this.els.cancelPickButton, 'click', this.onButtonClick);
@@ -51,7 +51,7 @@ module.exports = View.extend({
     '</div>' +
     '<div class="controls_right">' +
       '<label class="mode-toggle">' +
-        '<input type="checkbox"/>' +
+        '<input class="js-toggle" type="checkbox"/>' +
         '<div class="mode-toggle_switch"></div>' +
       '</label>' +
     '</div>';
@@ -83,6 +83,11 @@ module.exports = View.extend({
     var el  = event.currentTarget;
     var name = el.getAttribute('name');
     this.emit('click:' + name);
+  },
+
+  onModeToggle: function(e) {
+    var mode = this.els.toggle.checked ? 'video' : 'camera';
+    this.data('mode', mode);
   },
 
   onCaptureClick: function() {
