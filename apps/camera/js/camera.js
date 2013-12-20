@@ -8,6 +8,9 @@ define(function(require, exports, module){
  */
 
 var createVideoPosterImage = require('lib/create-video-poster-image');
+var createThumbnailImage = require('utils/image/createthumbnail');
+var getPreviewImage = require('utils/image/getpreviewimage');
+var getMetaData = require('utils/image/getmetadata');
 var constants = require('config/camera');
 var orientation = require('orientation');
 var broadcast = require('broadcast');
@@ -486,9 +489,12 @@ proto.stopRecording = function() {
     req.onerror = onError;
 
     function onSuccess() {
-      var blob = req.result;
+      var video = {
+        blob: req.result,
+        filename: filename
+      };
 
-      createVideoPosterImage(blob, filename, function(err, data) {
+      createVideoPosterImage(video.blob, video.filename, function(err, data) {
         if (err) {
           // We need to delete all corrupted
           // video files, those of them may be
@@ -497,13 +503,21 @@ proto.stopRecording = function() {
           return;
         }
 
-        self.emit('newvideo', {
-          blob: blob,
-          filename: filename,
-          poster: data.poster,
-          width: data.width,
-          height: data.height,
-          rotation: data.rotation
+        // Bolt on some more data
+        video.poster = data.poster;
+        video.width = data.width;
+        video.height = data.height;
+        video.rotation = data.rotation;
+
+        // Finally create the thumbnail...
+        createThumbnailImage({
+          blob: video.poster.blob,
+          video: true,
+          rotation: video.rotation,
+          mirrored: false
+        }, function(thumbnail) {
+          video.thumbnail = thumbnail;
+          self.emit('newvideo', video);
         });
       });
     }
@@ -696,12 +710,25 @@ proto.takePictureError = function() {
 };
 
 proto.takePictureSuccess = function(blob) {
+  var self = this;
+
   this.state.set({
     manuallyFocused: false,
     focusState: 'none'
   });
 
-  this.emit('newimage', { blob: blob });
+  // Use the blob to create a
+  // fully populated image object
+  getMetaData(blob, function(image) {
+    image.blob = blob;
+    getPreviewImage(image, function(err, preview) {
+      image.preview = preview;
+      createThumbnailImage(image, function(thumbnail) {
+        image.thumbnail = thumbnail;
+        self.emit('newimage', image);
+      });
+    });
+  });
 };
 
 proto._addPictureToStorage = function(blob, callback) {

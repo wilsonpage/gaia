@@ -14,8 +14,6 @@ var THUMBNAIL_HEIGHT = 46 * DEVICE_RATIO;
  * Exports
  */
 
-
-//
 /**
  * Create a thumbnail size canvas,
  * copy the <img> or <video> into it
@@ -24,15 +22,23 @@ var THUMBNAIL_HEIGHT = 46 * DEVICE_RATIO;
  * thumbnail image as a blob and pass
  * it to the callback.
  *
- * @param  {[type]}   imageBlob [description]
- * @param  {[type]}   video     [description]
- * @param  {[type]}   rotation  [description]
- * @param  {[type]}   mirrored  [description]
- * @param  {Function} callback  [description]
- * @return {[type]}             [description]
+ * Options:
+ *
+ *   - {Blob} `blob`
+ *   - {Boolean} `video`
+ *   - {Boolean} `mirrored`
+ *   - {Number} `rotation`
+
+ * @param  {Object}   options
+ * @param  {Function} callback
+ * @api public
  */
-module.exports = function(imageBlob, video, rotation, mirrored, callback) {
+module.exports = function(options, callback) {
   var offscreenImage = new Image();
+  var rotation = options.rotation;
+  var mirrored = options.mirrored;
+  var imageBlob = options.blob;
+  var video = options.video;
 
   offscreenImage.src = URL.createObjectURL(imageBlob);
   offscreenImage.onload = function() {

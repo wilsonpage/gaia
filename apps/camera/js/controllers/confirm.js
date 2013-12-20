@@ -7,7 +7,6 @@ define(function(require, exports, module) {
  * Module Dependencies
  */
 
-var prepareBlob = require('utils/prepare-preview-blob');
 var ConfirmView = require('views/confirm');
 var bindAll = require('utils/bindAll');
 
@@ -38,7 +37,6 @@ function ConfirmController(options) {
   // Allow these dependencies
   // to be injected if need be.
   this.ConfirmView = options.ConfirmView || ConfirmView;
-  this.prepareBlob = options.prepareBlob || prepareBlob;
 
   // Bind methods
   bindAll(this);
@@ -79,10 +77,9 @@ proto.onNewImage = function(data) {
     .render()
     .appendTo(this.container)
     .setupMediaFrame()
+    .showImage(data)
     .on('click:select', onSelectClick)
     .on('click:retake', onRetakeClick);
-
-  this.prepareBlob(blob, confirm.showImage);
 
   function onSelectClick() {
     camera._resizeBlobIfNeeded(blob, function(resized) {

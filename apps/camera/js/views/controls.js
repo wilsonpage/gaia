@@ -8,7 +8,13 @@ define(function(require, exports, module) {
 var View = require('vendor/view');
 var bind = require('utils/bind');
 var find = require('utils/find');
-var formatTimer = require('utils/formattimer');
+// var formatTimer = require('utils/formattimer');
+
+/**
+ * Locals
+ */
+
+var raf = window.requestAnimationFrame;
 
 /**
  * Exports
@@ -25,11 +31,12 @@ module.exports = View.extend({
     this.el.innerHTML = this.template();
 
     // Find elements
-    this.els.toggle = find('.js-toggle', this.el);
-    this.els.capture = find('.js-capture', this.el);
-    this.els.galleryButton = find('.js-gallery', this.el);
-    this.els.cancelPickButton = find('.js-cancel-pick', this.el);
-    this.els.timer = find('.js-video-timer', this.el);
+    this.els.toggle = this.find('.js-toggle');
+    this.els.capture = this.find('.js-capture');
+    this.els.timer = this.find('.js-video-timer');
+    this.els.thumbnail = this.find('.js-thumbnail');
+    this.els.galleryButton = this.find('.js-gallery');
+    this.els.cancelPickButton = this.find('.js-cancel-pick');
 
     // Bind events
     bind(this.els.toggle, 'change', this.onModeToggle);
@@ -39,8 +46,11 @@ module.exports = View.extend({
   },
 
   template: function() {
+    /*jshint maxlen:false*/
     return '' +
-    '<div class="controls_left"></div>' +
+    '<div class="controls_left">' +
+      '<div class="controls_thumbnail js-thumbnail"></div>' +
+    '</div>' +
     '<div class="controls_middle">' +
       '<div class="capture-button js-capture" name="capture">' +
         '<div class="circle outer-circle"></div>' +
@@ -106,6 +116,14 @@ module.exports = View.extend({
         el.disabled = true;
       }
     });
+  },
+
+  setThumbnail: function(blob) {
+    if (!this.els.image) {
+      this.els.image = new Image();
+      this.els.thumbnail.appendChild(this.els.image);
+    }
+    this.els.image.src = window.URL.createObjectURL(blob);
   },
 
   enableButtons: function() {

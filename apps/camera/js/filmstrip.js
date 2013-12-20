@@ -5,8 +5,7 @@ define(function(require, exports, module) {
    * Dependencies
    */
 
-  var createThumbnail = require('utils/createThumbnail');
-  var parseJPEGMetadata = require('jpegMetaDataParser');
+  var createThumbnail = require('utils/image/createthumbnail');
   var addPanAndZoomHandlers = require('panzoom');
   var orientation = require('orientation');
   var constants = require('config/camera');
@@ -126,21 +125,13 @@ define(function(require, exports, module) {
       ViewfinderView.el.pause();
     };
 
-    function addVideoAndShow(data) {
-      addVideo(
-        data.filename,
-        data.blob,
-        data.poster.blob,
-        data.width,
-        data.height,
-        data.rotation
-      );
-
+    function addVideoAndShow(video) {
+      addVideo(video);
       show(FILMSTRIP_DURATION);
     }
 
-    function addImageAndShow(path, blob) {
-      addImage(path, blob);
+    function addImageAndShow(image) {
+      addImage(image);
       show(FILMSTRIP_DURATION);
     }
 
@@ -301,60 +292,31 @@ define(function(require, exports, module) {
       }
     }
 
-    function addImage(filename, blob) {
-      parseJPEGMetadata(blob, function getPreviewBlob(metadata) {
-        if (!metadata.rotation) {
-          metadata.rotation = 0;
-        }
-
-        if (!metadata.mirrored) {
-          metadata.mirrored = false;
-        }
-
-        if (metadata.preview) {
-          var previewBlob = blob.slice(metadata.preview.start,
-                                       metadata.preview.end,
-                                       'image/jpeg');
-          parseJPEGMetadata(previewBlob, function(thumbnailMetadata) {
-            metadata.preview.width = thumbnailMetadata.width;
-            metadata.preview.height = thumbnailMetadata.height;
-            createThumbnail(
-              previewBlob,
-              false,
-              metadata.rotation,
-              metadata.mirrored,
-              function(thumbnail) {
-                addItem({
-                  isImage: true,
-                  filename: filename,
-                  thumbnail: thumbnail,
-                  blob: blob,
-                  width: metadata.width,
-                  height: metadata.height,
-                  preview: metadata.preview,
-                  rotation: metadata.rotation,
-                  mirrored: metadata.mirrored
-                });
-            });
-          });
-        }
-      }, function logerr(msg) { console.warn(msg); });
+    function addImage(image) {
+      addItem({
+        isImage: true,
+        filename: image.path,
+        thumbnail: image.thumbnail,
+        blob: image.blob,
+        width: image.width,
+        height: image.height,
+        preview: image.preview,
+        rotation: image.rotation,
+        mirrored: image.mirrored
+      });
     }
 
-    function addVideo(filename, blob, poster, width, height, rotation) {
-      createThumbnail(poster, true, rotation, false,
-                      function(thumbnail) {
-                        addItem({
-                          isVideo: true,
-                          filename: filename,
-                          thumbnail: thumbnail,
-                          poster: poster,
-                          blob: blob,
-                          width: width,
-                          height: height,
-                          rotation: rotation
-                        });
-                      });
+    function addVideo(video) {
+      addItem({
+        isVideo: true,
+        filename: video.filename,
+        thumbnail: video.thumbnail,
+        poster: video.poster,
+        blob: video.blob,
+        width: video.width,
+        height: video.height,
+        rotation: video.rotation
+      });
     }
 
     // Add a thumbnail to the filmstrip.

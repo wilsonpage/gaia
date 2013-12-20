@@ -42,6 +42,7 @@ proto.bindEvents = function() {
 
   // Bind events
   camera.on('newimage', this.onNewImage);
+  camera.on('newvideo', this.onNewImage);
   camera.on('shutter', this.onCameraShutter);
   camera.on('focusFailed', controls.enableButtons);
   camera.on('previewResumed', controls.enableButtons);
@@ -183,8 +184,8 @@ proto.onCaptureButtonClick = function() {
   }
 };
 
-proto.onNewImage = function() {
-
+proto.onNewImage = function(image) {
+  this.controls.setThumbnail(image.thumbnail);
 };
 
 });

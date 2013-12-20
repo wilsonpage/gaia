@@ -116,15 +116,14 @@ proto.teardownCamera = function() {
   }
 };
 
-proto.onNewImage = function(data) {
+proto.onNewImage = function(image) {
   var filmstrip = this.filmstrip;
   var camera = this.camera;
-  var blob = data.blob;
 
-  // In either case, save
-  // the photo to device storage
-  camera._addPictureToStorage(blob, function(name, path) {
-    filmstrip.addImageAndShow(path, blob);
+  // Save the photo to device storage
+  camera._addPictureToStorage(image.blob, function(path) {
+    image.path = path;
+    filmstrip.addImageAndShow(image);
     camera.storageCheck();
   });
 
@@ -133,11 +132,11 @@ proto.onNewImage = function(data) {
   }
 };
 
-proto.onNewVideo = function(data) {
+proto.onNewVideo = function(video) {
   var camera = this.camera;
-  var poster = data.poster;
+  var poster = video.poster;
   camera._pictureStorage.addNamed(poster.blob, poster.filename);
-  this.filmstrip.addVideoAndShow(data);
+  this.filmstrip.addVideoAndShow(video);
 };
 
 /**
