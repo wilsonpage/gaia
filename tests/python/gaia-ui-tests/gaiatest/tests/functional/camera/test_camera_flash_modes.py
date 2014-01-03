@@ -19,53 +19,46 @@ class TestCameraFlashModes(GaiaTestCase):
         self.camera = Camera(self.marionette)
         self.camera.launch()
 
-        # Toggle flash mode to "on"
-        self.camera.tap_toggle_flash_button()
-        self.assertEqual(self.camera.current_flash_mode, 'on')
+        if self.camera.is_toggle_flash_button_visible:
 
-        # Take a photo
-        self.camera.take_photo()
+            # Toggle flash mode to "on"
+            self.camera.tap_toggle_flash_button()
+            self.assertEqual(self.camera.current_flash_mode, 'on')
 
-        # Check that Filmstrip is visible
-        self.assertTrue(self.camera.is_filmstrip_visible)
+            # Take a photo
+            self.camera.take_photo()
 
-        # Check that picture saved to SD card
-        pictures_after_test = self.data_layer.picture_files
-        self.assertEqual(len(pictures_after_test), 1)
+            # Check that Filmstrip is visible
+            self.assertTrue(self.camera.is_filmstrip_visible)
 
-        # Wait for Filmstrip to auto hide
-        self.camera.wait_for_filmstrip_not_visible()
+            # Check that picture saved to SD card
+            self.wait_for_condition(lambda m: len(self.data_layer.picture_files) == 1)
+            self.assertEqual(len(self.data_layer.picture_files), 1)
 
-        # Toggle flash mode to "off"
-        self.camera.tap_toggle_flash_button()
-        self.assertEqual(self.camera.current_flash_mode, 'off')
+            # Toggle flash mode to "off"
+            self.camera.tap_toggle_flash_button()
+            self.assertEqual(self.camera.current_flash_mode, 'off')
 
-        # Take a photo
-        self.camera.take_photo()
+            # Take a photo
+            self.camera.take_photo()
 
-        # Check that Filmstrip is visible
-        self.assertTrue(self.camera.is_filmstrip_visible)
+            # Check that Filmstrip is visible
+            self.assertTrue(self.camera.is_filmstrip_visible)
 
-        # Check that picture saved to SD card
-        pictures_after_test = self.data_layer.picture_files
-        self.assertEqual(len(pictures_after_test), 2)
+            # Check that picture saved to SD card
+            self.wait_for_condition(lambda m: len(self.data_layer.picture_files) == 2)
+            self.assertEqual(len(self.data_layer.picture_files), 2)
 
-        # Wait for Filmstrip to auto hide
-        self.camera.wait_for_filmstrip_not_visible()
+            # Toggle flash mode to "auto"
+            self.camera.tap_toggle_flash_button()
+            self.assertEqual(self.camera.current_flash_mode, 'auto')
 
-        # Toggle flash mode to "auto"
-        self.camera.tap_toggle_flash_button()
-        self.assertEqual(self.camera.current_flash_mode, 'auto')
+            # Take a photo
+            self.camera.take_photo()
 
-        # Take a photo
-        self.camera.take_photo()
+            # Check that Filmstrip is visible
+            self.assertTrue(self.camera.is_filmstrip_visible)
 
-        # Check that Filmstrip is visible
-        self.assertTrue(self.camera.is_filmstrip_visible)
-
-        # Check that picture saved to SD card
-        pictures_after_test = self.data_layer.picture_files
-        self.assertEqual(len(pictures_after_test), 3)
-
-        # Wait for Filmstrip to auto hide
-        self.camera.wait_for_filmstrip_not_visible()
+            # Check that picture saved to SD card
+            self.wait_for_condition(lambda m: len(self.data_layer.picture_files) == 3)
+            self.assertEqual(len(self.data_layer.picture_files), 3)
