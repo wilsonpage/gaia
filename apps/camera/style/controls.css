@@ -159,7 +159,7 @@
  * @photo
  */
 
-.controls[mode=photo] .capture-button span:before {
+.controls[mode=picture] .capture-button span:before {
   content: "\e60f";
   /*background-image: url(images/camera.png);*/
 }
@@ -220,7 +220,7 @@
  * @photo
  */
 
-.controls[mode=photo] .switch-button span:before {
+.controls[mode=picture] .switch-button span:before {
   content: "\e602";
   /*background-image: url(images/video.png);*/
 }
