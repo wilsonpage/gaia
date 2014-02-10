@@ -85,12 +85,7 @@ ViewfinderController.prototype.loadStream = function() {
 
   debug('load stream mode: %s', mode);
   this.viewfinder.updatePreview(previewSize, isFrontCamera);
-  this.camera.loadStreamInto(options, onStreamLoaded);
-
-  function onStreamLoaded(stream) {
-    debug('stream loaded %d ms after dom began loading',
-    Date.now() - window.performance.timing.domLoading);
-  }
+  this.camera.loadStreamInto(this.viewfinder.el);
 };
 
 /**
