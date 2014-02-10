@@ -60,55 +60,47 @@ function Camera(options) {
   debug('initialized');
 }
 
-Camera.prototype.loadStreamInto = function(options, done) {
+Camera.prototype.loadStreamInto = function(videoElement) {
   debug('loading stream into element');
 
-  var streamConfig = options.streamConfig;
-  var mozCamera = this.mozCamera;
-  var el = options.el;
-  var self = this;
+  if (!this.mozCamera) {
+    return;
+  }
 
-  this.emit('streamloading');
-  this.getStream(streamConfig, function(stream) {
-    el.mozSrcObject = stream;
-    debug('got stream');
-
-    // Wait till we know the stream is flowing.
-    mozCamera.onPreviewStateChange = function(state) {
-      if (state === 'started') {
-        mozCamera.onPreviewStateChange = null;
-        self.emit('loaded');
-        self.emit('ready');
-        debug('stream loaded');
-        if (done) { done(); }
-      }
-    };
-  });
-};
-
-Camera.prototype.getStream = function(config, done) {
-  var mozCamera = this.mozCamera;
-  var mode = this.get('mode');
-  debug('get stream: %s', mode);
-  switch (mode) {
-    case 'photo': mozCamera.getPreviewStream(config, done); break;
-    case 'video': mozCamera.getPreviewStreamVideoMode(config, done); break;
+  // Plugs Video Stream in Video Element
+  if (videoElement &&
+      videoElement.mozSrcObject !== this.mozCamera) {
+    videoElement.mozSrcObject = this.mozCamera;
+    videoElement.play();
+    debug('stream loaded');
+    this.emit('loaded');
+    this.emit('ready');
   }
 };
 
 Camera.prototype.load = function() {
   var selectedCamera = this.get('selectedCamera');
-  var config = { camera: selectedCamera };
-  var self = this;
-
+  var loadingNewCamera = selectedCamera !== this.lastLoadedCamera;
   this.emit('loading');
-  this.release(function() {
-    navigator.mozCameras.getCamera(config, self.configureCamera);
-    debug('load camera: %s', selectedCamera);
-  });
+  if(this.mozCamera && !loadingNewCamera) {
+    this.configure(this.mozCamera);
+  } else {
+    this.lastLoadedCamera = selectedCamera;
+    if (this.mozCamera) {
+      this.release(this.requestCamera);
+    } else {
+      this.requestCamera();
+    }
+  }
+  debug('load camera: %s', selectedCamera);
 };
 
-Camera.prototype.configureCamera = function(mozCamera) {
+Camera.prototype.requestCamera = function() {
+  var selectedCamera = this.get('selectedCamera');
+  navigator.mozCameras.getCamera(selectedCamera, {}, this.configure);
+};
+
+Camera.prototype.configure = function(mozCamera) {
   debug('configure');
 
   var capabilities = mozCamera.capabilities;
@@ -275,6 +267,9 @@ Camera.prototype.capture = function(options) {
 
 Camera.prototype.takePicture = function(options) {
   var self = this;
+  var rotation = orientation.get();
+  var selectedCamera = this.get('selectedCamera');
+  rotation = selectedCamera === 'front'? -rotation: rotation;
 
   this.emit('busy');
   this.prepareTakePicture(onReady);
@@ -282,8 +277,9 @@ Camera.prototype.takePicture = function(options) {
   function onReady() {
     var position = options && options.position;
     var config = {
-      orientation: orientation.get(),
+      rotation: rotation,
       dateTime: Date.now() / 1000,
+      pictureSize: self.pictureSize,
       fileFormat: 'jpeg'
     };
 
@@ -294,7 +290,6 @@ Camera.prototype.takePicture = function(options) {
       config.position = position;
     }
 
-    self.mozCamera.pictureSize = self.pictureSize;
     self.mozCamera.takePicture(config, onSuccess, onError);
   }
 
@@ -352,6 +347,10 @@ Camera.prototype.startRecording = function(options) {
   var storage = this.tmpVideo.storage;
   var mozCamera = this.mozCamera;
   var self = this;
+  var rotation = orientation.get();
+  var selectedCamera = this.get('selectedCamera');
+  rotation = selectedCamera === 'front'? -rotation: rotation;
+
 
   // First check if there is enough free space
   this.getTmpStorageSpace(gotStorageSpace);
