@@ -133,9 +133,10 @@ Camera.prototype.configureCamera = function(mozCamera) {
 
 Camera.prototype.formatCapabilities = function(capabilities) {
   capabilities = mixin({}, capabilities);
-  var pictureSizes = capabilities.pictureSizes;
   return mixin(capabilities, {
-    pictureSizes: this.formatPictureSizes(pictureSizes)
+    pictureSizes: this.formatPictureSizes(capabilities.pictureSizes),
+    pictureFlashModes: capabilities.flashModes,
+    videoFlashModes: capabilities.flashModes
   });
 };
 
