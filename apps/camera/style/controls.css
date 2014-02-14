@@ -79,13 +79,6 @@
   display: none;
 }
 
-/** Gallery Button Icon
- ---------------------------------------------------------*/
-
-.gallery-button span {
-  /*background-image: url(images/grid.png);*/
-}
-
 /** Cancel Pick Button
  ---------------------------------------------------------*/
 
@@ -131,11 +124,13 @@
  ---------------------------------------------------------*/
 
 /**
- * 1. Vertically center icon
+ * 1. Vertically center content
  */
 
 .capture-button {
-  line-height: 10.4rem; /* 1 */
+  display: flex;
+  align-items: center; /* 1 */
+  justify-content: center; /* 1 */
   background-color: #03a2b4;
   border-radius: 10rem;
   left: 33%;
@@ -161,7 +156,6 @@
 
 .controls[mode=photo] .capture-button span:before {
   content: "\e60f";
-  /*background-image: url(images/camera.png);*/
 }
 
 /**
@@ -170,15 +164,19 @@
 
 .controls[mode=video] .capture-button span:before {
   content: "\e602";
-  /*background-image: url(images/video.png);*/
 }
 
 /**
- * @capturing
+ * @recording
  */
 
-.controls[recording=true] .capture-button span {
-  background-image: url(images/stop.png);
+.controls[recording=true] .capture-button span:before {
+  content: "";
+  display: block;
+  width: 2rem;
+  height: 2rem;
+  background: #fff;
+  border-radius: 3px;
 }
 
 /** Switch Button
