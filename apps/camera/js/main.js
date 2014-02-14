@@ -64,13 +64,12 @@ require(['config/require', 'config'], function() {
     });
 
     debug('created app');
-setTimeout(function() {
+
     // Async jobs to be
     // done before boot...
     var done = allDone()(app.boot);
     app.activity.check(done());
     app.settings.fetch(done());
-  }, 3000);
   });
 
   require(['boot']);
