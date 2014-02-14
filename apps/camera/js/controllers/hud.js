@@ -72,24 +72,25 @@ HudController.prototype.onCameraClick = function() {
 };
 
 HudController.prototype.onFlashClick = function() {
-  this.app.settings.get('flashModes').next();
+  this.flashSetting.next();
 };
 
 HudController.prototype.configureFlash = function() {
   var newFlash = this.getFlashSetting();
-  var oldFlash = this.flash;
+  var oldFlash = this.flashSetting;
 
   // Remove old listners and add new
   if (oldFlash) { oldFlash.off('change', this.updateFlash); }
-  newFlash.on('change', this.updateFlash);
+  if (newFlash) { newFlash.on('change', this.updateFlash); }
 
   // Store new flash and update UI
-  this.flash = newFlash;
+  this.flashSetting = newFlash;
   this.updateFlash();
 };
 
 HudController.prototype.updateFlash = function() {
-  var selected = this.flash.selected();
+  var setting = this.flashSetting;
+  var selected = setting && setting.selected();
   var hasFlash = !!selected;
   this.hud.enable('flash', hasFlash);
   this.hud.setFlashMode(selected);
@@ -105,6 +106,7 @@ HudController.prototype.disableButtons = function() {
 
 HudController.prototype.getFlashSetting = function() {
   var mode = this.app.settings.mode.value();
+  mode = mode === 'photo' ? 'picture' : mode;
   return this.app.settings.get(mode + 'FlashModes');
 };
 

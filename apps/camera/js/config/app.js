@@ -118,7 +118,7 @@ module.exports = {
     options: [
       {
         key: 'torch',
-        title: 'Auto',
+        title: 'On',
         icon: 'icon-flash-on'
       },
       {

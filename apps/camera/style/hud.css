@@ -29,6 +29,7 @@ body:not(.filmstriphidden) .hud {
   display: inline-block;
   height: 5rem;
   width: 5rem;
+  font-size: 2rem;
   line-height: 5rem;
   text-align: center;
   border-radius: 50%;
@@ -67,8 +68,6 @@ body:not(.filmstriphidden) .hud {
  ---------------------------------------------------------*/
 
 .toggle-camera {
-  background-image: url(images/toggle-camera.png);
-  background-size: 100%;
   transition: opacity 300ms;
   opacity: 0;
 }
@@ -139,22 +138,6 @@ body:not(.filmstriphidden) .hud {
   opacity: 0;
 }
 
-.hud[flash-mode=on] .toggle-flash {
-  background-image: url(images/flash_on.png);
-}
-
-.hud[flash-mode=off] .toggle-flash {
-  background-image: url(images/flash_off.png);
-}
-
-.hud[flash-mode=auto] .toggle-flash {
-  background-image: url(images/flash_auto.png);
-}
-
-.hud[flash-mode=torch] .toggle-flash {
-  background-image: url(images/flash_on.png);
-}
-
 /** Flash Text
  ---------------------------------------------------------*/
 
@@ -210,9 +193,7 @@ body:not(.filmstriphidden) .hud {
 /** Settings
  ---------------------------------------------------------*/
 
-.hud_settings {
-  font-size: 2rem;
-}
+.hud_settings {}
 
 /**
  * @settings-disabled

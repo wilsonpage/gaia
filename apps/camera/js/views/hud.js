@@ -36,7 +36,6 @@ module.exports = View.extend({
     if (!mode) { return; }
     var classes = this.els.flash.classList;
     var oldIcon = this.flashMode && this.flashMode.icon;
-    this.set('flash-mode', mode.key);
     this.els.flashModeName.textContent = mode.title;
     if (oldIcon) { classes.remove(oldIcon); }
     classes.add(mode.icon);
@@ -96,8 +95,8 @@ module.exports = View.extend({
   },
 
   template: function() {
-    return '<a class="toggle-camera rotates test-toggle-camera ' +
-    'js-camera"></a>' +
+    return '<a class="toggle-camera rotates icon-toggle-camera ' +
+    'test-toggle-camera js-camera"></a>' +
     '<a class="toggle-flash rotates test-toggle-flash js-flash">' +
       '<div class="flash-text test-flash-text">' +
         'Flash: <span class="flash-name js-flash-name"></span>' +
