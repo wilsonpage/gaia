@@ -33,8 +33,14 @@ module.exports = View.extend({
   },
 
   setFlashMode: function(mode) {
-    this.set('flash-mode', mode);
-    this.els.flashModeName.textContent = mode;
+    if (!mode) { return; }
+    var classes = this.els.flash.classList;
+    var oldIcon = this.flashMode && this.flashMode.icon;
+    this.set('flash-mode', mode.key);
+    this.els.flashModeName.textContent = mode.title;
+    if (oldIcon) { classes.remove(oldIcon); }
+    classes.add(mode.icon);
+    this.flashMode = mode;
   },
 
   /**
