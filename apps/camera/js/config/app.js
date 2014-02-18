@@ -3,6 +3,7 @@ define(function(require, exports, module) {
 
 module.exports = {
   showSettings: false,
+  newControls: true,
   mode: {
     title: 'Mode',
     options: [
