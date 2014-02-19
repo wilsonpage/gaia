@@ -2,7 +2,7 @@ define(function(require, exports, module) {
 'use strict';
 
 module.exports = {
-  showSettings: false,
+  showSettings: true,
   mode: {
     title: 'Mode',
     options: [
@@ -36,28 +36,7 @@ module.exports = {
   pictureSizes: {
     title: 'Camera Resolution',
     icon: 'icon-picture-size',
-    options: [
-      {
-        key: '5mp',
-        title: '5MP'
-      },
-      {
-        key: '3mp',
-        title: '3MP'
-      },
-      {
-        key: '1mp',
-        title: '1MP'
-      },
-      {
-        key: 'vga',
-        title: 'VGA'
-      },
-      {
-        key: 'qvga',
-        title: 'QVGA'
-      }
-    ],
+    options: [],
     persistent: true,
     menu: 4
   },

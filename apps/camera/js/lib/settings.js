@@ -72,6 +72,13 @@ Settings.prototype.toggler = function(key) {
   return (function() { this.get(key).next(); }).bind(this);
 };
 
+Settings.prototype.options = function(options) {
+  this.forEach(function(setting) {
+    var match = setting.key in options;
+    if (match) { setting.configureOptions(options[setting.key]); }
+  });
+};
+
 Settings.prototype.fetch = function() {
   this.items.forEach(function(setting) { setting.fetch(); });
 };

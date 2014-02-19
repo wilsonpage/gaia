@@ -28,24 +28,30 @@ function Setting(data) {
   this.configure(data);
   this.reset(data, { silent: true });
   this.updateSelected({ silent: true });
+  this.anyOptions = data.options.length === 0;
   this.select = this.select.bind(this);
 }
 
 Setting.prototype.configure = function(data) {
-  data.optionsHashAll = this.optionsToHash(data.options);
-  data.optionsHash = data.optionsHashAll;
+  this.options = { filtered: {} };
+  this.options.normalize = this.normalizeOptions;
+  this.options.config = this.optionsToHash(data.options);
+  this.options.filtered.hash = this.options.config;
+  this.options.filtered.list = data.options;
   if (data.persistent) { this.on('change:selected', this.save); }
 };
 
 Setting.prototype.optionsToHash = function(options) {
   var hash = {};
+
   options.forEach(function(option, index) {
     var key = option.key;
     option.index = index;
     option.value = 'value' in option ? option.value : key;
     hash[key] = option;
   });
-  return hash;
+
+  return options.length && hash;
 };
 
 /**
@@ -58,7 +64,7 @@ Setting.prototype.optionsToHash = function(options) {
  */
 Setting.prototype.selected = function(key) {
   var selected = this.get('selected');
-  var hash = this.get('optionsHash');
+  var hash = this.options.filtered.hash;
   var option = hash[selected];
   return key ? option && option[key] : option;
 };
@@ -79,8 +85,8 @@ Setting.prototype.selected = function(key) {
  */
 Setting.prototype.select = function(key, options) {
   var isIndex = typeof key === 'number';
-  var hash = this.get('optionsHash');
-  var list = this.get('options');
+  var hash = this.options.filtered.hash;
+  var list = this.options.filtered.list;
   var selected = isIndex ? list[key] : hash[key];
 
   // If there are no options, exit
@@ -102,52 +108,61 @@ Setting.prototype.select = function(key, options) {
  * other parts of the app, can make alterations
  * to options before the UI is updated.
  *
- * @param  {Array} values
+ * @param  {Array} options
  */
-Setting.prototype.configureOptions = function(values) {
-  var optionsHashAll = this.get('optionsHashAll');
+Setting.prototype.configureOptions = function(options) {
+  var filtered = this.options.filtered;
   var silent = { silent: true };
-  var optionsHash = {};
-  var options = [];
 
-  each(values || [], function(value, key) {
-    var valueIsObject = typeof value === 'object';
-    var option;
+  // Reset
+  filtered.hash = {};
+  filtered.list = [];
 
-    // Convert string values to objects
-    // to make deriving the option key
-    // a little simple in the next step.
-    value = typeof value === 'string' ? { key: value } : value;
-
-    // Keys can be derived in several ways:
-    // 1. Array: [{ key: 'key1' }, { key: 'key2' }]
-    // 2. Object: { key1: {}, key2: {} }
-    key = value.key || key;
-    option = optionsHashAll[key];
-
-    // Skip if no matching
-    // option is found.
-    if (!option) { return; }
-
-    // If the value is an object, we store it.
-    // But as we accept options objects as values
-    // we don't want to set the value of the option to itself
-    if (valueIsObject && value !== option) {
-      option.value = value;
-    }
-
-    optionsHash[key] = option;
-    options.push(option);
-  });
-
-  options.sort(function(a, b) { return a.index - b.index; });
+  // Normalize the list passed in.
+  options = this.options.normalize(options || []);
+  options.filter(this.isValidOption, this).forEach(this.addOption, this);
+  filtered.list.sort(function(a, b) { return a.index - b.index; });
 
   // Store the revised options
-  this.set('options', options, silent);
-  this.set('optionsHash', optionsHash, silent);
-
+  this.set('options', filtered.list, silent);
   this.updateSelected(silent);
-  debug('options configured for %s', this.key, options);
+
+  debug('options configured key: %s', this.key);
+};
+
+Setting.prototype.normalizeOptions = function(options) {
+  var isArray = Array.isArray(options);
+  var normalized = [];
+
+  each(options, function(value, key) {
+    var option = {};
+    option.key = isArray ? (value.key || value) : key;
+    option.value = value.value || value;
+    normalized.push(option);
+  });
+
+  return normalized;
+};
+
+Setting.prototype.isValidOption = function(option) {
+  return this.options.config[option.key] || !this.options.config;
+};
+
+Setting.prototype.addOption = function(option) {
+  var config = this.options.config;
+  var key = option.key;
+
+  // If an option by this key is found in
+  // the config, we use that, else, we take
+  // what was given to us.
+  var chosen = config && config[key] || option;
+
+  // If the passed option has a value, take it.
+  if ('value' in option) { chosen.value = option.value; }
+
+  // Update our lists.
+  this.options.filtered.hash[key] = chosen;
+  this.options.filtered.list.push(chosen);
 };
 
 // NOTE: This could prove to be problematic as
