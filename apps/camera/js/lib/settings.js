@@ -75,7 +75,7 @@ Settings.prototype.toggler = function(key) {
 Settings.prototype.options = function(options) {
   this.forEach(function(setting) {
     var match = setting.key in options;
-    if (match) { setting.configureOptions(options[setting.key]); }
+    if (match) { setting.resetOptions(options[setting.key]); }
   });
 };
 

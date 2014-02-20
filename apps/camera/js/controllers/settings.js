@@ -32,7 +32,7 @@ function SettingsController(app) {
 }
 
 SettingsController.prototype.configure = function() {
-  this.settings.pictureSizes.options.normalize = normalizers.pictureSizes;
+  this.settings.pictureSizes.format = formatters.pictureSizes;
 };
 
 /**
@@ -120,11 +120,10 @@ SettingsController.prototype.toggleSettings = function() {
  */
 SettingsController.prototype.onCapabilitiesChange = function(capabilities) {
   this.app.settings.options(capabilities);
-  this.app.emit('settings:beforeconfigured');
   this.app.emit('settings:configured');
 };
 
-var normalizers = {
+var formatters = {
   pictureSizes: function(options) {
     var getMP = function(w, h) { return Math.round((w * h) / 1000000); };
     var normalized = [];
@@ -136,9 +135,11 @@ var normalizers = {
       option.aspect = getAspect(w, h);
       option.mp = getMP(w, h);
 
+      var mp = option.mp ? option.mp + 'MP ' : '';
+
       normalized.push({
         key: w + 'x' + h,
-        title: option.mp + 'MP ' + option.aspect + ' ' + w + 'x' + h,
+        title: mp + w + 'x' + h + ' ' + option.aspect,
         value: option
       });
     });

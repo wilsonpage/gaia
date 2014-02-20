@@ -33,8 +33,12 @@ function ViewfinderController(app) {
 
 ViewfinderController.prototype.bindEvents = function() {
   this.viewfinder.on('click', this.onViewfinderClick);
-  this.app.on('camera:configured', this.loadStream);
-  this.app.on('settings:configured', this.configureCamera);
+  this.app.on('settings:configured', this.onSettingsConfigured);
+};
+
+ViewfinderController.prototype.onSettingsConfigured = function() {
+  this.configureCamera();
+  this.loadStream();
 };
 
 ViewfinderController.prototype.configureCamera = function() {
