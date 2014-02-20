@@ -36,7 +36,12 @@ module.exports = {
   pictureSizes: {
     title: 'Camera Resolution',
     icon: 'icon-picture-size',
-    options: [],
+    maxBytes: 5242880,
+    options: [
+      // {
+      //   key: '2048x1536'
+      // }
+    ],
     persistent: true,
     menu: 4
   },

@@ -50,7 +50,7 @@ ViewfinderController.prototype.configureCamera = function() {
 
 ViewfinderController.prototype.loadStream = function() {
   var isFrontCamera = this.app.settings.cameras.value() === 'front';
-  debug('load stream mode: %s', this.app.settings.value('mode'));
+  debug('load stream mode: %s', this.app.settings.mode.value());
   this.viewfinder.updatePreview(this.camera.previewSize, isFrontCamera);
   this.camera.loadStreamInto(this.viewfinder.el);
   this.viewfinder.fadeIn();

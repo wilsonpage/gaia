@@ -90,8 +90,8 @@ CameraController.prototype.configure = function() {
   // This is set so that the video recorder can
   // automatically stop when video size limit is reached.
   camera.set('maxFileSizeBytes', activity.data.maxFileSizeBytes);
-  camera.set('selectedCamera', settings.value('cameras'));
-  camera.setMode(settings.value('mode'));
+  camera.set('selectedCamera', settings.cameras.value());
+  camera.setMode(settings.mode.value());
   debug('configured');
 };
 

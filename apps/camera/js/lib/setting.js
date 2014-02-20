@@ -30,9 +30,10 @@ function Setting(data) {
   this.reset(data, { silent: true });
   this.updateSelected({ silent: true });
   this.anyOptions = data.options.length === 0;
-  this.select = this.select.bind(this);
   this.isValidOption = this.isValidOption.bind(this);
   this.inflateOption = this.inflateOption.bind(this);
+  this.select = this.select.bind(this);
+  this.next = this.next.bind(this);
 }
 
 Setting.prototype.configure = function(data) {
@@ -56,7 +57,7 @@ Setting.prototype.optionsToHash = function(options) {
   options.forEach(function(option, index) {
     var key = option.key;
     option.index = index;
-    option.value = 'value' in option ? option.value : key;
+    // option.value = 'value' in option ? option.value : key;
     hash[key] = option;
   });
 
@@ -181,7 +182,8 @@ Setting.prototype.next = function() {
  * @return {*}
  */
 Setting.prototype.value = function() {
-  return this.selected('value');
+  var selected = this.selected();
+  return selected.value || selected.key;
 };
 
 /**
