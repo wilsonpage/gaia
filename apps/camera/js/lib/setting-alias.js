@@ -9,6 +9,17 @@ var evt = require('vendor/evt');
 var on = evt.prototype.on;
 
 /**
+ * Locals
+ */
+
+var forwardMethods = [
+  'resetOptions',
+  'selected',
+  'value',
+  'next'
+];
+
+/**
  * Exports
  */
 
@@ -21,26 +32,21 @@ function SettingAlias(options) {
   mixin(this, options);
   this.map = this.map || {};
   this.get = this.get.bind(this);
+  forwardMethods.forEach(this.forward, this);
 }
 
-SettingAlias.prototype.value = function() {
-  var setting = this.get();
-  return setting.value.apply(setting, arguments);
-};
-
-SettingAlias.prototype.next = function() {
-  var setting = this.get();
-  return setting.next.apply(setting, arguments);
-};
-
-SettingAlias.prototype.selected = function() {
-  var setting = this.get();
-  return setting.selected.apply(setting, arguments);
-};
-
-SettingAlias.prototype.resetOptions = function() {
-  var setting = this.get();
-  return setting.resetOptions.apply(setting, arguments);
+/**
+ * Attaches a method that forwards
+ * the call onto the current
+ * matching setting.
+ *
+ * @param  {String} method
+ */
+SettingAlias.prototype.forward = function(method) {
+  this[method] = function() {
+    var setting = this.get();
+    return setting[method].apply(setting, arguments);
+  };
 };
 
 SettingAlias.prototype.on = function(name, fn) {
