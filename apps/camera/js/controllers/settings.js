@@ -32,8 +32,8 @@ function SettingsController(app) {
 }
 
 SettingsController.prototype.configure = function() {
-  this.settings.pictureSizes.format = formatters.pictureSizes;
-  //this.settings.pictureSizesBack.format = formatters.pictureSizes;
+  this.settings.pictureSizesFront.format = formatters.pictureSizes;
+  this.settings.pictureSizesBack.format = formatters.pictureSizes;
   this.configureAliases();
 };
 
@@ -129,43 +129,37 @@ SettingsController.prototype.onCapabilitiesChange = function(capabilities) {
   this.settings.flashModesPicture.resetOptions(capabilities.flashModes);
   this.settings.flashModesVideo.resetOptions(capabilities.flashModes);
 
-  // Just reset the current alias
-  //aliases.recorderProfiles.resetOptions(capabilities.recorderProfiles);
-  //aliases.pictureSizes.resetOptions(capabilities.pictureSizes);
+  // Only reset the current alias
+  aliases.recorderProfiles.resetOptions(capabilities.recorderProfiles);
+  aliases.pictureSizes.resetOptions(capabilities.pictureSizes);
 
   this.app.emit('settings:configured');
 };
 
 SettingsController.prototype.configureAliases = function() {
-  //this.settings.alias('recorderProfiles', aliases.recorderProfiles);
-  //this.settings.alias('pictureSizes', aliases.pictureSizes);
-
-
+  this.settings.alias('recorderProfiles', aliases.recorderProfiles);
+  this.settings.alias('pictureSizes', aliases.pictureSizes);
   this.settings.alias('flashModes', aliases.flashModes);
 };
 
 var aliases = {
   recorderProfiles: {
-    settings: [
-      'recorderProfilesBack',
-      'recorderProfilesFront'
-    ],
-    get: function() {
-      var camera = this.settings.camera.value();
-      var map = {
-        back: 'recorderProfilesBack',
-        front: 'recorderProfilesFront'
-      };
-      return this.settings[map[camera]];
-    }
-  },
-  pictureSizes: {
     map: {
       back: 'recorderProfilesBack',
       front: 'recorderProfilesFront'
     },
     get: function() {
-      var camera = this.settings.camera.value();
+      var camera = this.settings.cameras.value();
+      return this.settings[this.map[camera]];
+    }
+  },
+  pictureSizes: {
+    map: {
+      back: 'pictureSizesBack',
+      front: 'pictureSizesFront'
+    },
+    get: function() {
+      var camera = this.settings.cameras.value();
       return this.settings[this.map[camera]];
     }
   },

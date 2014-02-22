@@ -33,7 +33,7 @@ module.exports = {
     persistent: false
   },
 
-  pictureSizes: {
+  pictureSizesFront: {
     title: 'Camera Resolution',
     icon: 'icon-picture-size',
     maxBytes: 5242880,
@@ -45,19 +45,19 @@ module.exports = {
     // persistent: true
   },
 
-  // pictureSizesBack: {
-  //   title: 'Camera Resolution',
-  //   icon: 'icon-picture-size',
-  //   maxBytes: 5242880,
-  //   options: [
-  //     // {
-  //     //   key: '2048x1536'
-  //     // }
-  //   ],
-  //   // persistent: true
-  // },
+  pictureSizesBack: {
+    title: 'Camera Resolution',
+    icon: 'icon-picture-size',
+    maxBytes: 5242880,
+    options: [
+      // {
+      //   key: '2048x1536'
+      // }
+    ],
+    // persistent: true
+  },
 
-  recorderProfiles: {
+  recorderProfilesBack: {
     title: 'Video Resolution',
     icon: 'icon-video-size',
     options: [
@@ -85,33 +85,33 @@ module.exports = {
     persistent: true
   },
 
-  // recorderProfilesFront: {
-  //   title: 'Video Resolution',
-  //   icon: 'icon-video-size',
-  //   options: [
+  recorderProfilesFront: {
+    title: 'Video Resolution',
+    icon: 'icon-video-size',
+    options: [
 
-  //     // NOTE: Disabled due to Helix crashing
-  //     // when trying to record at these resolutions.
+      // NOTE: Disabled due to Helix crashing
+      // when trying to record at these resolutions.
 
-  //     // {
-  //     //   key: '720p',
-  //     //   title: '720p 1040X720'
-  //     // },
-  //     // {
-  //     //   key: '480p',
-  //     //   title: '480p 720X480'
-  //     // },
-  //     {
-  //       key: 'cif',
-  //       title: 'CIF 352X288'
-  //     },
-  //     {
-  //       key: 'qcif',
-  //       title: 'QCIF 176X144'
-  //     }
-  //   ],
-  //   persistent: true
-  // },
+      // {
+      //   key: '720p',
+      //   title: '720p 1040X720'
+      // },
+      // {
+      //   key: '480p',
+      //   title: '480p 720X480'
+      // },
+      {
+        key: 'cif',
+        title: 'CIF 352X288'
+      },
+      {
+        key: 'qcif',
+        title: 'QCIF 176X144'
+      }
+    ],
+    persistent: true
+  },
 
   flashModesPicture: {
     title: 'Picture Flash',

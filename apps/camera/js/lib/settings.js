@@ -86,10 +86,7 @@ Settings.prototype.fetch = function() {
 Settings.prototype.alias = function(key, options) {
   options.settings = this;
   options.key = key;
-
   var alias = new SettingAlias(options);
-  var self = this;
-
   this.aliases[key] = alias;
   this[key] = alias;
 };
@@ -99,13 +96,8 @@ Settings.prototype.getAlias = function(key) {
   return alias && alias.get();
 };
 
-Settings.prototype.setAlias = function(key, options) {
-
-};
-
 Settings.prototype.removeAlias = function(key) {
-  alias.destroy();
-  delete this.aliases[key];
+
 };
 
 
