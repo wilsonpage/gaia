@@ -41,7 +41,6 @@ HudController.prototype.configure = function() {
   var camerasSetting = this.app.settings.cameras;
   var hasDualCamera = camerasSetting.get('options').length > 1;
   this.hud.enable('settings', this.app.settings.showSettings.value());
-  this.hud.set('flashMode', this.app.settings.flashModes.value());
   this.hud.enable('camera', hasDualCamera);
 };
 
@@ -52,7 +51,7 @@ HudController.prototype.configure = function() {
  * @private
  */
 HudController.prototype.bindEvents = function() {
-  this.app.settings.flashModes.on('change', this.hud.setFlashMode);
+  this.app.settings.flashModes.on('change:selected', this.updateFlash);
   this.app.settings.on('change:mode', this.updateFlash);
   this.hud.on('click:settings', this.app.firer('settings:toggle'));
   this.hud.on('click:camera', this.onCameraClick);
@@ -73,11 +72,11 @@ HudController.prototype.onCameraClick = function() {
 };
 
 HudController.prototype.onFlashClick = function() {
-  this.flashSetting.next();
+  this.settings.flashModes.next();
 };
 
 HudController.prototype.updateFlash = function() {
-  var setting = this.settings.flashMode;
+  var setting = this.settings.flashModes;
   var selected = setting && setting.selected();
   var hasFlash = !!selected;
   this.hud.enable('flash', hasFlash);
