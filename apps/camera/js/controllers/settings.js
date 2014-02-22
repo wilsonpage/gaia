@@ -113,26 +113,26 @@ SettingsController.prototype.toggleSettings = function() {
  * the 'settings:configured' event as an
  * indication to update UI etc.
  *
- * We fire the 'settings:beforeconfigured'
- * event to allow other parts of the app
- * a last chance to manipulate options
- * before they are rendered to the UI.
- *
  * @param  {Object} capabilities
  */
 SettingsController.prototype.onCapabilitiesChange = function(capabilities) {
-  var aliases = this.settings.aliases;
 
+  // Update the options for any settings
+  // keys that match capabilities keys
   this.settings.options(capabilities);
 
   // Reset both picture and video flash modes
+  // as it is possible to change between the
+  // two *without* re-requesting the mozCamera.
   this.settings.flashModesPicture.resetOptions(capabilities.flashModes);
   this.settings.flashModesVideo.resetOptions(capabilities.flashModes);
 
   // Only reset the current alias
-  aliases.recorderProfiles.resetOptions(capabilities.recorderProfiles);
-  aliases.pictureSizes.resetOptions(capabilities.pictureSizes);
+  this.settings.recorderProfiles.resetOptions(capabilities.recorderProfiles);
+  this.settings.pictureSizes.resetOptions(capabilities.pictureSizes);
 
+  // Let the rest of the app
+  // know we're good to go.
   this.app.emit('settings:configured');
 };
 
@@ -142,24 +142,40 @@ SettingsController.prototype.configureAliases = function() {
   this.settings.alias('flashModes', aliases.flashModes);
 };
 
+/**
+ * Returns a list of settings
+ * based on the `settingsMenu`
+ * cofiguration.
+ *
+ * If any `conditions` are defined
+ * they must pass to be in the list.
+ *
+ * @return {Array}
+ */
 SettingsController.prototype.menuItems = function() {
   var items = this.settings.settingsMenu.get('items');
-  var settings = this.settings;
+  return items.filter(this.matchesCondition, this)
+    .map(function(item) { return this.settings[item.key]; }, this);
+};
 
-  return items.filter(function(item) {
-    return item.condition ? conditionMatches(item.condition) : true;
-  }).map(function(item) {
-    return settings[item.key];
-  });
-
-  function conditionMatches(condition) {
+/**
+ * Tests if the passed `settingsMenu`
+ * item passes any defined conditions.
+ *
+ * @param  {Object} item
+ * @return {Boolean}
+ */
+SettingsController.prototype.matchesCondition = function(item) {
+  var self = this;
+  var test = function(condition) {
     for (var key in condition) {
       var value = condition[key];
-      var setting = settings[key];
+      var setting = self.settings[key];
       if (setting.value() !== value) { return false; }
     }
     return true;
-  }
+  };
+  return !item.condition || test(item.condition);
 };
 
 
