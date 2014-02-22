@@ -42,9 +42,20 @@ module.exports = {
       //   key: '2048x1536'
       // }
     ],
-    // persistent: true,
-    menu: 4
+    // persistent: true
   },
+
+  // pictureSizesBack: {
+  //   title: 'Camera Resolution',
+  //   icon: 'icon-picture-size',
+  //   maxBytes: 5242880,
+  //   options: [
+  //     // {
+  //     //   key: '2048x1536'
+  //     // }
+  //   ],
+  //   // persistent: true
+  // },
 
   recorderProfiles: {
     title: 'Video Resolution',
@@ -71,11 +82,38 @@ module.exports = {
         title: 'QCIF 176X144'
       }
     ],
-    persistent: true,
-    menu: 4
+    persistent: true
   },
 
-  pictureFlashModes: {
+  // recorderProfilesFront: {
+  //   title: 'Video Resolution',
+  //   icon: 'icon-video-size',
+  //   options: [
+
+  //     // NOTE: Disabled due to Helix crashing
+  //     // when trying to record at these resolutions.
+
+  //     // {
+  //     //   key: '720p',
+  //     //   title: '720p 1040X720'
+  //     // },
+  //     // {
+  //     //   key: '480p',
+  //     //   title: '480p 720X480'
+  //     // },
+  //     {
+  //       key: 'cif',
+  //       title: 'CIF 352X288'
+  //     },
+  //     {
+  //       key: 'qcif',
+  //       title: 'QCIF 176X144'
+  //     }
+  //   ],
+  //   persistent: true
+  // },
+
+  flashModesPicture: {
     title: 'Picture Flash',
     options: [
       {
@@ -97,7 +135,7 @@ module.exports = {
     persistent: true
   },
 
-  videoFlashModes: {
+  flashModesVideo: {
     title: 'Video Flash',
     options: [
       {
@@ -139,8 +177,7 @@ module.exports = {
         value: 10
       }
     ],
-    persistent: false,
-    menu: 3
+    persistent: false
   },
 
   hdr: {
@@ -163,8 +200,7 @@ module.exports = {
         icon: 'O'
       }
     ],
-    persistent: true,
-    menu: 1
+    persistent: true
   },
 
   scene: {
@@ -184,8 +220,7 @@ module.exports = {
         title: 'Beauty'
       }
     ],
-    persistent: true,
-    menu: 2
+    persistent: true
   },
 
   grid: {
@@ -204,9 +239,49 @@ module.exports = {
       }
     ],
     selected: 'off',
-    persistent: true,
-    menu: 3
-  }
+    persistent: true
+  },
+
+  // settingsMenu: {
+  //   items: [
+  //     {
+  //       key: 'hdr'
+  //     },
+  //     {
+  //       key: 'scene'
+  //     },
+  //     {
+  //       key: 'grid'
+  //     },
+  //     {
+  //       key: 'selfTimer'
+  //     },
+  //     {
+  //       key: 'pictureSizesBack',
+  //       condition: { 'camera': 'back' }
+  //     },
+  //     {
+  //       key: 'pictureSizesFront',
+  //       condition: { 'camera': 'front' }
+  //     },
+  //     {
+  //       key: 'recorderProfilesBack',
+  //       condition: { 'camera': 'back' }
+  //     },
+  //     {
+  //       key: 'recorderProfilesFront',
+  //       condition: { 'camera': 'front' }
+  //     },
+  //     {
+  //       key: 'flashModesPicture',
+  //       condition: { 'mode': 'picture' }
+  //     },
+  //     {
+  //       key: 'flashModesVideo',
+  //       condition: { 'mode': 'video' }
+  //     }
+  //   ]
+  // }
 };
 
 });

@@ -26,7 +26,7 @@ function CameraController(app) {
   this.app = app;
   this.camera = app.camera;
   this.storage = app.storage;
-  this.storage = app.storage;
+  this.settings = app.settings;
   this.activity = app.activity;
   this.filmstrip = app.filmstrip;
   this.viewfinder = app.views.viewfinder;
@@ -87,7 +87,7 @@ CameraController.prototype.bindEvents = function() {
   app.on('capture', this.onCapture);
   app.on('blur', this.teardownCamera);
   app.on('settings:configured', this.onSettingsConfigured);
-  app.settings.on('change:pictureSizes', this.setPictureSize);
+  app.settings.pictureSizes.on('change:selected', this.setPictureSize);
   app.settings.on('change:pictureFlashModes', this.setFlashMode);
   app.settings.on('change:videoFlashModes', this.setFlashMode);
   app.settings.on('change:cameras', this.loadCamera);
@@ -199,15 +199,9 @@ CameraController.prototype.loadCamera = function(value) {
 };
 
 CameraController.prototype.setFlashMode = function() {
-  var flashSetting = this.getFlashSetting();
+  var flashSetting = this.settings.aliases.flashModes;
   this.camera.setFlashMode(flashSetting.value());
 };
-
-CameraController.prototype.getFlashSetting = function() {
-  var mode = this.app.settings.mode.value();
-  return this.app.settings.get(mode + 'FlashModes');
-};
-
 
 // TODO: Tidy this crap
 CameraController.prototype.teardownCamera = function() {

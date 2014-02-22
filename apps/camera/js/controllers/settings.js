@@ -33,6 +33,8 @@ function SettingsController(app) {
 
 SettingsController.prototype.configure = function() {
   this.settings.pictureSizes.format = formatters.pictureSizes;
+  //this.settings.pictureSizesBack.format = formatters.pictureSizes;
+  this.configureAliases();
 };
 
 /**
@@ -119,10 +121,64 @@ SettingsController.prototype.toggleSettings = function() {
  * @param  {Object} capabilities
  */
 SettingsController.prototype.onCapabilitiesChange = function(capabilities) {
-  capabilities.pictureFlashModes = capabilities.flashModes;
-  capabilities.videoFlashModes = capabilities.flashModes;
-  this.app.settings.options(capabilities);
+  var aliases = this.settings.aliases;
+
+  this.settings.options(capabilities);
+
+  // Reset both picture and video flash modes
+  this.settings.flashModesPicture.resetOptions(capabilities.flashModes);
+  this.settings.flashModesVideo.resetOptions(capabilities.flashModes);
+
+  // Just reset the current alias
+  //aliases.recorderProfiles.resetOptions(capabilities.recorderProfiles);
+  //aliases.pictureSizes.resetOptions(capabilities.pictureSizes);
+
   this.app.emit('settings:configured');
+};
+
+SettingsController.prototype.configureAliases = function() {
+  //this.settings.alias('recorderProfiles', aliases.recorderProfiles);
+  //this.settings.alias('pictureSizes', aliases.pictureSizes);
+
+
+  this.settings.alias('flashModes', aliases.flashModes);
+};
+
+var aliases = {
+  recorderProfiles: {
+    settings: [
+      'recorderProfilesBack',
+      'recorderProfilesFront'
+    ],
+    get: function() {
+      var camera = this.settings.camera.value();
+      var map = {
+        back: 'recorderProfilesBack',
+        front: 'recorderProfilesFront'
+      };
+      return this.settings[map[camera]];
+    }
+  },
+  pictureSizes: {
+    map: {
+      back: 'recorderProfilesBack',
+      front: 'recorderProfilesFront'
+    },
+    get: function() {
+      var camera = this.settings.camera.value();
+      return this.settings[this.map[camera]];
+    }
+  },
+  flashModes: {
+    map: {
+      video: 'flashModesVideo',
+      picture: 'flashModesPicture'
+    },
+    get: function() {
+      var mode = this.settings.mode.value();
+      return this.settings[this.map[mode]];
+    }
+  }
 };
 
 var formatters = {

@@ -26,6 +26,7 @@ function HudController(app) {
   bindAll(this);
   this.app = app;
   this.hud = app.views.hud;
+  this.settings = app.settings;
   this.configure();
   this.bindEvents();
   debug('initialized');
@@ -40,7 +41,7 @@ HudController.prototype.configure = function() {
   var camerasSetting = this.app.settings.cameras;
   var hasDualCamera = camerasSetting.get('options').length > 1;
   this.hud.enable('settings', this.app.settings.showSettings.value());
-  this.hud.set('flashMode', this.getFlashSetting().value());
+  this.hud.set('flashMode', this.app.settings.flashModes.value());
   this.hud.enable('camera', hasDualCamera);
 };
 
@@ -51,8 +52,8 @@ HudController.prototype.configure = function() {
  * @private
  */
 HudController.prototype.bindEvents = function() {
-  this.app.settings.on('change:flashModes', this.hud.setFlashMode);
-  this.app.settings.on('change:mode', this.configureFlash);
+  this.app.settings.flashModes.on('change', this.hud.setFlashMode);
+  this.app.settings.on('change:mode', this.updateFlash);
   this.hud.on('click:settings', this.app.firer('settings:toggle'));
   this.hud.on('click:camera', this.onCameraClick);
   this.hud.on('click:flash', this.onFlashClick);
@@ -64,7 +65,7 @@ HudController.prototype.bindEvents = function() {
 };
 
 HudController.prototype.onSettingsConfigured = function() {
-  this.configureFlash();
+  this.updateFlash();
 };
 
 HudController.prototype.onCameraClick = function() {
@@ -75,21 +76,8 @@ HudController.prototype.onFlashClick = function() {
   this.flashSetting.next();
 };
 
-HudController.prototype.configureFlash = function() {
-  var newFlash = this.getFlashSetting();
-  var oldFlash = this.flashSetting;
-
-  // Remove old listners and add new
-  if (oldFlash) { oldFlash.off('change', this.updateFlash); }
-  if (newFlash) { newFlash.on('change', this.updateFlash); }
-
-  // Store new flash and update UI
-  this.flashSetting = newFlash;
-  this.updateFlash();
-};
-
 HudController.prototype.updateFlash = function() {
-  var setting = this.flashSetting;
+  var setting = this.settings.flashMode;
   var selected = setting && setting.selected();
   var hasFlash = !!selected;
   this.hud.enable('flash', hasFlash);
@@ -102,11 +90,6 @@ HudController.prototype.enableButtons = function() {
 
 HudController.prototype.disableButtons = function() {
   this.hud.disable('buttons');
-};
-
-HudController.prototype.getFlashSetting = function() {
-  var mode = this.app.settings.mode.value();
-  return this.app.settings.get(mode + 'FlashModes');
 };
 
 HudController.prototype.onRecordingChange = function(recording) {
