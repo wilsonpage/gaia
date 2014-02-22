@@ -212,10 +212,13 @@ Setting.prototype.format = function(options) {
   var isArray = Array.isArray(options);
   var normalized = [];
 
-  each(options, function(value, key) {
+  each(options, function(item, key) {
+    var isObject = typeof item === 'object';
     var option = {};
-    option.key = isArray ? (value.key || value) : key;
-    option.value = value.value || value;
+
+    // The key can come from several places
+    option.key = isArray ? (isObject ? item.key : item) : key;
+    option.data = item.data || isObject && item || !isArray && item;
     normalized.push(option);
   });
 
@@ -279,17 +282,17 @@ Setting.prototype.next = function() {
   debug('set \'%s\' to index: %s', this.key, newIndex);
 };
 
-/**
- * Get the value of the currently
- * selected option.
- *
- * @return {*}
- * @public
- */
-Setting.prototype.value = function() {
-  var selected = this.selected();
-  return selected && (selected.value || selected.key);
-};
+// /**
+//  * Get the value of the currently
+//  * selected option.
+//  *
+//  * @return {*}
+//  * @public
+//  */
+// Setting.prototype.value = function() {
+//   var selected = this.selected();
+//   return selected && (selected.value || selected.key);
+// };
 
 /**
  * Persists the current selection

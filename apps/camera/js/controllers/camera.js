@@ -55,8 +55,8 @@ CameraController.prototype.configure = function() {
   // This is set so that the video recorder can
   // automatically stop when video size limit is reached.
   camera.set('maxFileSizeBytes', activity.data.maxFileSizeBytes);
-  camera.set('selectedCamera', settings.cameras.value());
-  camera.setMode(settings.mode.value());
+  camera.set('selectedCamera', settings.cameras.selected('key'));
+  camera.setMode(settings.mode.selected('key'));
   debug('configured');
 };
 
@@ -99,7 +99,7 @@ CameraController.prototype.bindEvents = function() {
 CameraController.prototype.onSettingsConfigured = function() {
   var settings = this.app.settings;
   var recorderProfile = settings.recorderProfiles.selected('key');
-  var pictureSize = settings.pictureSizes.value();
+  var pictureSize = settings.pictureSizes.selected('data');
   this.setFlashMode();
   this.camera
     .setRecorderProfile(recorderProfile)
@@ -171,12 +171,12 @@ CameraController.prototype.onNewVideo = function(video) {
 };
 
 CameraController.prototype.onPictureSizeChange = function() {
-  var value = this.settings.pictureSizes.value();
+  var value = this.settings.pictureSizes.selected('data');
   this.setPictureSize(value);
 };
 
 CameraController.prototype.onRecorderProfileChange = function() {
-  var value = this.settings.recorderProfiles.selected().key;
+  var value = this.settings.recorderProfiles.selected('key');
   this.camera.setRecorderProfile(value);
 };
 
@@ -211,7 +211,7 @@ CameraController.prototype.loadCamera = function(value) {
 
 CameraController.prototype.setFlashMode = function() {
   var flashSetting = this.settings.aliases.flashModes;
-  this.camera.setFlashMode(flashSetting.value());
+  this.camera.setFlashMode(flashSetting.selected('key'));
 };
 
 // TODO: Tidy this crap

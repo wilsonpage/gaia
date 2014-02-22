@@ -171,7 +171,7 @@ SettingsController.prototype.matchesCondition = function(item) {
     for (var key in condition) {
       var value = condition[key];
       var setting = self.settings[key];
-      if (setting.value() !== value) { return false; }
+      if (setting.selected('key') !== value) { return false; }
     }
     return true;
   };
@@ -194,7 +194,7 @@ var aliases = {
       front: 'recorderProfilesFront'
     },
     get: function() {
-      var camera = this.settings.cameras.value();
+      var camera = this.settings.cameras.selected('key');
       return this.settings[this.map[camera]];
     }
   },
@@ -204,7 +204,7 @@ var aliases = {
       front: 'pictureSizesFront'
     },
     get: function() {
-      var camera = this.settings.cameras.value();
+      var camera = this.settings.cameras.selected('key');
       return this.settings[this.map[camera]];
     }
   },
@@ -214,7 +214,7 @@ var aliases = {
       picture: 'flashModesPicture'
     },
     get: function() {
-      var mode = this.settings.mode.value();
+      var mode = this.settings.mode.selected('key');
       return this.settings[this.map[mode]];
     }
   }
@@ -242,7 +242,7 @@ var formatters = {
       normalized.push({
         key: w + 'x' + h,
         title: mp + w + 'x' + h + ' ' + option.aspect,
-        value: option
+        data: option
       });
     });
 

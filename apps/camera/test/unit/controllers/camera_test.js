@@ -56,7 +56,7 @@ suite('controllers/camera', function() {
     });
 
     test('Should set the capture mode to \'camera\' by default', function() {
-      this.app.settings.mode.value.returns('picture');
+      this.app.settings.mode.selected.returns('picture');
       this.controller = new this.CameraController(this.app);
       assert.isTrue(this.app.camera.setMode.calledWith('picture'));
     });

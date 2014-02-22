@@ -38,7 +38,7 @@ Settings.prototype.add = function(data) {
   this.items.push(setting);
   this.ids[setting.key] = this[setting.key] = setting;
   setting.on('change:selected', function() {
-    self.onSettingChange(setting.key, setting.value());
+    self.onSettingChange(setting.key, setting.selected('key'));
   });
 };
 
@@ -91,32 +91,7 @@ Settings.prototype.getAlias = function(key) {
 };
 
 Settings.prototype.removeAlias = function(key) {
-
+  // TODO: Implement
 };
 
-
-
-
-
 });
-
-// settings.alias('flashModes', {
-//   keys: {
-//     picture: settings.flashModesPicture,
-//     video: settings.flashModesVideo
-//   },
-//   get: function() {
-//     return this.keys[settings.mode.value()];
-//   }
-// });
-
-
-// settings.alias('flashModes'); //=> flashModesPicture | flashModesVideo
-// settings.flashModes; //=> flashModesPicture | flashModesVideo
-
-// settings.on('change:flashModes', function(selectedKey) {
-//   // only fires when the current alias is changed
-// });
-
-
-

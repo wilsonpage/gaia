@@ -165,28 +165,15 @@ suite('lib/setting', function() {
       selected = this.setting.selected();
       assert.ok(selected.title === 'i am b');
     });
-  });
 
-  suite('Setting#value()', function() {
-    setup(function() {
-      this.setting = new this.Setting({
-        key: 'key',
-        options: [
-          { key: 'a' },
-          { key: 'b', value: 'detail'  }
-        ]
-      });
-    });
+    test('Should return the given key from the selected option', function() {
+      var title = this.setting.selected('title');
+      assert.ok(title === 'i am a');
 
-    test('Should return the `key` if no value was defined', function() {
-      var value = this.setting.value();
-      assert.ok(value === 'a');
-    });
+      this.setting.select('b');
 
-    test('Should return the `value` if defined', function() {
-      this.setting.select(1);
-      var value = this.setting.value();
-      assert.ok(value === 'detail');
+      var key = this.setting.selected('key');
+      assert.ok(key === 'b');
     });
   });
 
@@ -209,6 +196,81 @@ suite('lib/setting', function() {
       assert.ok(this.setting.selected().key === 'c');
       this.setting.next();
       assert.ok(this.setting.selected().key === 'a');
+    });
+  });
+
+  suite('Setting#format()', function() {
+    test('Should format a simple array into a list of objects', function() {
+      var data = ['a', 'b', 'c'];
+      var output = this.Setting.prototype.format(data);
+
+      assert.ok(output[0].key === 'a');
+      assert.ok(output[1].key === 'b');
+      assert.ok(output[2].key === 'c');
+      assert.ok(output.length === 3);
+    });
+
+    test('Should accept an array of objects', function() {
+      var output = this.Setting.prototype.format([
+        { key: 'a' },
+        { key: 'b' },
+        { key: 'c' },
+      ]);
+
+      assert.ok(output[0].key === 'a');
+      assert.ok(output[1].key === 'b');
+      assert.ok(output[2].key === 'c');
+      assert.ok(output.length === 3);
+    });
+
+    test('Should format array keys correctly', function() {
+      var data = [{ key: 'a'}, { nokey: 'b' }, 'c'];
+      var output = this.Setting.prototype.format(data);
+
+      assert.ok(output[0].key === 'a');
+      assert.ok(output[1].key === undefined);
+      assert.ok(output[2].key === 'c');
+      assert.ok(output.length === 3);
+    });
+
+    test('Should extract data correctly', function() {
+      var output = this.Setting.prototype.format({
+        a: { some: 'a-content' },
+        b: { data: { some: 'b-content' } },
+        c: 'c-content'
+      });
+
+      assert.ok(output[0].data.some === 'a-content');
+      assert.ok(output[1].data.some === 'b-content');
+      assert.ok(output[2].data === 'c-content');
+
+      output = this.Setting.prototype.format([
+        { key: 'a', data: 'a-content' },
+        { key: 'b', some: 'b-content' },
+        'c'
+      ]);
+
+      assert.ok(output[0].data === 'a-content');
+      assert.ok(output[1].data.some === 'b-content');
+      assert.ok(!output[2].data);
+    });
+
+    test('Should format an object correctly', function() {
+      var data = {
+        a: { stuff: 'a-stuff' },
+        b: { stuff: 'b-stuff' },
+        c: { stuff: 'c-stuff' }
+      };
+
+      var output = this.Setting.prototype.format(data);
+
+      assert.ok(output[0].key === 'a');
+      assert.ok(output[1].key === 'b');
+      assert.ok(output[2].key === 'c');
+      assert.ok(output[0].data.stuff === 'a-stuff');
+      assert.ok(output[1].data.stuff === 'b-stuff');
+      assert.ok(output[2].data.stuff === 'c-stuff');
+      assert.ok(output.length === 3);
     });
   });
 });
