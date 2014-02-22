@@ -61,7 +61,7 @@ CameraController.prototype.configure = function() {
 };
 
 CameraController.prototype.bindEvents = function() {
-  var aliases = this.app.settings.aliases;
+  var settings = this.settings;
   var camera = this.camera;
   var app = this.app;
 
@@ -88,11 +88,11 @@ CameraController.prototype.bindEvents = function() {
   app.on('capture', this.onCapture);
   app.on('blur', this.teardownCamera);
   app.on('settings:configured', this.onSettingsConfigured);
-  aliases.pictureSizes.on('change:selected', this.onPictureSizeChange);
-  aliases.recorderProfiles.on('change:selected', this.onRecorderProfileChange);
-  aliases.flashModes.on('change:selected', this.setFlashMode);
-  app.settings.on('change:cameras', this.loadCamera);
-  app.settings.on('change:mode', this.setMode);
+  settings.pictureSizes.on('change:selected', this.onPictureSizeChange);
+  settings.recorderProfiles.on('change:selected', this.onRecorderProfileChange);
+  settings.flashModes.on('change:selected', this.setFlashMode);
+  settings.on('change:cameras', this.loadCamera);
+  settings.on('change:mode', this.setMode);
   debug('events bound');
 };
 
