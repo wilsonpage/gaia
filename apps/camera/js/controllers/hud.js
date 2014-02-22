@@ -38,9 +38,8 @@ function HudController(app) {
  * @private
  */
 HudController.prototype.configure = function() {
-  var camerasSetting = this.app.settings.cameras;
-  var hasDualCamera = camerasSetting.get('options').length > 1;
-  this.hud.enable('settings', this.app.settings.showSettings.value());
+  var hasDualCamera = this.settings.cameras.get('options').length > 1;
+  this.hud.enable('settings', this.settings.showSettings.value());
   this.hud.enable('camera', hasDualCamera);
 };
 
