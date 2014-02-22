@@ -63,12 +63,6 @@ Settings.prototype.onSettingChange = function(key, value) {
   this.fire('change:' + key, value);
 };
 
-Settings.prototype.menu = function(key) {
-  return this.items
-    .filter(function(item) { return !!item.get('menu'); })
-    .sort(function(a, b) { return a.get('menu') - b.get('menu'); });
-};
-
 Settings.prototype.options = function(options) {
   this.items.forEach(function(setting) {
     var match = setting.key in options;

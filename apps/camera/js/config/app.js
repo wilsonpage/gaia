@@ -252,46 +252,46 @@ module.exports = {
     menu: 10
   },
 
-  // settingsMenu: {
-  //   items: [
-  //     {
-  //       key: 'hdr'
-  //     },
-  //     {
-  //       key: 'scene'
-  //     },
-  //     {
-  //       key: 'grid'
-  //     },
-  //     {
-  //       key: 'selfTimer'
-  //     },
-  //     {
-  //       key: 'pictureSizesBack',
-  //       condition: { 'camera': 'back' }
-  //     },
-  //     {
-  //       key: 'pictureSizesFront',
-  //       condition: { 'camera': 'front' }
-  //     },
-  //     {
-  //       key: 'recorderProfilesBack',
-  //       condition: { 'camera': 'back' }
-  //     },
-  //     {
-  //       key: 'recorderProfilesFront',
-  //       condition: { 'camera': 'front' }
-  //     },
-  //     {
-  //       key: 'flashModesPicture',
-  //       condition: { 'mode': 'picture' }
-  //     },
-  //     {
-  //       key: 'flashModesVideo',
-  //       condition: { 'mode': 'video' }
-  //     }
-  //   ]
-  // }
+  settingsMenu: {
+    items: [
+      {
+        key: 'hdr'
+      },
+      {
+        key: 'scene'
+      },
+      {
+        key: 'grid'
+      },
+      {
+        key: 'timer'
+      },
+      {
+        key: 'pictureSizesBack',
+        condition: { 'cameras': 'back' }
+      },
+      {
+        key: 'pictureSizesFront',
+        condition: { 'cameras': 'front' }
+      },
+      {
+        key: 'recorderProfilesBack',
+        condition: { 'cameras': 'back' }
+      },
+      {
+        key: 'recorderProfilesFront',
+        condition: { 'cameras': 'front' }
+      },
+      {
+        key: 'flashModesPicture',
+        condition: { 'mode': 'picture' }
+      },
+      {
+        key: 'flashModesVideo',
+        condition: { 'mode': 'video' }
+      }
+    ]
+  }
 };
 
 });

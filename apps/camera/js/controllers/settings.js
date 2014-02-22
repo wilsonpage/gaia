@@ -60,7 +60,7 @@ SettingsController.prototype.openSettings = function() {
   if (this.view) { return; }
   debug('open settings');
 
-  var items = this.settings.menu();
+  var items = this.menuItems();
   this.view = new SettingsView({ items: items })
     .render()
     .appendTo(this.app.el)
@@ -142,6 +142,35 @@ SettingsController.prototype.configureAliases = function() {
   this.settings.alias('flashModes', aliases.flashModes);
 };
 
+SettingsController.prototype.menuItems = function() {
+  var items = this.settings.settingsMenu.get('items');
+  var settings = this.settings;
+
+  return items.filter(function(item) {
+    return item.condition ? conditionMatches(item.condition) : true;
+  }).map(function(item) {
+    return settings[item.key];
+  });
+
+  function conditionMatches(condition) {
+    for (var key in condition) {
+      var value = condition[key];
+      var setting = settings[key];
+      if (setting.value() !== value) { return false; }
+    }
+    return true;
+  }
+};
+
+
+/**
+ * Settings aliases provide
+ * convenient pointers to
+ * specific settings based on
+ * the state of other settings.
+ *
+ * @type {Object}
+ */
 var aliases = {
   recorderProfiles: {
     map: {
