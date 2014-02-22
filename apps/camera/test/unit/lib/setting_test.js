@@ -16,52 +16,6 @@ suite('lib/setting', function() {
       assert.ok(setting.key === 'mykey');
     });
 
-    test('Should convert the options list to a hash lookup', function() {
-      var setting = new this.Setting({
-        key: 'mykey',
-        options: [
-          {
-            key: 'option1',
-            value: 'value1'
-          },
-          {
-            key: 'option2',
-            value: false
-          },
-          {
-            key: 'option3'
-          }
-        ]
-      });
-
-      var hash = setting.get('optionsHashAll');
-
-      assert.ok(hash.option1);
-      assert.ok(hash.option2);
-      assert.ok(hash.option3);
-      assert.ok(hash.option1.value === 'value1');
-      assert.ok(hash.option2.value === false, 'should recognize falsey values');
-    });
-
-    test('Should assign the `key` as the `value` when no `value` is present',
-    function() {
-      var setting = new this.Setting({
-        key: 'mykey',
-        options: [
-          {
-            key: 'option1',
-            value: 'value1'
-          },
-          {
-            key: 'option2'
-          }
-        ]
-      });
-
-      var hash = setting.get('optionsHashAll');
-      assert.ok(hash.option2.value === 'option2');
-    });
-
     test('Should save when selection is change, only if marked as `persistent`', function() {
       var on = sinon.spy(this.Setting.prototype, 'on');
       var settings1 = new this.Setting({
@@ -114,7 +68,7 @@ suite('lib/setting', function() {
     });
   });
 
-  suite('Setting#configureOptions()', function() {
+  suite('Setting#resetOptions()', function() {
     setup(function() {
       this.setting = new this.Setting({
         key: 'key',
@@ -127,74 +81,66 @@ suite('lib/setting', function() {
     });
 
     test('Should filter the list down be just suppled keys', function() {
-      this.setting.configureOptions(['a', 'c']);
+      this.setting.resetOptions(['a', 'c']);
 
       var list = this.setting.get('options');
-      var hash = this.setting.get('optionsHash');
       var found = {};
 
       list.forEach(function(item) { found[item.key] = true; });
 
-      assert.ok(!list.b);
-      assert.ok(!hash.b);
-      assert.ok(hash.a);
-      assert.ok(hash.c);
+      assert.ok(!found.b);
+      assert.ok(found.a);
+      assert.ok(found.c);
     });
 
     test('Should accept an Object as well as an Array', function() {
-      this.setting.configureOptions({
+      this.setting.resetOptions({
         a: {},
         c: {}
       });
 
       var list = this.setting.get('options');
-      var hash = this.setting.get('optionsHash');
       var found = {};
 
       list.forEach(function(item) { found[item.key] = true; });
 
-      assert.ok(!list.b);
-      assert.ok(!hash.b);
-      assert.ok(hash.a);
-      assert.ok(hash.c);
+      assert.ok(!found.b);
+      assert.ok(found.a);
+      assert.ok(found.c);
     });
 
     test('Should accept an Array of Objects with `key` properties', function() {
-      this.setting.configureOptions([
+      this.setting.resetOptions([
         { key: 'a' },
         { key: 'c' }
       ]);
 
       var list = this.setting.get('options');
-      var hash = this.setting.get('optionsHash');
       var found = {};
 
       list.forEach(function(item) { found[item.key] = true; });
 
-      assert.ok(!list.b);
-      assert.ok(!hash.b);
-      assert.ok(hash.a);
-      assert.ok(hash.c);
+      assert.ok(!found.b);
+      assert.ok(found.a);
+      assert.ok(found.c);
     });
 
     test('Should sort the options list by the original config index', function() {
-      this.setting.configureOptions([
+      this.setting.resetOptions([
         { key: 'b' },
         { key: 'a' }
       ]);
 
       var list = this.setting.get('options');
-      var hash = this.setting.get('optionsHash');
-
-      assert.ok(list.indexOf(hash.a) === 0);
-      assert.ok(list.indexOf(hash.b) === 1);
+      assert.ok(list[0].key === 'a');
+      assert.ok(list[1].key === 'b');
     });
 
-    test('Should not trigger a `change` event', function() {
+    test('Should fire a `optionsreset` event', function() {
       var spy = sinon.spy();
-      this.setting.on('change', spy);
-      this.setting.configureOptions(['a', 'b']);
-      assert.ok(!spy.called);
+      this.setting.on('optionsreset', spy);
+      this.setting.resetOptions(['a', 'b']);
+      assert.ok(spy.called);
     });
   });
 
