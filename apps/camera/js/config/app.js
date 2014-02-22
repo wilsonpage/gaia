@@ -281,14 +281,6 @@ module.exports = {
       {
         key: 'recorderProfilesFront',
         condition: { 'cameras': 'front' }
-      },
-      {
-        key: 'flashModesPicture',
-        condition: { 'mode': 'picture' }
-      },
-      {
-        key: 'flashModesVideo',
-        condition: { 'mode': 'video' }
       }
     ]
   }
