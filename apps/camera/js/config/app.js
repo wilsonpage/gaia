@@ -42,7 +42,8 @@ module.exports = {
       //   key: '2048x1536'
       // }
     ],
-    // persistent: true
+    persistent: true,
+    menu: 1
   },
 
   pictureSizesBack: {
@@ -54,7 +55,8 @@ module.exports = {
       //   key: '2048x1536'
       // }
     ],
-    // persistent: true
+    persistent: true,
+    menu: 2
   },
 
   recorderProfilesBack: {
@@ -82,7 +84,8 @@ module.exports = {
         title: 'QCIF 176X144'
       }
     ],
-    persistent: true
+    persistent: true,
+    menu: 3,
   },
 
   recorderProfilesFront: {
@@ -110,7 +113,8 @@ module.exports = {
         title: 'QCIF 176X144'
       }
     ],
-    persistent: true
+    persistent: true,
+    menu: 4
   },
 
   flashModesPicture: {
@@ -132,7 +136,8 @@ module.exports = {
         icon: 'icon-flash-off'
       }
     ],
-    persistent: true
+    persistent: true,
+    menu: 5
   },
 
   flashModesVideo: {
@@ -149,7 +154,8 @@ module.exports = {
         icon: 'icon-flash-off'
       }
     ],
-    persistent: true
+    persistent: true,
+    menu: 6
   },
 
   timer: {
@@ -177,7 +183,8 @@ module.exports = {
         value: 10
       }
     ],
-    persistent: false
+    persistent: false,
+    menu: 7
   },
 
   hdr: {
@@ -200,7 +207,8 @@ module.exports = {
         icon: 'O'
       }
     ],
-    persistent: true
+    persistent: true,
+    menu: 8
   },
 
   scene: {
@@ -220,7 +228,8 @@ module.exports = {
         title: 'Beauty'
       }
     ],
-    persistent: true
+    persistent: true,
+    menu: 9
   },
 
   grid: {
@@ -239,7 +248,8 @@ module.exports = {
       }
     ],
     selected: 'off',
-    persistent: true
+    persistent: true,
+    menu: 10
   },
 
   // settingsMenu: {

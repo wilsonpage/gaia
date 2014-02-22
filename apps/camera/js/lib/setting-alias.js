@@ -6,6 +6,7 @@ define(function(require, exports, module) {
  */
 
 var evt = require('vendor/evt');
+var on = evt.prototype.on;
 
 /**
  * Exports
@@ -43,6 +44,7 @@ SettingAlias.prototype.resetOptions = function() {
 };
 
 SettingAlias.prototype.on = function(name, fn) {
+  on.call(this, name, fn);
   for (var key in this.map) {
     var setting = this.settings[this.map[key]];
     var fire = this.firer(name);
