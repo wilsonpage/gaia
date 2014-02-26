@@ -16,8 +16,8 @@ var on = evt.prototype.on;
 var forwardMethods = [
   'resetOptions',
   'selected',
-  'value',
-  'next'
+  'next',
+  'set'
 ];
 
 /**
@@ -38,7 +38,7 @@ function SettingAlias(options) {
   this.settings = options.settings;
   this.key = options.key;
   this.map = options.map || {};
-  this.get = this.setting = options.get.bind(this);
+  this.get = options.get.bind(this);
   forwardMethods.forEach(this.forward, this);
   this.propagate = this.propagator();
 }

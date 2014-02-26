@@ -62,7 +62,7 @@ CameraController.prototype.bindEvents = function() {
   app.on('boot', this.camera.load);
   app.on('focus', this.camera.load);
   app.on('capture', this.onCapture);
-  app.on('blur', this.teardownCamera);
+  app.on('blur', this.onBlur);
   app.on('settings:configured', this.onSettingsConfigured);
   settings.pictureSizes.on('change:selected', this.onPictureSizeChange);
   settings.recorderProfiles.on('change:selected', this.onRecorderProfileChange);
@@ -220,7 +220,7 @@ CameraController.prototype.setFlashMode = function() {
 };
 
 // TODO: Tidy this crap
-CameraController.prototype.teardownCamera = function() {
+CameraController.prototype.onBlur = function() {
   var recording = this.camera.get('recording');
   var camera = this.camera;
 

@@ -11,13 +11,21 @@ suite('lib/setting', function() {
   });
 
   suite('Setting()', function() {
+    setup(function() {
+      this.sandbox = sinon.sandbox.create();
+    });
+
+    teardown(function() {
+      this.sandbox.restore();
+    });
+
     test('Should store the key on self', function() {
       var setting = new this.Setting({ key: 'mykey', options: [] });
       assert.ok(setting.key === 'mykey');
     });
 
     test('Should save when selection is change, only if marked as `persistent`', function() {
-      var on = sinon.spy(this.Setting.prototype, 'on');
+      var on = this.sandbox.spy(this.Setting.prototype, 'on');
       var settings1 = new this.Setting({
         key: 'key',
         persistent: true,
