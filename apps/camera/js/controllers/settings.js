@@ -119,14 +119,23 @@ SettingsController.prototype.toggleSettings = function() {
  * @param  {Object} capabilities
  */
 SettingsController.prototype.onCapabilitiesChange = function(capabilities) {
+
+  // Currently, the `mozCamera` API has a unified set of `flashModes` in its
+  // `capabilities` object. We assign it to the `pictureFlashModes` and the
+  // `videoFlashModes` properties to future-proof our code base in the event
+  // that the `mozCamera` API changes to support separate flash modes.
+  capabilities.pictureFlashModes = capabilities.flashModes;
+  capabilities.videoFlashModes = capabilities.flashModes;
+
   this.app.settings.options(capabilities);
   this.app.emit('settings:configured');
 };
 
 var formatters = {
   pictureSizes: function(options) {
-    var normalized = [];
+    var getMP = function(w, h) { return Math.round((w * h) / 1000000); };
     var maxPixelSize = this.get('maxPixelSize');
+    var normalized = [];
 
     options.forEach(function(option) {
       var w = option.width;
@@ -141,7 +150,6 @@ var formatters = {
       option.aspect = getAspect(w, h);
       option.mp = getMP(w, h);
 
-      // Don't include MP value when < 1
       var mp = option.mp ? option.mp + 'MP ' : '';
 
       normalized.push({
@@ -155,31 +163,12 @@ var formatters = {
   }
 };
 
-/**
- * Returns rounded mega-pixel value.
- *
- * @param  {Number} w
- * @param  {Number} h
- * @return {Number}
- */
-function getMP(w, h) {
-  return Math.round((w * h) / 1000000);
-}
-
-/**
- * Returns aspect ratio string.
- *
- * Makes use of Euclid's GCD algorithm,
- * http://en.wikipedia.org/wiki/Euclidean_algorithm
- *
- * @param  {Number} w
- * @param  {Number} h
- * @return {String}
- */
 function getAspect(w, h) {
-  var gcd = function(a, b) { return (b === 0) ? a : gcd(b, a % b); };
-  var divisor = gcd(w, h);
-  return (w / divisor) + ':' + (h / divisor);
+  var getDevisor = function(a, b) {
+    return (b === 0) ? a : getDevisor(b, a % b);
+  };
+  var devisor = getDevisor(w, h);
+  return (w / devisor) + ':' + (h / devisor);
 }
 
 });
