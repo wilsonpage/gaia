@@ -20,18 +20,18 @@ suite('views/timer', function() {
       assert.ok(this.timer.el.innerHTML.indexOf(1000) > -1);
     });
 
-    test('Should add the \'immanent\' class if within the \'immanent\' threshold', function() {
+    test('Should add the \'imminent\' class if within the \'imminent\' threshold', function() {
       var classes = this.timer.el.classList;
       this.timer.set(5);
-      assert.ok(!classes.contains('immanent'));
+      assert.ok(!classes.contains('imminent'));
       this.timer.set(4);
-      assert.ok(!classes.contains('immanent'));
+      assert.ok(!classes.contains('imminent'));
       this.timer.set(3);
-      assert.ok(classes.contains('immanent'));
+      assert.ok(classes.contains('imminent'));
       this.timer.set(2);
-      assert.ok(classes.contains('immanent'));
+      assert.ok(classes.contains('imminent'));
       this.timer.set(1);
-      assert.ok(classes.contains('immanent'));
+      assert.ok(classes.contains('imminent'));
     });
   });
 });
