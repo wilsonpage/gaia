@@ -19,7 +19,8 @@ body:not(.filmstriphidden) .hud {
  * @hidden
  */
 
-.hud.hidden {
+.hud[timer=active],
+.hud[camera=busy] {
   pointer-events: none;
   opacity: 0;
 }
