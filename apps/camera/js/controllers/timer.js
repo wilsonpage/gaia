@@ -43,6 +43,7 @@ function TimerController(app) {
  */
 TimerController.prototype.bindEvents = function() {
   this.app.on('startcountdown', this.start);
+  this.app.on('blur', this.clear);
 };
 
 /**
@@ -128,7 +129,6 @@ TimerController.prototype._clear = function() {
  */
 TimerController.prototype.bindTimerEvents = function() {
   this.app.on('click', this.clear);
-  this.app.on('blur', this.clear);
 };
 
 /**
@@ -139,7 +139,6 @@ TimerController.prototype.bindTimerEvents = function() {
  */
 TimerController.prototype.unbindTimerEvents = function() {
   this.app.off('click', this.clear);
-  this.app.off('blur', this.clear);
 };
 
 });
