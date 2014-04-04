@@ -147,12 +147,24 @@ var StatusBar = {
   },
 
   show: function sb_show() {
+    this.background.classList.remove('hidden');
     this.element.classList.remove('invisible');
   },
 
   hide: function sb_hide() {
     this._releaseBar();
+    this.background.classList.add('hidden');
     this.element.classList.add('invisible');
+  },
+
+  expand: function sb_expand() {
+    this.background.classList.add('expanded');
+    this.statusbarIcons.classList.add('hidden');
+  },
+
+  collapse: function sb_collapse() {
+    this.background.classList.remove('expanded');
+    this.statusbarIcons.classList.remove('hidden');
   },
 
   init: function sb_init() {
@@ -205,8 +217,8 @@ var StatusBar = {
 
     window.addEventListener('utilitytrayshow', this);
     window.addEventListener('utilitytrayhide', this);
-    window.addEventListener('rocketbarshown', this);
-    window.addEventListener('rocketbarhidden', this);
+    window.addEventListener('rocketbarexpand', this);
+    window.addEventListener('rocketbarcollapse', this);
 
     // Listen to 'screenchange' from screen_manager.js
     window.addEventListener('screenchange', this);
@@ -271,8 +283,11 @@ var StatusBar = {
 
       case 'lock':
         // Hide the clock in the statusbar when screen is locked
-        this.toggleTimeLabel(!window.lockScreen ||
-            !window.lockScreen.locked);
+        //
+        // It seems no need to detect the locked value because
+        // when the lockscreen lock itself, the value must be true,
+        // or we have some bugs.
+        this.toggleTimeLabel(false);
         break;
 
       case 'unlock':
@@ -281,15 +296,13 @@ var StatusBar = {
         break;
 
       case 'attentionscreenshow':
-        // Display the clock in the statusbar when screen is unlocked
         this.toggleTimeLabel(true);
         this.show();
         break;
 
       case 'attentionscreenhide':
         // Hide the clock in the statusbar when screen is locked
-        this.toggleTimeLabel(!window.lockScreen ||
-            !window.lockScreen.locked);
+        this.toggleTimeLabel(!this.isLocked());
         var app = AppWindowManager.getActiveApp();
         if (app && app.isFullScreen()) {
           this.hide();
@@ -297,16 +310,22 @@ var StatusBar = {
         break;
 
       case 'utilitytrayshow':
-      case 'rocketbarshown':
         this.show();
         break;
 
       case 'utilitytrayhide':
-      case 'rocketbarhidden':
         var app = AppWindowManager.getActiveApp();
         if (app && app.isFullScreen()) {
           this.hide();
         }
+        break;
+
+      case 'rocketbarexpand':
+        this.expand();
+        break;
+
+      case 'rocketbarcollapse':
+        this.collapse();
         break;
 
       case 'lockpanelchange':
@@ -363,6 +382,10 @@ var StatusBar = {
           // part.
           this.toggleTimeLabel(false);
           this.toggleTimeLabel(true);
+
+          // But we still need to consider if we're locked. So may we need to
+          // hide it again.
+          this.toggleTimeLabel(!this.isLocked());
         }).bind(this));
         break;
 
@@ -552,9 +575,7 @@ var StatusBar = {
       window.addEventListener('moznetworkdownload', this);
 
       this.refreshCallListener();
-
-      this.toggleTimeLabel(!window.lockScreen ||
-          !window.lockScreen.locked);
+      this.toggleTimeLabel(!this.isLocked());
     } else {
       var battery = window.navigator.battery;
       if (battery) {
@@ -577,7 +598,6 @@ var StatusBar = {
       window.removeEventListener('moznetworkdownload', this);
 
       this.removeCallListener();
-
       // Always prevent the clock from refreshing itself when the screen is off
       this.toggleTimeLabel(false);
     }
@@ -1117,10 +1137,17 @@ var StatusBar = {
     }
 
     this.element = document.getElementById('statusbar');
+    this.background = document.getElementById('statusbar-background');
+    this.statusbarIcons = document.getElementById('statusbar-icons');
     this.screen = document.getElementById('screen');
     this.attentionBar = document.getElementById('attention-bar');
-
     this.topPanel = document.getElementById('top-panel');
+  },
+
+  // To reduce the duplicated code
+  isLocked: function() {
+    return 'undefined' !== typeof window.lockScreen &&
+      window.lockScreen.locked;
   }
 };
 

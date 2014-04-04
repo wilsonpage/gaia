@@ -1,6 +1,6 @@
 'use strict';
 
-// If we get a focuschange event from mozKeyboard for an element with
+// If we get a inputmethod-contextchange chrome event for an element with
 // one of these types, we'll just ignore it.
 // XXX we won't skip these types in the future when we move value selector
 // to an app.
@@ -265,8 +265,9 @@ var KeyboardManager = {
 
     // Skip the <select> element and inputs with type of date/time,
     // handled in system app for now
-    if (!type || type in IGNORED_INPUT_TYPES)
-      return;
+    if (!type || type in IGNORED_INPUT_TYPES) {
+      return this.hideKeyboard();
+    }
 
     var self = this;
     // Before a new focus event we get a blur event

@@ -17,8 +17,9 @@
    */
   var LockScreenWindowManager = function() {
     this.initElements();
+    this.initWindow();
     this.startEventListeners();
-    this.createWindow();
+    this.startObserveSettings();
   };
   LockScreenWindowManager.prototype = {
     /**
@@ -36,6 +37,8 @@
      * @memberof LockScreenWindowManager#
      */
     states: {
+      enabled: true,
+      unlockDetail: null,
       instance: null
     },
 
@@ -46,7 +49,9 @@
       listens: ['will-unlock',
                 'lockscreen-appcreated',
                 'lockscreen-appterminated',
-                'screenchange'
+                'lockscreen-appclose',
+                'screenchange',
+                'ftuopen'
                ]
     }
   };
@@ -68,7 +73,14 @@
     function lwm_handleEvent(evt) {
       var app = null;
       switch (evt.type) {
+        case 'ftuopen':
+          // Need immediatly unlocking (hide window).
+          this.closeApp(true);
+          window.dispatchEvent(
+            new CustomEvent('unlock'));
+          break;
         case 'will-unlock':
+          this.states.unlockDetail = evt.detail;
           this.closeApp();
           break;
         case 'lockscreen-appcreated':
@@ -79,11 +91,13 @@
           app = evt.detail;
           this.unregisterApp(app);
           break;
+        case 'lockscreen-appclose':
+          window.dispatchEvent(
+            new CustomEvent('unlock', this.states.unlockDetail));
+          this.states.unlockDetail = null;
+          break;
         case 'screenchange':
-          // If the screen is turning on and we don't have any app yet.
-          if (!this.states.instance && evt.detail.screenEnabled) {
-            this.createWindow(evt);
-          } else if (evt.detail.screenEnabled) {
+          if (evt.detail.screenEnabled) {
             // The app would be inactive while screen off.
             this.openApp();
           }
@@ -103,6 +117,29 @@
         var id = selectors[name];
         this.elements[name] = document.getElementById(id);
       }
+    };
+
+  /**
+   * Hook observers of settings to allow or ban window opening.
+   *
+   * @private
+   * @this {LockScreenWindowManager}
+   * @memberof LockScreenWindowManager
+   */
+  LockScreenWindowManager.prototype.startObserveSettings =
+    function lwm_startObserveSettings() {
+      var listener = (val) => {
+        if ('false' === val ||
+            false   === val) {
+          this.states.enabled = false;
+        } else if('true' === val ||
+                  true   === val) {
+          this.states.enabled = true;
+        }
+      };
+
+      window.SettingsListener.observe('lockscreen.enabled',
+          true, listener);
     };
 
   /**
@@ -135,18 +172,26 @@
 
   /**
    * Close the lockscreen app.
+   * If it's not enabled, would do nothing.
    *
+   * @param {boolean} instant - true if instantly close.
    * @private
    * @this {LockScreenWindowManager}
    * @memberof LockScreenWindowManager
    */
   LockScreenWindowManager.prototype.closeApp =
-    function lwm_closeApp() {
-      this.states.instance.close();
+    function lwm_closeApp(instant) {
+      if (!this.states.enabled) {
+        return;
+      }
+      this.states.instance.close(instant ? 'immediate': undefined);
+      this.elements.screen.classList.remove('locked');
     };
 
   /**
    * Open the lockscreen app.
+   * If it's necessary, would create a new window.
+   * If it's not enabled, would do nothing.
    *
    * @private
    * @this {LockScreenWindowManager}
@@ -154,7 +199,15 @@
    */
   LockScreenWindowManager.prototype.openApp =
     function lwm_openApp() {
-      this.states.instance.open();
+      if (!this.states.enabled) {
+        return;
+      }
+      if (!this.states.instance) {
+        this.createWindow();
+      } else {
+        this.states.instance.open();
+      }
+      this.elements.screen.classList.add('locked');
     };
 
   /**
@@ -207,6 +260,30 @@
     function lwm_createWindow() {
       var app = new window.LockScreenWindow();
       app.open();
+    };
+
+  /**
+   * First time we launch, we must check the init value of enabled,
+   * to see if we need to open the window.
+   *
+   * @private
+   * @this {LockScreenWindowManager}
+   * @memberof LockScreenWindowManager
+   */
+  LockScreenWindowManager.prototype.initWindow =
+    function lwm_initWindow() {
+      var req = window.SettingsListener.getSettingsLock()
+        .get('lockscreen.enabled');
+      req.onsuccess = () => {
+        if (true === req.result['lockscreen.enabled'] ||
+           'true' === req.result['lockscreen.enabled']) {
+          this.states.enabled = true;
+        } else if (false === req.result['lockscreen.enabled'] ||
+                   'false' === req.result['lockscreen.enabled']) {
+          this.states.enabled = false;
+        }
+        this.openApp();
+      };
     };
 
   /** @exports LockScreenWindowManager */

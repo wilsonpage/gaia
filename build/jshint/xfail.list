@@ -1,7 +1,6 @@
 apps/bluetooth/js/deviceList.js
 apps/bluetooth/js/transfer.js
 apps/browser/js/authentication_dialog.js
-apps/browser/js/awesomescreen.js
 apps/browser/js/browser.js
 apps/browser/js/browser_db.js
 apps/browser/js/modal_dialog.js
@@ -17,21 +16,10 @@ apps/browser/test/marionette/navigate_test.js
 apps/browser/test/marionette/settings_test.js
 apps/browser/test/marionette/share_url_test.js
 apps/browser/test/unit/browser_db_test.js
-apps/calendar/js/controllers/alarm.js
-apps/calendar/js/controllers/error.js
-apps/calendar/js/controllers/recurring_events.js
-apps/calendar/js/controllers/service.js
-apps/calendar/js/controllers/sync.js
-apps/calendar/js/controllers/time.js
-apps/calendar/js/models/account.js
-apps/calendar/js/models/calendar.js
-apps/calendar/js/models/event.js
 apps/camera/build/configure.js
 apps/camera/js/startup.js
 apps/camera/js/views/viewfinder.js
 apps/clock/js/text.js
-apps/communications/contacts/oauth2/js/flow.js
-apps/communications/contacts/oauth2/js/oauth20.js
 apps/communications/dialer/js/bluetooth_helper.js
 apps/communications/dialer/js/call_log.js
 apps/communications/dialer/js/call_log_db.js
@@ -133,10 +121,6 @@ apps/communications/import/test/unit/mock_connector.js
 apps/communications/import/test/unit/mock_import.html.js
 apps/communications/import/test/unit/mock_imported_contacts.js
 apps/communications/live/js/live_connector.js
-apps/costcontrol/js/common.js
-apps/costcontrol/js/utils/formatting.js
-apps/costcontrol/js/utils/toolkit.js
-apps/costcontrol/test/unit/mock_date.js
 apps/email/js/app_messages.js
 apps/email/js/app_self.js
 apps/email/js/array.js
@@ -420,7 +404,6 @@ apps/settings/js/simcard_dialog.js
 apps/settings/js/simcard_fdn.js
 apps/settings/js/simcard_fdn_list.js
 apps/settings/js/storage.js
-apps/settings/js/support.js
 apps/settings/js/telephony_items_handler.js
 apps/settings/js/telephony_settings.js
 apps/settings/js/try_show_homescreen_section.js
@@ -513,6 +496,7 @@ apps/system/js/sim_lock.js
 apps/system/js/simslot.js
 apps/system/js/simslot_manager.js
 apps/system/js/sleep_menu.js
+apps/system/js/sound_manager.js
 apps/system/js/stack_manager.js
 apps/system/js/statusbar.js
 apps/system/js/storage_watcher.js
@@ -717,8 +701,3 @@ shared/js/simple_phone_matcher.js
 shared/js/tag_visibility_monitor.js
 shared/js/visibility_monitor.js
 shared/resources/apn/query.js
-shared/test/integration/profile.js
-shared/test/integration/profile_builder.js
-shared/test/integration/server.js
-shared/test/integration/server_child.js
-shared/test/integration/setup.js

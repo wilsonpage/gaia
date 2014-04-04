@@ -19,7 +19,9 @@ suite('controllers/activity', function() {
     this.app = {
       activity: {
         active: true,
-        data: {}
+        data: {},
+        modes: ['picture', 'video'],
+        on: sinon.spy()
       },
       on: sinon.spy(),
       settings: {
@@ -36,36 +38,37 @@ suite('controllers/activity', function() {
     this.controller = new this.ActivityController(this.app);
   });
 
-  suite('ConfirmController()', function() {
-    setup(function() {
-      this.configure = sinon.spy(this.ActivityController.prototype, 'configure');
-    });
-
-    teardown(function() {
-      this.configure.restore();
-    });
-
-    test('Should *not* configure if activity is not active', function() {
-      this.app.activity.active = false;
+  suite('ActivityController#configure()', function() {
+    test('Should should configure pictureSize and ' +
+      'recorderProfile options when reset', function() {
       this.controller = new this.ActivityController(this.app);
-      assert.ok(this.controller.configure.called === false);
-    });
 
-    test('Should configure if activity is active', function() {
-      this.controller = new this.ActivityController(this.app);
-      assert.ok(this.configure.called);
-    });
+      var activity = this.app.activity;
+      var recorderProfiles = this.app.settings.recorderProfiles;
+      var pictureSizes = this.app.settings.pictureSizes;
+      var mode = this.app.settings.mode;
 
-    test('Should reset the `settings.mode` with the modes defined by the activity', function() {
-      this.app.activity.data.modes = ['video'];
+      assert.ok(activity.on.calledWith('activityreceived', this.controller.onActivityReceived));
+      assert.ok(recorderProfiles.on.calledWith('configured', this.controller.filterRecorderProfiles));
+      assert.ok(pictureSizes.on.calledWith('configured', this.controller.filterPictureSize));
+      assert.ok(mode.filterOptions.calledWith(this.app.activity.modes));
+      assert.ok(mode.select.calledWith(this.app.activity.modes[0]));
+    });
+  });
+
+  suite('ActivityController#bindEvents()', function() {
+    test('Should reset the `settings.mode` with the ' +
+      'modes defined by the activity', function() {
       this.app.settings.mode.filterOptions.reset();
+
+      this.app.activity.modes = ['video'];
       this.controller = new this.ActivityController(this.app);
 
       assert.ok(this.app.settings.mode.filterOptions.args[0][0].length === 1);
       assert.ok(this.app.settings.mode.filterOptions.args[0][0][0] === 'video');
       this.app.settings.mode.filterOptions.reset();
 
-      this.app.activity.data.modes = ['video', 'picture'];
+      this.app.activity.modes = ['video', 'picture'];
       this.controller = new this.ActivityController(this.app);
 
       assert.ok(this.app.settings.mode.filterOptions.args[0][0].length === 2);
@@ -88,7 +91,7 @@ suite('controllers/activity', function() {
     });
   });
 
-  suite('ConfirmController#filterPictureSize()', function() {
+  suite('ActivityController#filterPictureSize()', function() {
     setup(function() {
       this.sizes = [{
         "key": "2048x1536",
@@ -178,7 +181,7 @@ suite('controllers/activity', function() {
     });
   });
 
- suite('ConfirmController#filterRecorderProfiles()', function() {
+ suite('ActivityController#filterRecorderProfiles()', function() {
   setup(function() {
     this.profiles = [
       { key: 'high' },

@@ -370,6 +370,13 @@
         this.setEnabled(value);
     }).bind(this));
 
+    window.SettingsListener.observe('lockscreen.lock-immediately', false,
+      (function(value) {
+        if (value === true) {
+          this.lockIfEnabled(value);
+        }
+    }).bind(this));
+
     var wallpaperURL = new window.SettingsURL();
 
     window.SettingsListener.observe('wallpaper.image',
@@ -397,6 +404,11 @@
     window.SettingsListener.observe('lockscreen.passcode-lock.timeout',
       0, (function(value) {
       this.passCodeRequestTimeout = value;
+    }).bind(this));
+
+    window.SettingsListener.observe('lockscreen.lock-message',
+      '', (function(value) {
+      this.setLockMessage(value);
     }).bind(this));
     navigator.mozL10n.ready(this.l10nInit.bind(this));
   };
@@ -441,13 +453,14 @@
   */
   LockScreen.prototype.setEnabled =
   function ls_setEnabled(val) {
+    var prevEnabled = this.enabled;
     if (typeof val === 'string') {
       this.enabled = val == 'false' ? false : true;
     } else {
       this.enabled = val;
     }
 
-    if (!this.enabled && this.locked) {
+    if (prevEnabled && !this.enabled && this.locked) {
       this.unlock();
     }
   };
@@ -469,6 +482,12 @@
       this.unlockSoundEnabled = val;
     }
   };
+
+  LockScreen.prototype.setLockMessage =
+  function ls_setLockMessage(val) {
+    this.message.textContent = val;
+    this.message.hidden = (val === '');
+  },
 
   /**
    * Light the camera and unlocking icons when user touch on our LockScreen.
@@ -512,7 +531,7 @@
     var panelOrFullApp = (function() {
       // If the passcode is enabled and it has a timeout which has passed
       // switch to secure camera
-      if (this.passCodeEnabled && this._passCodeTimeoutCheck) {
+      if (this.passCodeEnabled && this.checkPassCodeTimeout()) {
         this.invokeSecureApp('camera');
         return;
       }
@@ -642,7 +661,6 @@
     this.locked = false;
 
     this.mainScreen.focus();
-    this.mainScreen.classList.remove('locked');
 
     // The lockscreen will be hidden, stop refreshing the clock.
     this.clock.stop();
@@ -698,7 +716,6 @@
     this.overlay.focus();
     this.overlay.classList.toggle('no-transition', instant);
 
-    this.mainScreen.classList.add('locked');
     this.overlay.classList.remove('unlocked');
     this.overlay.hidden = false;
     screen.mozLockOrientation(window.OrientationManager.defaultOrientation);
@@ -710,7 +727,7 @@
 
       // Any changes made to this,
       // also need to be reflected in apps/system/js/storage.js
-      this.dispatchEvent('lock');
+      this.dispatchEvent('lock', {detail: this.locked});
       this.dispatchEvent('secure-modeon');
       this.writeSetting(true);
     }
@@ -916,7 +933,7 @@
         'area-handle', 'area-slide', 'media-container', 'passcode-code',
         'alt-camera', 'alt-camera-button', 'slide-handle',
         'passcode-pad', 'camera', 'accessibility-camera',
-        'accessibility-unlock', 'panel-emergency-call', 'canvas'];
+        'accessibility-unlock', 'panel-emergency-call', 'canvas', 'message'];
 
     var toCamelCase = function toCamelCase(str) {
       return str.replace(/\-(.)/g, function replacer(str, p1) {

@@ -17,15 +17,16 @@ module.exports = {
       healthy: 100
     }
   },
+  geolocation: {
+    promptDelay: 2000
+  },
   mode: {
     options: [
       {
-        key: 'picture',
-        title: 'Picture'
+        key: 'picture'
       },
       {
-        key: 'video',
-        title: 'Video'
+        key: 'video'
       }
     ],
     persistent: false
@@ -35,8 +36,7 @@ module.exports = {
     disabled: false,
     options: [
       {
-        key: 'auto',
-        title: 'Auto'
+        key: 'auto'
       }
     ],
     selected:'auto'
@@ -46,8 +46,7 @@ module.exports = {
     disabled: false,
     options: [
       {
-        key: 'auto',
-        title: 'Auto'
+        key: 'auto'
       }
     ],
     selected:'auto'
@@ -56,12 +55,10 @@ module.exports = {
   cameras: {
     options: [
       {
-        key: 'back',
-        title: 'Back'
+        key: 'back'
       },
       {
-        key: 'front',
-        title: 'Front'
+        key: 'front'
       }
     ],
     persistent: false
@@ -76,8 +73,7 @@ module.exports = {
       //   key: '2048x1536'
       // }
     ],
-    persistent: true,
-    l10n: { title: 'camera-resolution' }
+    persistent: true
   },
 
   pictureSizesBack: {
@@ -127,8 +123,7 @@ module.exports = {
         title: 'flash-off'
       }
     ],
-    persistent: true,
-    l10n: { title: 'flash' }
+    persistent: true
   },
 
   flashModesVideo: {
@@ -145,8 +140,7 @@ module.exports = {
         title: 'flash-on'
       }
     ],
-    persistent: true,
-    l10n: { title: 'flash' }
+    persistent: true
   },
 
   timer: {

@@ -3,7 +3,7 @@
 
 mocha.globals(['LockScreenWindowManager', 'LockScreen', 'LockScreenWindow',
                'addEventListener', 'dispatchEvent', 'lockScreenWindowManager',
-               'lockScreen']);
+               'lockScreen', 'SettingsListener']);
 
 requireApp('system/shared/test/unit/mocks/mock_manifest_helper.js');
 requireApp('system/test/unit/mock_lock_screen.js');
@@ -17,6 +17,7 @@ var mocksForLockScreenWindowManager = new window.MocksHelper([
 suite('system/LockScreenWindowManager', function() {
   var stubById;
   var appFake;
+  var originalSettingsListener;
 
   mocksForLockScreenWindowManager.attachTestHelpers();
 
@@ -24,6 +25,18 @@ suite('system/LockScreenWindowManager', function() {
     stubById = this.sinon.stub(document, 'getElementById');
     stubById.returns(document.createElement('div'));
     appFake = new window.LockScreenWindow();
+
+    originalSettingsListener = window.SettingsListener;
+    window.SettingsListener = {
+      observe: function(name, bool, cb) {},
+      getSettingsLock: function() {
+        return {get: function(name) {
+          if ('lockscreen.enabled' === name) {
+            return true;
+          }
+        }};
+      }
+    };
     // To prevent the original one has been
     // initialized in the bootstrap stage.
     //
@@ -42,6 +55,7 @@ suite('system/LockScreenWindowManager', function() {
   });
 
   teardown(function() {
+    window.SettingsListener = originalSettingsListener;
     stubById.restore();
   });
 
