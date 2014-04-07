@@ -1,0 +1,74 @@
+
+/** Focus Ring
+ ---------------------------------------------------------*/
+
+.focus-ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 10rem;
+  height: 10rem;
+  margin-top: -5rem;
+  margin-left: -5rem;
+  font-size: 92px;
+  line-height: 1em;
+  text-align: center;
+  color: white;
+  text-shadow: 0 0 1px rgba(0,0,0,0.2);
+  pointer-events: none;
+  opacity: 0;
+}
+
+/**
+ * data-state=focusing,
+ * data-state=focused,
+ * data-state=fail
+ */
+
+.focus-ring[data-state=focusing],
+.focus-ring[data-state=focused],
+.focus-ring[data-state=fail] {
+  opacity: 0.8;
+}
+
+/** Icon
+ ---------------------------------------------------------*/
+
+.focus-ring:before {
+  content: "\e616";
+  display: block;
+}
+
+/**
+ * data-state=focusing
+ */
+
+.focus-ring[data-state=focusing]:before {
+  animation: 2s ring-animation infinite linear;
+}
+
+/**
+ * data-state=focused
+ */
+
+.focus-ring[data-state=focused]:before {
+  content: "\e615";
+  color: #AFFF3D;
+  transform: rotate(45deg) scale(0.84);
+}
+
+/**
+ * data-state=fail
+ */
+
+.focus-ring[data-state=fail]:before {
+  color: red;
+}
+
+/** Animation
+ ---------------------------------------------------------*/
+
+@keyframes ring-animation {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(35deg) scale(1.1); }
+  100% { transform: rotate(0deg) scale(1); }
+}

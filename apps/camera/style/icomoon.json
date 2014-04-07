@@ -21,51 +21,7 @@
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 14
-		},
-		{
-			"icon": {
-				"paths": [
-					"M512.439 908.15c-52.275 0-102.143-10.222-147.822-28.643l-25.226 25.247c110.65 48.736 237.644 48.582 348.108-0.758l-25.269-25.269c-46.207 18.916-96.756 29.424-149.791 29.424zM146.241 362.529l-25.247-25.269c-50.054 111.892-49.527 240.743 1.11 352.394l25.017-25.017c-19.531-46.846-30.358-98.23-30.358-152.154 0-53.089 10.53-103.714 29.478-149.955zM904.634 339.27l-25.226 25.236c18.444 45.714 28.699 95.625 28.699 147.954 0 53.165-10.541 103.879-29.556 150.197l25.226 25.247c49.549-110.595 49.726-237.809 0.858-348.636zM337.15 121.082l25.247 25.236c46.273-18.981 96.911-29.523 150.044-29.523 53.869 0 105.21 10.816 152.022 30.314l25.027-25.027c-111.671-50.593-240.48-51.087-352.339-1.001z"
-				],
-				"tags": [
-					"focus-locked"
-				],
-				"defaultCode": 58901,
-				"grid": 16
-			},
-			"properties": {
-				"id": 16,
-				"order": 2,
-				"prevSize": 32,
-				"code": 58901,
-				"name": "focus-locked",
-				"ligatures": ""
-			},
-			"setIdx": 0,
 			"iconIdx": 16
-		},
-		{
-			"icon": {
-				"paths": [
-					"M30.513 704.359h-23.665c54.759 144.35 169.597 258.88 313.814 313.726v-23.422c-63.695-25.334-123.411-63.707-174.949-115.255-51.549-51.594-89.898-111.321-115.2-175.049zM994.389 320.575h23.665c-54.759-144.327-169.597-258.847-313.792-313.693v23.401c63.695 25.325 123.378 63.683 174.928 115.266 51.539 51.571 89.921 111.321 115.2 175.026zM6.859 320.575h23.653c25.313-63.707 63.651-123.455 115.2-175.026 51.539-51.561 111.254-89.931 174.949-115.255v-23.412c-144.218 54.836-259.055 169.366-313.804 313.693zM879.188 879.408c-51.549 51.549-111.233 89.931-174.928 115.255v23.401c144.195-54.825 259.022-169.355 313.792-313.705h-23.665c-25.28 63.728-63.662 123.455-115.2 175.049z"
-				],
-				"tags": [
-					"focus-locking"
-				],
-				"defaultCode": 58902,
-				"grid": 16
-			},
-			"properties": {
-				"id": 17,
-				"order": 3,
-				"prevSize": 32,
-				"code": 58902,
-				"name": "focus-locking",
-				"ligatures": ""
-			},
-			"setIdx": 0,
-			"iconIdx": 17
 		},
 		{
 			"icon": {
@@ -80,14 +36,14 @@
 			},
 			"properties": {
 				"id": 25,
-				"order": 4,
+				"order": 2,
 				"prevSize": 32,
 				"code": 58891,
 				"name": "preview-share",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 25
+			"iconIdx": 27
 		},
 		{
 			"icon": {
@@ -102,14 +58,14 @@
 			},
 			"properties": {
 				"id": 0,
-				"order": 5,
+				"order": 3,
 				"prevSize": 32,
 				"code": 58903,
 				"name": "pick-cancel",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 0
+			"iconIdx": 2
 		},
 		{
 			"icon": {
@@ -124,14 +80,14 @@
 			},
 			"properties": {
 				"id": 1,
-				"order": 6,
+				"order": 4,
 				"prevSize": 32,
 				"code": 58887,
 				"name": "timer",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 1
+			"iconIdx": 3
 		},
 		{
 			"icon": {
@@ -146,14 +102,14 @@
 			},
 			"properties": {
 				"id": 12,
-				"order": 7,
+				"order": 5,
 				"prevSize": 32,
 				"code": 58881,
 				"name": "back-arrow",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 12
+			"iconIdx": 14
 		},
 		{
 			"icon": {
@@ -168,14 +124,14 @@
 			},
 			"properties": {
 				"id": 13,
-				"order": 8,
+				"order": 6,
 				"prevSize": 32,
 				"code": 58884,
 				"name": "tick",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 13
+			"iconIdx": 15
 		},
 		{
 			"icon": {
@@ -190,14 +146,14 @@
 			},
 			"properties": {
 				"id": 2,
-				"order": 9,
+				"order": 7,
 				"prevSize": 32,
 				"code": 58898,
 				"name": "hdr-menu",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 2
+			"iconIdx": 4
 		},
 		{
 			"icon": {
@@ -212,14 +168,14 @@
 			},
 			"properties": {
 				"id": 3,
-				"order": 10,
+				"order": 8,
 				"prevSize": 32,
 				"code": 58880,
 				"name": "gallery",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 3
+			"iconIdx": 5
 		},
 		{
 			"icon": {
@@ -234,14 +190,14 @@
 			},
 			"properties": {
 				"id": 15,
-				"order": 11,
+				"order": 9,
 				"prevSize": 32,
 				"code": 58896,
 				"name": "toggle-camera",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 15
+			"iconIdx": 17
 		},
 		{
 			"icon": {
@@ -256,14 +212,14 @@
 			},
 			"properties": {
 				"id": 4,
-				"order": 12,
+				"order": 10,
 				"prevSize": 32,
 				"code": 58882,
 				"name": "video",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 4
+			"iconIdx": 6
 		},
 		{
 			"icon": {
@@ -278,14 +234,14 @@
 			},
 			"properties": {
 				"id": 5,
-				"order": 13,
+				"order": 11,
 				"prevSize": 32,
 				"code": 58883,
 				"name": "geolocation",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 5
+			"iconIdx": 7
 		},
 		{
 			"icon": {
@@ -300,14 +256,14 @@
 			},
 			"properties": {
 				"id": 6,
-				"order": 14,
+				"order": 12,
 				"prevSize": 32,
 				"code": 58899,
 				"name": "picture-size",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 6
+			"iconIdx": 8
 		},
 		{
 			"icon": {
@@ -322,14 +278,14 @@
 			},
 			"properties": {
 				"id": 18,
-				"order": 15,
+				"order": 13,
 				"prevSize": 32,
 				"code": 58897,
 				"name": "flash-on",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 18
+			"iconIdx": 20
 		},
 		{
 			"icon": {
@@ -344,14 +300,14 @@
 			},
 			"properties": {
 				"id": 19,
-				"order": 16,
+				"order": 14,
 				"prevSize": 32,
 				"code": 58894,
 				"name": "flash-off",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 19
+			"iconIdx": 21
 		},
 		{
 			"icon": {
@@ -366,14 +322,14 @@
 			},
 			"properties": {
 				"id": 7,
-				"order": 17,
+				"order": 15,
 				"prevSize": 32,
 				"code": 58885,
 				"name": "frame-grid",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 7
+			"iconIdx": 9
 		},
 		{
 			"icon": {
@@ -388,14 +344,14 @@
 			},
 			"properties": {
 				"id": 8,
-				"order": 18,
+				"order": 16,
 				"prevSize": 32,
 				"code": 58889,
 				"name": "scene",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 8
+			"iconIdx": 10
 		},
 		{
 			"icon": {
@@ -410,14 +366,14 @@
 			},
 			"properties": {
 				"id": 20,
-				"order": 19,
+				"order": 17,
 				"prevSize": 32,
 				"code": 58906,
 				"name": "battery-verylow",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 20
+			"iconIdx": 22
 		},
 		{
 			"icon": {
@@ -432,14 +388,14 @@
 			},
 			"properties": {
 				"id": 21,
-				"order": 20,
+				"order": 18,
 				"prevSize": 32,
 				"code": 58905,
 				"name": "battery-low",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 21
+			"iconIdx": 23
 		},
 		{
 			"icon": {
@@ -454,14 +410,14 @@
 			},
 			"properties": {
 				"id": 9,
-				"order": 21,
+				"order": 19,
 				"prevSize": 32,
 				"code": 58892,
 				"name": "settings",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 9
+			"iconIdx": 11
 		},
 		{
 			"icon": {
@@ -476,14 +432,14 @@
 			},
 			"properties": {
 				"id": 10,
-				"order": 22,
+				"order": 20,
 				"prevSize": 32,
 				"code": 58893,
 				"name": "flash-auto",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 10
+			"iconIdx": 12
 		},
 		{
 			"icon": {
@@ -498,14 +454,14 @@
 			},
 			"properties": {
 				"id": 22,
-				"order": 23,
+				"order": 21,
 				"prevSize": 32,
 				"code": 58886,
 				"name": "camera-back",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 22
+			"iconIdx": 24
 		},
 		{
 			"icon": {
@@ -520,14 +476,14 @@
 			},
 			"properties": {
 				"id": 23,
-				"order": 24,
+				"order": 22,
 				"prevSize": 32,
 				"code": 58888,
 				"name": "preview-delete",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 23
+			"iconIdx": 25
 		},
 		{
 			"icon": {
@@ -542,14 +498,14 @@
 			},
 			"properties": {
 				"id": 11,
-				"order": 25,
+				"order": 23,
 				"prevSize": 32,
 				"code": 58890,
 				"name": "video-size",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 11
+			"iconIdx": 13
 		},
 		{
 			"icon": {
@@ -564,14 +520,56 @@
 			},
 			"properties": {
 				"id": 24,
-				"order": 26,
+				"order": 24,
 				"prevSize": 32,
 				"code": 58900,
 				"name": "hdr",
 				"ligatures": ""
 			},
 			"setIdx": 0,
-			"iconIdx": 24
+			"iconIdx": 26
+		},
+		{
+			"icon": {
+				"paths": [
+					"M1004.167 306.195h6.378c-54.682-132.295-160.468-238.023-292.716-292.727v6.354c62.291 26.028 120.676 64.284 171.372 114.978s88.963 109.104 114.966 171.395zM13.467 306.195h6.354c26.028-62.291 64.272-120.689 114.966-171.382s109.081-88.95 171.382-114.978v-6.354c-132.249 54.693-238.035 160.433-292.705 292.716zM19.821 717.805h-6.367c54.669 132.271 160.457 238.023 292.716 292.716v-6.342c-62.291-26.028-120.689-64.284-171.382-114.991s-88.95-109.093-114.966-171.382zM1004.167 717.805c-26.015 62.291-64.26 120.689-114.966 171.382s-109.081 88.95-171.372 114.978v6.354c132.26-54.704 238.059-160.444 292.727-292.716h-6.389z"
+				],
+				"grid": 16,
+				"tags": [
+					"focus-locking"
+				]
+			},
+			"properties": {
+				"order": 25,
+				"id": 26,
+				"prevSize": 32,
+				"code": 58902,
+				"name": "focus-locking",
+				"ligatures": ""
+			},
+			"setIdx": 0,
+			"iconIdx": 1
+		},
+		{
+			"icon": {
+				"paths": [
+					"M-1.059 300.447h15.468c26.352-62.022 64.668-120.19 115.252-170.774s108.737-88.916 170.758-115.267v-15.468c-136.241 56.289-245.217 165.223-301.479 301.506zM1009.594 300.447h15.468c-56.247-136.297-165.223-245.217-301.479-301.492v15.468c62.022 26.352 120.162 64.668 170.746 115.252 50.585 50.597 88.916 108.749 115.267 170.774zM14.406 723.553h-15.479c56.258 136.255 165.239 245.191 301.492 301.479v-15.452c-62.022-26.366-120.176-64.684-170.758-115.267-50.585-50.585-88.9-108.721-115.252-170.758zM1009.58 723.553c-26.352 62.022-64.668 120.176-115.252 170.758s-108.721 88.9-170.746 115.252v15.479c136.255-56.289 245.233-165.223 301.479-301.479h-15.479z"
+				],
+				"grid": 16,
+				"tags": [
+					"focus-locked"
+				]
+			},
+			"properties": {
+				"order": 26,
+				"id": 27,
+				"prevSize": 32,
+				"code": 58901,
+				"name": "focus-locked",
+				"ligatures": ""
+			},
+			"setIdx": 0,
+			"iconIdx": 0
 		}
 	],
 	"height": 1024,

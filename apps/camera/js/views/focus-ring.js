@@ -13,6 +13,7 @@ var View = require('vendor/view');
 
 module.exports = View.extend({
   name: 'focus-ring',
+  className: 'icon',
   setState: function(state) {
     this.el.setAttribute('data-state', state);
   }
