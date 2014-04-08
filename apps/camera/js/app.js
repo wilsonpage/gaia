@@ -43,11 +43,13 @@ module.exports = App;
  * @constructor
  */
 function App(options) {
+  debug('initialize');
   bindAll(this);
   this.views = {};
   this.el = options.el;
   this.win = options.win;
   this.doc = options.doc;
+  this.perf = { init: Date.now() };
   this.inSecureMode = (this.win.location.hash === '#secure');
   this.controllers = options.controllers;
   this.geolocation = options.geolocation;
@@ -66,6 +68,7 @@ function App(options) {
  * @public
  */
 App.prototype.boot = function() {
+  debug('boot');
   if (this.didBoot) { return; }
   this.initializeViews();
   this.runControllers();
@@ -88,7 +91,7 @@ App.prototype.teardown = function() {
  * @private
  */
 App.prototype.runControllers = function() {
-  debug('running controllers');
+  debug('run controllers');
   this.controllers.settings(this);
   this.controllers.activity(this);
   this.controllers.timer(this);

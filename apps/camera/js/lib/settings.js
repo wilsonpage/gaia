@@ -51,7 +51,7 @@ Settings.prototype.add = function(data) {
   var setting = new Setting(data);
   this.items.push(setting);
   this.ids[setting.key] = this[setting.key] = setting;
-  debug('added setting: %', setting.key);
+  debug('added setting: %s', setting.key);
 };
 
 Settings.prototype.fetch = function(done) {
