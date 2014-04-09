@@ -72,6 +72,8 @@ module.exports = View.extend({
     bind(this.el, 'touchmove', this.onTouchMove);
     bind(this.el, 'touchend', this.onTouchEnd);
     bind(this.el, 'animationend', this.onShutterEnd);
+
+    this.on('inserted', this.getSize);
   },
 
   render: function() {
@@ -83,6 +85,13 @@ module.exports = View.extend({
     this.els.videoContainer = this.find('.js-video-container');
 
     sensitivity = constants.ZOOM_GESTURE_SENSITIVITY * window.innerWidth;
+  },
+
+  getSize: function() {
+    requestAnimationFrame(function() {
+      this.width = this.el.clientWidth;
+      this.height = this.el.clientHeight;
+    }.bind(this));
   },
 
   onClick: function(e) {
@@ -234,8 +243,8 @@ module.exports = View.extend({
    * @param  {Boolean} mirrored
    */
   updatePreview: function(preview, sensorAngle, mirrored) {
-    var elementWidth = this.el.clientWidth;
-    var elementHeight = this.el.clientHeight;
+    var elementWidth = this.width;
+    var elementHeight = this.height;
     var aspect;
 
     // Invert dimensions if the camera's `sensorAngle` is
