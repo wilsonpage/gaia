@@ -12,43 +12,14 @@ require(['config/require', 'config'], function() {
 
     var App = require('app');
     var Camera = require('lib/camera');
-    var Sounds = require('lib/sounds');
     var Settings = require('lib/settings');
-    var sounds = new Sounds(require('config/sounds'));
     var settings = new Settings(require('config/settings'));
     var GeoLocation = require('lib/geo-location');
     var Activity = require('lib/activity');
     var Storage = require('lib/storage');
-    var controllers = {
-      hud: require('controllers/hud'),
-      controls: require('controllers/controls'),
-      viewfinder: require('controllers/viewfinder'),
-      recordingTimer: require('controllers/recording-timer'),
-      previewGallery: require('controllers/preview-gallery'),
-      overlay: require('controllers/overlay'),
-      confirm: require('controllers/confirm'),
-      settings: require('controllers/settings'),
-      activity: require('controllers/activity'),
-      camera: require('controllers/camera'),
-      sounds: require('controllers/sounds'),
-      timer: require('controllers/timer'),
-      zoomBar: require('controllers/zoom-bar'),
-      indicators: require('controllers/indicators'),
-      battery: require('controllers/battery')
-    };
 
     // Attach navigator.mozL10n
     require('l10n');
-
-    debug('required dependencies');
-
-    var camera = new Camera({
-      maxFileSizeBytes: 0,
-      maxWidth: 0,
-      maxHeight: 0,
-      container: document.body,
-      cafEnabled: settings.caf.enabled()
-    });
 
     /**
      * Create new `App`
@@ -60,11 +31,36 @@ require(['config/require', 'config'], function() {
       el: document.body,
       geolocation: new GeoLocation(),
       activity: new Activity(),
+      storage: new Storage(),
       settings: settings,
-      camera: camera,
-      sounds: sounds,
-      controllers: controllers,
-      storage: new Storage()
+
+      camera: new Camera({
+        maxFileSizeBytes: 0,
+        maxWidth: 0,
+        maxHeight: 0,
+        container: document.body,
+        cafEnabled: settings.caf.enabled()
+      }),
+
+      controllers: {
+        hud: require('controllers/hud'),
+        controls: require('controllers/controls'),
+        viewfinder: require('controllers/viewfinder'),
+        recordingTimer: require('controllers/recording-timer'),
+        overlay: require('controllers/overlay'),
+        confirm: require('controllers/confirm'),
+        settings: require('controllers/settings'),
+        activity: require('controllers/activity'),
+        camera: require('controllers/camera'),
+        timer: require('controllers/timer'),
+        zoomBar: require('controllers/zoom-bar'),
+        indicators: require('controllers/indicators'),
+
+        // Lazy loaded
+        previewGallery: 'controllers/preview-gallery',
+        battery: 'controllers/battery',
+        sounds: 'controllers/sounds'
+      }
     });
 
     debug('created app');

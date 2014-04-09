@@ -16,6 +16,7 @@ var model = require('vendor/model');
 var debug = require('debug')('app');
 var HudView = require('views/hud');
 var bind = require('lib/bind');
+var requirejs = window.requirejs;
 
 /**
  * Locals
@@ -57,7 +58,7 @@ function App(options) {
   this.settings = options.settings;
   this.storage = options.storage;
   this.camera = options.camera;
-  this.sounds = options.sounds;
+  // this.sounds = options.sounds;
   debug('initialized');
 }
 
@@ -99,15 +100,24 @@ App.prototype.runControllers = function() {
   this.controllers.viewfinder(this);
   this.controllers.recordingTimer(this);
   this.controllers.indicators(this);
-  this.controllers.previewGallery(this);
+  // this.controllers.previewGallery(this);
   this.controllers.controls(this);
   this.controllers.confirm(this);
   this.controllers.overlay(this);
-  this.controllers.sounds(this);
   this.controllers.hud(this);
   this.controllers.zoomBar(this);
-  this.controllers.battery(this);
+  // this.controllers.battery(this);
   debug('controllers run');
+};
+
+App.prototype.loadControllers = function() {
+  this.loadController(this.controllers.previewGallery);
+  this.loadController(this.controllers.battery);
+  this.loadController(this.controllers.sounds);
+};
+
+App.prototype.loadController = function(path) {
+  requirejs([path], function(controller) { controller(this); }.bind(this));
 };
 
 /**
@@ -148,6 +158,7 @@ App.prototype.injectViews = function() {
  * @private
  */
 App.prototype.bindEvents = function() {
+  this.once('viewfinder:visible', this.onceViewfinderVisible);
   this.storage.once('checked:healthy', this.geolocationWatch);
   bind(this.doc, 'visibilitychange', this.onVisibilityChange);
   bind(this.win, 'beforeunload', this.onBeforeUnload);
@@ -196,6 +207,12 @@ App.prototype.onBlur = function() {
 App.prototype.onClick = function() {
   debug('click');
   this.emit('click');
+};
+
+App.prototype.onceViewfinderVisible = function() {
+  var start = window.performance.timing.domComplete;
+  this.loadControllers();
+  debug('viewfinder visible in %s ms', Date.now() - start);
 };
 
 /**

@@ -29,7 +29,6 @@ module.exports.TimerController = TimerController;
 function TimerController(app) {
   bindAll(this);
   this.app = app;
-  this.sounds = app.sounds;
   this.settings = app.settings;
   this.view = app.views.timer || new TimerView();
   this.view.appendTo(app.el);

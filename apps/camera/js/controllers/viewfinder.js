@@ -29,6 +29,7 @@ function ViewfinderController(app) {
   this.settings = app.settings;
   this.viewfinder = app.views.viewfinder;
   this.focusRing = app.views.focusRing;
+  this.criticalPath = true;
   this.bindEvents();
   this.configure();
   debug('initialized');
@@ -117,10 +118,8 @@ ViewfinderController.prototype.onCameraConfigured = function() {
 };
 
 ViewfinderController.prototype.show = function() {
-  var perf = window.performance;
-  var start = perf.timing.domComplete;
   this.viewfinder.fadeIn();
-  debug('viewfinder visible in %s ms', Date.now() - start);
+  this.app.emit('viewfinder:visible');
 };
 
 ViewfinderController.prototype.onShutter = function() {
