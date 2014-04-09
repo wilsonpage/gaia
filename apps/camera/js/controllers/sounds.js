@@ -5,8 +5,8 @@ define(function(require, exports, module) {
  * Dependencies
  */
 
-var Sounds = require('lib/sounds');
 var debug = require('debug')('controller:sounds');
+var Sounds = require('lib/sounds');
 
 /**
  * Exports
@@ -30,7 +30,7 @@ function SoundsController(app) {
 }
 
 SoundsController.prototype.bindEvents = function() {
-  this.app.on('change:recording', this.onRecordingChange);
+  this.app.on('change:recording', this.onRecordingChange.bind(this));
   this.app.on('camera:shutter', this.sounds.player('shutter'));
 };
 
