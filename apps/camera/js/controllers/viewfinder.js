@@ -113,13 +113,13 @@ ViewfinderController.prototype.onCameraConfigured = function() {
   // video element appears not to have painted the
   // newly set dimensions before fading in.
   // https://bugzilla.mozilla.org/show_bug.cgi?id=982230
-  setTimeout(this.viewfinder.fadeIn, 300);
-  this.debugFirstLoad();
+  setTimeout(this.show, 300);
 };
 
-ViewfinderController.prototype.debugFirstLoad = function() {
+ViewfinderController.prototype.show = function() {
   var perf = window.performance;
   var start = perf.timing.domComplete;
+  this.viewfinder.fadeIn();
   debug('viewfinder visible in %s ms', Date.now() - start);
 };
 

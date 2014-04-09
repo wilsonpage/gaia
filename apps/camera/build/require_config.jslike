@@ -4,6 +4,7 @@
   mainConfigFile: '../js/config/require.js',
   dir: '../../../build_stage/camera',
   name: 'main',
+  include: ['vendor/alameda'],
 
   findNestedDependencies: true,
 
