@@ -100,13 +100,10 @@ App.prototype.runControllers = function() {
   this.controllers.viewfinder(this);
   this.controllers.recordingTimer(this);
   this.controllers.indicators(this);
-  // this.controllers.previewGallery(this);
   this.controllers.controls(this);
-  // this.controllers.confirm(this);
   this.controllers.overlay(this);
   this.controllers.hud(this);
   this.controllers.zoomBar(this);
-  // this.controllers.battery(this);
   debug('controllers run');
 };
 

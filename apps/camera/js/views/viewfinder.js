@@ -88,10 +88,11 @@ module.exports = View.extend({
   },
 
   getSize: function() {
-    requestAnimationFrame(function() {
-      this.width = this.el.clientWidth;
-      this.height = this.el.clientHeight;
-    }.bind(this));
+    var self = this;
+    setTimeout(function() {
+      self.width = self.el.clientWidth;
+      self.height = self.el.clientHeight;
+    });
   },
 
   onClick: function(e) {
