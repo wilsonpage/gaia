@@ -48,7 +48,6 @@ require(['config/require', 'config'], function() {
         viewfinder: require('controllers/viewfinder'),
         recordingTimer: require('controllers/recording-timer'),
         overlay: require('controllers/overlay'),
-        confirm: require('controllers/confirm'),
         settings: require('controllers/settings'),
         activity: require('controllers/activity'),
         camera: require('controllers/camera'),
@@ -58,6 +57,7 @@ require(['config/require', 'config'], function() {
 
         // Lazy loaded
         previewGallery: 'controllers/preview-gallery',
+        confirm: 'controllers/confirm',
         battery: 'controllers/battery',
         sounds: 'controllers/sounds'
       }

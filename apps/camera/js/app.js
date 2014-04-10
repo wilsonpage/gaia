@@ -102,7 +102,7 @@ App.prototype.runControllers = function() {
   this.controllers.indicators(this);
   // this.controllers.previewGallery(this);
   this.controllers.controls(this);
-  this.controllers.confirm(this);
+  // this.controllers.confirm(this);
   this.controllers.overlay(this);
   this.controllers.hud(this);
   this.controllers.zoomBar(this);
@@ -112,6 +112,7 @@ App.prototype.runControllers = function() {
 
 App.prototype.loadControllers = function() {
   this.loadController(this.controllers.previewGallery);
+  this.loadController(this.controllers.confirm);
   this.loadController(this.controllers.battery);
   this.loadController(this.controllers.sounds);
 };
@@ -210,9 +211,10 @@ App.prototype.onClick = function() {
 };
 
 App.prototype.onceViewfinderVisible = function() {
-  var start = window.performance.timing.domComplete;
-  this.loadControllers();
-  debug('viewfinder visible in %s ms', Date.now() - start);
+  var start = window.performance.timing.domLoading;
+  var time = Date.now() - start;
+  setTimeout(this.loadControllers, 5000);
+  console.log('critical-path took ' + time + 'ms');
 };
 
 /**
