@@ -46,14 +46,14 @@ function Activity() {
  * @param  {Function} done
  */
 Activity.prototype.check = function(done) {
-  var hasMessage = navigator.mozHasPendingMessage('activity');
+  var hasMessage = !!window.location.hash;
   var self = this;
 
   navigator.mozSetMessageHandler('activity', onActivity);
 
   if (!hasMessage) {
     debug('none');
-    setTimeout(done);
+    done();
     return;
   }
 
