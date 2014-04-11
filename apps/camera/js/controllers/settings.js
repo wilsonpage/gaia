@@ -55,8 +55,8 @@ SettingsController.prototype.configure = function() {
  * @private
  */
 SettingsController.prototype.bindEvents = function() {
-  this.app.on('change:capabilities', this.onCapabilitiesChange);
   this.app.on('settings:toggle', this.toggleSettings);
+  this.app.on('camera:newcamera', this.onNewCamera);
 };
 
 /**
@@ -165,7 +165,7 @@ SettingsController.prototype.localize = function(value) {
  *
  * @param  {Object} capabilities
  */
-SettingsController.prototype.onCapabilitiesChange = function(capabilities) {
+SettingsController.prototype.onNewCamera = function(capabilities) {
   debug('new capabilities');
 
   this.settings.hdr.filterOptions(capabilities.hdr);

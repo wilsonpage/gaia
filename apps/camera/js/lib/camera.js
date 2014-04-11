@@ -196,7 +196,9 @@ Camera.prototype.configureCamera = function(mozCamera) {
   this.mozCamera.onShutter = this.onShutter;
   this.mozCamera.onPreviewStateChange = this.onPreviewStateChange;
   this.mozCamera.onRecorderStateChange = this.onRecorderStateChange;
-  this.set('capabilities', this.formatCapabilities(capabilities));
+  this.configureFocus(capabilities.focusModes);
+  this.capabilities = this.formatCapabilities(capabilities);
+  this.emit('newcamera', this.capabilities);
   debug('configured camera');
 };
 
@@ -868,7 +870,7 @@ Camera.prototype.setHDR = function(value){
  * @param {String} value
  */
 Camera.prototype.setSceneMode = function(value){
-  var modes =  this.get('capabilities').sceneModes;
+  var modes = this.capabilities.sceneModes;
   if (modes.indexOf(value) > -1) {
     this.mozCamera.sceneMode = value;
   }
