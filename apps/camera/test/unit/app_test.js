@@ -11,15 +11,13 @@ suite('app', function() {
       'vendor/view',
       'lib/geo-location',
       'lib/activity',
-      'lib/storage',
       'lib/setting',
-    ], function(App, Camera, View, GeoLocation, Activity, Storage, Setting) {
+    ], function(App, Camera, View, GeoLocation, Activity, Setting) {
       self.App = App;
       self.View = View;
       self.Camera = Camera;
       self.Geolocation = GeoLocation;
       self.Activity = Activity;
-      self.Storage = Storage;
       self.Setting = Setting;
       done();
     });
@@ -60,8 +58,6 @@ suite('app', function() {
       geolocation: sinon.createStubInstance(this.Geolocation),
       activity: new this.Activity(),
       camera: sinon.createStubInstance(this.Camera),
-      sounds: {},
-      storage: sinon.createStubInstance(this.Storage),
       settings: {
         geolocation: sinon.createStubInstance(this.Setting)
       },
@@ -82,7 +78,6 @@ suite('app', function() {
         camera: sinon.spy(),
         settings: sinon.spy(),
         activity: sinon.spy(),
-        sounds: sinon.spy(),
         recordingTimer: sinon.spy(),
         zoomBar: sinon.spy(),
         indicators: sinon.spy(),
@@ -111,6 +106,7 @@ suite('app', function() {
 
     this.sandbox.spy(this.app, 'on');
     this.sandbox.spy(this.app, 'set');
+    this.sandbox.spy(this.app, 'once');
     this.sandbox.spy(this.app, 'emit');
     this.sandbox.spy(this.app, 'firer');
   });
@@ -162,11 +158,9 @@ suite('app', function() {
       assert.ok(controllers.hud.calledWith(app));
       assert.ok(controllers.controls.calledWith(app));
       assert.ok(controllers.viewfinder.calledWith(app));
-      assert.ok(controllers.previewGallery.calledWith(app));
       assert.ok(controllers.overlay.calledWith(app));
       assert.ok(controllers.camera.calledWith(app));
       assert.ok(controllers.zoomBar.calledWith(app));
-      assert.ok(controllers.battery.calledWith(app));
     });
 
     test('Should put each of the views into the root element', function() {
@@ -200,8 +194,7 @@ suite('app', function() {
 
     test('Should watch location only once storage confirmed healthy', function() {
       var geolocationWatch = this.app.geolocationWatch;
-      var storage = this.app.storage;
-      assert.ok(storage.once.calledWith('checked:healthy', geolocationWatch));
+      assert.ok(this.app.once.calledWith('storage:healthy', geolocationWatch));
     });
 
     suite('App#geolocationWatch()', function() {
@@ -256,10 +249,6 @@ suite('app', function() {
     setup(function() {
       sinon.spy(this.app, 'geolocationWatch');
       this.app.onFocus();
-    });
-
-    test('Should run a storage check', function() {
-      assert.ok(this.app.storage.check.called);
     });
 
     test('Should begin watching location again', function() {

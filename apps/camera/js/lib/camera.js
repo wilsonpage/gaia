@@ -870,7 +870,7 @@ Camera.prototype.setHDR = function(value){
  * @param {String} value
  */
 Camera.prototype.setSceneMode = function(value){
-  var modes = this.capabilities.sceneModes;
+  var modes = this.mozCamera.capabilities.sceneModes;
   if (modes.indexOf(value) > -1) {
     this.mozCamera.sceneMode = value;
   }

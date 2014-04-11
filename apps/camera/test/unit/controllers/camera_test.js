@@ -13,18 +13,16 @@ suite('controllers/camera', function() {
       'views/viewfinder',
       'lib/settings',
       'lib/setting',
-      'lib/storage',
       'lib/geo-location'
     ], function(
       App, CameraController, Camera, Activity,
-      ViewfinderView, Settings, Setting, Storage, GeoLocation) {
+      ViewfinderView, Settings, Setting, GeoLocation) {
       self.CameraController = CameraController.CameraController;
       self.ViewfinderView = ViewfinderView;
       self.GeoLocation = GeoLocation;
       self.Activity = Activity;
       self.Settings = Settings;
       self.Setting = Setting;
-      self.Storage = Storage;
       self.Camera = Camera;
       self.App = App;
       done();
@@ -35,7 +33,6 @@ suite('controllers/camera', function() {
     this.app = sinon.createStubInstance(this.App);
     this.app.camera = sinon.createStubInstance(this.Camera);
     this.app.geolocation = sinon.createStubInstance(this.GeoLocation);
-    this.app.storage = sinon.createStubInstance(this.Storage);
 
     // Activity
     this.app.activity = new this.Activity();
@@ -85,8 +82,8 @@ suite('controllers/camera', function() {
       assert.isTrue(this.app.camera.setMode.called);
     });
 
-    test('Should load camera on app `boot`', function() {
-      assert.isTrue(this.app.on.calledWith('boot', this.camera.load));
+    test('Should load the camera', function() {
+      assert.isTrue(this.camera.load.calledOnce);
     });
 
     test('Should load camera on app `focus`', function() {
@@ -95,10 +92,6 @@ suite('controllers/camera', function() {
 
     test('Should teardown camera on app `blur`', function() {
       assert.isTrue(this.app.on.calledWith('blur', this.controller.onBlur));
-    });
-
-    test('Should set the camera createVideoFilepath method', function() {
-      assert.equal(this.camera.createVideoFilepath, this.app.storage.createVideoFilepath);
     });
 
     test('Should relay focus change events', function() {
@@ -144,12 +137,12 @@ suite('controllers/camera', function() {
     });
 
     test('Should call `camera.configure()` camera after setup', function() {
-      var setMaxFileSize = this.app.storage.setMaxFileSize;
+      var configure = this.camera.configure;
 
-      assert.ok(setMaxFileSize.calledAfter(this.camera.setRecorderProfile));
-      assert.ok(setMaxFileSize.calledAfter(this.camera.setFlashMode));
-      assert.ok(setMaxFileSize.calledAfter(this.camera.setWhiteBalance));
-      assert.ok(setMaxFileSize.calledAfter(this.camera.setHDR));
+      assert.ok(configure.calledAfter(this.camera.setRecorderProfile));
+      assert.ok(configure.calledAfter(this.camera.setFlashMode));
+      assert.ok(configure.calledAfter(this.camera.setWhiteBalance));
+      assert.ok(configure.calledAfter(this.camera.setHDR));
     });
   });
 

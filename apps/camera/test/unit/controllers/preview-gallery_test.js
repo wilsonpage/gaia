@@ -34,18 +34,12 @@ suite('controllers/preview-gallery', function() {
     this.app = sinon.createStubInstance(this.App);
     this.app.camera = sinon.createStubInstance(this.Camera);
     this.app.settings = sinon.createStubInstance(this.Settings);
+    this.app.settings = sinon.createStubInstance(this.Settings);
+    this.app.activity = {};
     this.app.views = {
       controls: sinon.createStubInstance(this.ControlsView)
     };
-    this.app.storage = sinon.createStubInstance(this.Storage);
-    this.app.storage = { on: sinon.spy() };
-    this.app.storage.image = { delete: sinon.stub() };
-    this.app.storage.video = { delete: sinon.stub() };
-    this.app.storage.image.delete.withArgs('root/fileName').returns({});
-    this.app.storage.video.delete.withArgs('root/fileName').returns({});
-    this.app.settings = sinon.createStubInstance(this.Settings);
 
-    this.app.activity = {};
 
     // Our test instance
     this.previewGalleryController = new this.PreviewGalleryController(this.app);
@@ -94,7 +88,7 @@ suite('controllers/preview-gallery', function() {
       assert.ok(this.app.on.calledWith('preview'));
       assert.ok(this.app.on.calledWith('newmedia'));
       assert.ok(this.app.on.calledWith('blur'));
-      assert.ok(this.storage.on.calledWith('itemdeleted'));
+      assert.ok(this.app.on.calledWith('storage:itemdeleted'));
     });
 
     test('Should open the gallery app when gallery button is pressed',
@@ -152,13 +146,12 @@ suite('controllers/preview-gallery', function() {
         filepath: 'root/fileName',
         isVideo: false
       };
+
       this.previewGalleryController.items = [item];
       this.previewGalleryController.currentItemIndex = 0;
-
       this.previewGalleryController.deleteCurrentItem();
 
-      assert.ok(this.previewGalleryController.storage.deleteImage
-                .calledWith('root/fileName'));
+      assert.ok(this.app.emit.calledWith('previewgallery:deletepicture', 'root/fileName'));
     });
 
     test('Should deleteCurrentItem which is video', function() {
@@ -171,8 +164,7 @@ suite('controllers/preview-gallery', function() {
       this.previewGalleryController.currentItemIndex = 0;
       this.previewGalleryController.deleteCurrentItem();
 
-      assert.ok(this.previewGalleryController.storage.deleteVideo
-                .calledWith('root/fileName'));
+      assert.ok(this.app.emit.calledWith('previewgallery:deletevideo', 'root/fileName'));
     });
 
     test('Check onNewMedia callback', function() {

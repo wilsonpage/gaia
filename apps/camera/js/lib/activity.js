@@ -25,10 +25,11 @@ module.exports = Activity;
  *
  * @constructor
  */
-function Activity() {
+function Activity(options) {
+  this.win = options.win || window; // for unit-testing
+  this.modes = ['picture', 'video'];
   this.active = false;
   this.data = {};
-  this.modes = ['picture', 'video'];
   debug('initialized');
 }
 
@@ -46,7 +47,7 @@ function Activity() {
  * @param  {Function} done
  */
 Activity.prototype.check = function(done) {
-  var hasMessage = !!window.location.hash;
+  var hasMessage = !!this.win.location.hash;
   var self = this;
 
   navigator.mozSetMessageHandler('activity', onActivity);

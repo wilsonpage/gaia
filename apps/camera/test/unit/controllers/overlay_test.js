@@ -30,9 +30,6 @@ suite('controllers/overlay', function() {
       camera: {
         get: sinon.spy()
       },
-      storage: {
-        on: sinon.spy()
-      },
       activity: new Activity()
     };
 
@@ -53,7 +50,7 @@ suite('controllers/overlay', function() {
   suite('OverlayController()', function() {
     test('Should bind to the storage state change event', function() {
       this.controller = new Controller(this.app);
-      assert.ok(this.app.storage.on.calledWith('statechange'));
+      assert.ok(this.app.on.calledWith('storage:statechange'));
     });
   });
 

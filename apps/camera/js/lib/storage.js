@@ -193,8 +193,7 @@ Storage.prototype.check = function(done) {
   });
 
   function onComplete(state) {
-    self.emit('checked');
-    self.emit('checked:' + state);
+    self.emit('checked', state);
   }
 };
 

@@ -77,8 +77,8 @@ suite('controllers/settings', function() {
       assert.isTrue(this.app.on.calledWith('settings:toggle', this.controller.toggleSettings));
     });
 
-    test('Should listen for \'change:capabilities\'', function() {
-      assert.isTrue(this.app.on.calledWith('change:capabilities', this.controller.onCapabilitiesChange));
+    test('Should update the settings when the camera hardware changes', function() {
+      assert.isTrue(this.app.on.calledWith('camera:newcamera', this.controller.onNewCamera));
     });
   });
 
@@ -221,7 +221,7 @@ suite('SettingsController#configureRecorderProfiles()', function() {
     });
   });
 
-  suite('SettingsController#onCapabilitiesChange()', function() {
+  suite('SettingsController#onNewCamera()', function() {
     setup(function() {
       this.capabilities = {
         hdr: ['on', 'off'],
@@ -235,14 +235,14 @@ suite('SettingsController#configureRecorderProfiles()', function() {
       var picture = this.settings.flashModesPicture;
       var video = this.settings.flashModesVideo;
 
-      this.controller.onCapabilitiesChange(this.capabilities);
+      this.controller.onNewCamera(this.capabilities);
 
       assert.ok(picture.filterOptions.calledWith(this.capabilities.flashModes));
       assert.ok(video.filterOptions.calledWith(this.capabilities.flashModes));
     });
 
     test('Should filter hdr', function() {
-      this.controller.onCapabilitiesChange(this.capabilities);
+      this.controller.onNewCamera(this.capabilities);
       assert.ok(this.settings.hdr.filterOptions.calledWith(this.capabilities.hdr));
     });
 
@@ -250,7 +250,7 @@ suite('SettingsController#configureRecorderProfiles()', function() {
       var recorderProfiles = this.settings.recorderProfiles;
       var pictureSizes = this.settings.pictureSizes;
 
-      this.controller.onCapabilitiesChange(this.capabilities);
+      this.controller.onNewCamera(this.capabilities);
 
       assert.ok(recorderProfiles.resetOptions.called);
       assert.ok(pictureSizes.resetOptions.called);
@@ -260,7 +260,7 @@ suite('SettingsController#configureRecorderProfiles()', function() {
       var recorderProfiles = this.settings.recorderProfiles;
       var pictureSizes = this.settings.pictureSizes;
 
-      this.controller.onCapabilitiesChange(this.capabilities);
+      this.controller.onNewCamera(this.capabilities);
 
       assert.ok(recorderProfiles.emit.calledWith('configured'));
       assert.ok(pictureSizes.emit.calledWith('configured'));

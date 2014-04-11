@@ -105,6 +105,11 @@ App.prototype.runControllers = function() {
   debug('controllers run');
 };
 
+/**
+ * Lazy load all non-critical controllers.
+ *
+ * @private
+ */
 App.prototype.loadControllers = function() {
   this.loadController(this.controllers.previewGallery);
   this.loadController(this.controllers.storage);
@@ -113,8 +118,15 @@ App.prototype.loadControllers = function() {
   this.loadController(this.controllers.sounds);
 };
 
+/**
+ * Lazy load and run a controller.
+ *
+ * @param  {String} path
+ */
 App.prototype.loadController = function(path) {
-  requirejs([path], function(controller) { controller(this); }.bind(this));
+  requirejs([path], function(controller) {
+    controller(this);
+  }.bind(this));
 };
 
 /**
@@ -167,6 +179,8 @@ App.prototype.bindEvents = function() {
 
 /**
  * Detaches event handlers.
+ *
+ * @private
  */
 App.prototype.unbindEvents = function() {
   unbind(this.doc, 'visibilitychange', this.onVisibilityChange);
@@ -193,6 +207,8 @@ App.prototype.onFocus = function() {
 /**
  * Tasks to run when the
  * app is minimised/hidden.
+ *
+ * @private
  */
 App.prototype.onBlur = function() {
   this.geolocation.stopWatching();
@@ -200,16 +216,37 @@ App.prototype.onBlur = function() {
   debug('blur');
 };
 
+/**
+ * Emit a click event that other
+ * modules can listen to.
+ *
+ * @private
+ */
 App.prototype.onClick = function() {
   debug('click');
   this.emit('click');
 };
 
+/**
+ * Load non-critical modules once
+ * the viewfinder is visible.
+ *
+ * @private
+ */
 App.prototype.onceViewfinderVisible = function() {
+  this.criticalPathDone();
+  this.loadControllers();
+};
+
+/**
+ * Log when critical path has completed.
+ *
+ * @return {Number}
+ */
+App.prototype.criticalPathDone = function() {
   var start = window.performance.timing.domLoading;
-  var time = Date.now() - start;
-  setTimeout(this.loadControllers, 500);
-  console.log('critical-path took ' + time + 'ms');
+  var took = Date.now() - start;
+  console.log('critical-path took %s', took + 'ms');
 };
 
 /**

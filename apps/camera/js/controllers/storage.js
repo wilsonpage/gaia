@@ -55,7 +55,7 @@ StorageController.prototype.bindEvents = function() {
   debug('bind events');
 
   // App
-  this.app.settings.on('settings:configured', this.updateMaxFileSize);
+  this.settings.pictureSizes.on('change:selected', this.updateMaxFileSize);
   this.app.on('previewgallery:deletepicture', this.storage.deletePicture);
   this.app.on('previewgallery:deletevideo', this.storage.deleteVideo);
   this.app.on('settings:configured', this.updateMaxFileSize);
@@ -66,7 +66,7 @@ StorageController.prototype.bindEvents = function() {
   // Storage
   this.storage.on('itemdeleted', this.app.firer('storage:itemdeleted'));
   this.storage.on('statechange', this.onStateChange);
-
+  this.storage.on('checked', this.onChecked);
   debug('events bound');
 };
 
@@ -77,8 +77,21 @@ StorageController.prototype.bindEvents = function() {
  * @private
  */
 StorageController.prototype.onStateChange = function(state) {
+  debug('state change: %s', state);
   this.app.emit('storage:statechange', state);
-  this.app.emit('storage:' + state);
+};
+
+/**
+ * Emit the outcome of a storage check
+ * so that other parts of the app
+ * can respond.
+ *
+ * @param  {String} value
+ * @private
+ */
+StorageController.prototype.onChecked = function(value) {
+  debug('checked: %s', value);
+  this.app.emit('storage:' + value);
 };
 
 /**
@@ -134,7 +147,7 @@ StorageController.prototype.storeVideo = function(video) {
   poster.filepath = video.filepath.replace('.3gp', '.jpg');
   video.isVideo = true;
 
-  this.storage.addImage(
+  this.storage.addPicture(
     poster.blob, { filepath: poster.filepath },
     function(path, absolutePath, fileBlob) {
       // Replace the memory-backed Blob with the DeviceStorage file-backed File.
@@ -157,11 +170,12 @@ StorageController.prototype.storeVideo = function(video) {
  * @private
  */
 StorageController.prototype.updateMaxFileSize = function() {
+  var exif = 4096;
   var pictureSize = this.settings.pictureSizes.selected('data');
   var bytes = (pictureSize.width * pictureSize.height * 4);
-  var exif = 4096;
   var total = bytes + exif;
   this.storage.setMaxFileSize(total);
+  debug('maxFileSize updated %s', total);
 };
 
 });
