@@ -31,15 +31,26 @@ function StorageController(app) {
   this.bindEvents();
 }
 
+/**
+ * Initial configuration.
+ *
+ * Give the camera a way to create video filepaths.
+ * This is so that the camera can record videos
+ * directly to the final location without us
+ * having to move the video file from temporary,
+ * to final location at recording end.
+ *
+ * @private
+ */
 StorageController.prototype.configure = function() {
-
-  // Give the camera a way to create video filepaths. This
-  // is so that the camera can record videos directly to
-  // the final location without us having to move the video
-  // file from temporary, to final location at recording end.
   this.camera.createVideoFilepath = this.storage.createVideoFilepath;
 };
 
+/**
+ * Bind to relevant events.
+ *
+ * @private
+ */
 StorageController.prototype.bindEvents = function() {
   debug('bind events');
 
@@ -59,31 +70,49 @@ StorageController.prototype.bindEvents = function() {
   debug('events bound');
 };
 
+/**
+ * Relay storage state change events.
+ *
+ * @param  {String} state
+ * @private
+ */
 StorageController.prototype.onStateChange = function(state) {
   this.app.emit('storage:statechange', state);
   this.app.emit('storage:' + state);
 };
 
-StorageController.prototype.storePicture = function(image) {
-  var memoryBlob = image.blob;
+/**
+ * Store a picture.
+ *
+ * In either case, save the memory-backed
+ * photo blob to device storage, retrieve
+ * the resulting File (blob) and pass that
+ * around instead of the original memory blob.
+ *
+ * This is critical for "pick" activity consumers
+ * where the memory-backed Blob is either highly
+ * inefficent or will almost-immediately become
+ * inaccesible, depending on the state of the
+ * platform. https://bugzil.la/982779
+ *
+ * @param  {Object} picture
+ * @private
+ */
+StorageController.prototype.storePicture = function(picture) {
+  var memoryBlob = picture.blob;
   var self = this;
 
-  // In either case, save the memory-backed photo blob to
-  // device storage, retrieve the resulting File (blob) and
-  // pass that around instead of the original memory blob.
-  // This is critical for "pick" activity consumers where
-  // the memory-backed Blob is either highly inefficent or
-  // will almost-immediately become inaccesible, depending
-  // on the state of the platform. https://bugzil.la/982779
-  this.storage.addImage(memoryBlob, function(filepath, abspath, fileBlob) {
-    image.blob = fileBlob;
-    image.filepath = filepath;
-    debug('stored image', image);
-    self.app.emit('newmedia', image);
+  this.storage.addPicture(memoryBlob, function(filepath, abspath, fileBlob) {
+    picture.blob = fileBlob;
+    picture.filepath = filepath;
+    debug('stored picture', picture);
+    self.app.emit('newmedia', picture);
   });
 };
 
 /**
+ * Store a video.
+ *
  * Store the poster image,
  * then emit the app 'newvideo'
  * event. This signifies the video
@@ -117,6 +146,16 @@ StorageController.prototype.storeVideo = function(video) {
     });
 };
 
+/**
+ * Calculate and set a `maxFileSize`
+ * value on the storage instance.
+ *
+ * This is so that it can alert us when there
+ * isn't enough space left in storage
+ * to accomodate a new picture.
+ *
+ * @private
+ */
 StorageController.prototype.updateMaxFileSize = function() {
   var pictureSize = this.settings.pictureSizes.selected('data');
   var bytes = (pictureSize.width * pictureSize.height * 4);

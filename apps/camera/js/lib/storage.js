@@ -29,8 +29,8 @@ function Storage() {
   this.check = this.check.bind(this);
   this.onStorageChange = this.onStorageChange.bind(this);
   this.video = navigator.getDeviceStorage('videos');
-  this.image = navigator.getDeviceStorage('pictures');
-  this.image.addEventListener('change', this.onStorageChange);
+  this.picture = navigator.getDeviceStorage('pictures');
+  this.picture.addEventListener('change', this.onStorageChange);
   this.createVideoFilepath = this.createVideoFilepath.bind(this);
   dcf.init();
   debug('initialized');
@@ -46,7 +46,7 @@ function Storage() {
  * @param {String} options.filepath
  *   The path to save the image to.
  */
-Storage.prototype.addImage = function(blob, options, done) {
+Storage.prototype.addPicture = function(blob, options, done) {
   if (typeof options === 'function') {
     done = options;
     options = {};
@@ -55,30 +55,30 @@ Storage.prototype.addImage = function(blob, options, done) {
   done = done || function() {};
   var filepath = options && options.filepath;
   var self = this;
-  debug('add image', filepath);
+  debug('add picture', filepath);
 
   // Create a filepath if
   // one hasn't been given.
   if (!filepath) {
     debug('creating filename');
-    createFilename(this.image, 'image', onCreated);
+    createFilename(this.picture, 'image', onCreated);
   } else {
     onCreated(filepath);
   }
 
   function onCreated(filepath) {
-    var req = self.image.addNamed(blob, filepath);
+    var req = self.picture.addNamed(blob, filepath);
     req.onerror = function() { self.emit('error'); };
     req.onsuccess = function(e) {
       debug('image stored', filepath);
       var absolutePath = e.target.result;
       // addNamed does not give us a File handle so we need to get() it again.
-      refetchImage(filepath, absolutePath);
+      refetchFile(filepath, absolutePath);
     };
   }
 
-  function refetchImage(filepath, absolutePath) {
-    var req = self.image.get(filepath);
+  function refetchFile(filepath, absolutePath) {
+    var req = self.picture.get(filepath);
     req.onerror = function() { self.emit('error'); };
     req.onsuccess = function(e) {
       debug('image file blob handle retrieved');
@@ -200,7 +200,7 @@ Storage.prototype.check = function(done) {
 
 Storage.prototype.isSpace = function(done) {
   var maxFileSize = this.maxFileSize;
-  this.image
+  this.picture
     .freeSpace()
     .onsuccess = function(e) {
       var freeSpace = e.target.result;
@@ -211,7 +211,7 @@ Storage.prototype.isSpace = function(done) {
 };
 
 Storage.prototype.getState = function(done) {
-  this.image
+  this.picture
     .available()
     .onsuccess = function(e) {
       done(e.target.result);
@@ -223,28 +223,31 @@ Storage.prototype.available = function() {
 };
 
 Storage.prototype.deletePicture = function(filepath) {
-  var pictureStorage = this.image;
+  var pictureStorage = this.picture;
   pictureStorage.delete(filepath).onerror = function(e) {
-    console.warn('Failed to delete', filepath,
-                 'from DeviceStorage:', e.target.error);
+    console.warn(
+      'Failed to delete', filepath,
+      'from DeviceStorage:', e.target.error);
   };
 };
 
 Storage.prototype.deleteVideo = function(filepath) {
   var videoStorage = this.video;
-  var pictureStorage = this.image;
+  var pictureStorage = this.picture;
   var poster = filepath.replace('.3gp', '.jpg');
 
   videoStorage.delete(filepath).onerror = function(e) {
-    console.warn('Failed to delete', filepath,
-                 'from DeviceStorage:', e.target.error);
+    console.warn(
+      'Failed to delete', filepath,
+      'from DeviceStorage:', e.target.error);
   };
 
   // If this is a video file, delete its poster image as well
   pictureStorage.delete(poster).onerror = function(e) {
-    console.warn('Failed to delete poster image', poster,
-                 'for video', filepath, 'from DeviceStorage:',
-                 e.target.error);
+    console.warn(
+      'Failed to delete poster image', poster,
+      'for video', filepath,
+      'from DeviceStorage:', e.target.error);
   };
 };
 
