@@ -26,7 +26,6 @@ function OverlayController(app) {
   bindAll(this);
   this.app = app;
   this.activity = app.activity;
-  this.storage = app.storage;
   this.batteryOverlay = null;
   this.storageOverlay = null;
   this.bindEvents();
@@ -34,7 +33,7 @@ function OverlayController(app) {
 }
 
 OverlayController.prototype.bindEvents = function() {
-  this.storage.on('statechange', this.onStorageStateChange);
+  this.app.on('storage:statechange', this.onStorageStateChange);
   this.app.on('change:batteryStatus', this.onBatteryStatusChange);
 };
 

@@ -25,7 +25,6 @@ function CameraController(app) {
   bindAll(this);
   this.app = app;
   this.camera = app.camera;
-  this.storage = app.storage;
   this.settings = app.settings;
   this.activity = app.activity;
   this.viewfinder = app.views.viewfinder;
@@ -44,27 +43,27 @@ CameraController.prototype.bindEvents = function() {
   // Relaying camera events means other modules
   // don't have to depend directly on camera
   camera.on('change:videoElapsed', app.firer('camera:recorderTimeUpdate'));
-  camera.on('change:capabilities', this.app.setter('capabilities'));
-  camera.on('change:focus', this.app.firer('camera:focuschanged'));
+  camera.on('change:capabilities', app.setter('capabilities'));
+  camera.on('change:focus', app.firer('camera:focuschanged'));
   camera.on('filesizelimitreached', this.onFileSizeLimitReached);
   camera.on('configured', app.firer('camera:configured'));
   camera.on('change:recording', app.setter('recording'));
+  camera.on('newimage', app.firer('camera:newimage'));
+  camera.on('newvideo', app.firer('camera:newvideo'));
   camera.on('shutter', app.firer('camera:shutter'));
   camera.on('loaded', app.firer('camera:loaded'));
   camera.on('ready', app.firer('camera:ready'));
   camera.on('busy', app.firer('camera:busy'));
-  camera.on('newimage', this.onNewImage);
-  camera.on('newvideo', this.onNewVideo);
 
   // App
-  app.on('boot', this.camera.load);
+  app.on('previewgallery:opened', this.onPreviewGalleryOpened);
+  app.on('change:batteryStatus', this.onBatteryStatusChange);
+  app.on('settings:configured', this.onSettingsConfigured);
+  app.on('storage:shared', this.onStorageShared);
+  app.on('timer:ended', this.capture);
   app.on('focus', this.camera.load);
   app.on('capture', this.capture);
-  app.on('timer:ended', this.capture);
   app.on('blur', this.onBlur);
-  app.on('settings:configured', this.onSettingsConfigured);
-  app.on('change:batteryStatus', this.onBatteryStatusChange);
-  app.on('previewgallery:opened', this.onPreviewGalleryOpened);
 
   // Settings
   settings.recorderProfiles.on('change:selected', this.onRecorderProfileChange);
@@ -76,7 +75,6 @@ CameraController.prototype.bindEvents = function() {
   settings.hdr.on('change:selected', this.setHDR);
   settings.hdr.on('change:selected', this.onHDRChange);
 
-  this.storage.on('statechange', this.onStorageStateChange);
   debug('events bound');
 };
 
@@ -96,24 +94,20 @@ CameraController.prototype.configure = function() {
   // cameraList data given by the camera hardware
   settings.cameras.filterOptions(camera.cameraList);
 
-  // Give the camera a way to create video filepaths. This
-  // is so that the camera can record videos directly to
-  // the final location without us having to move the video
-  // file from temporary, to final location at recording end.
-  this.camera.createVideoFilepath = this.storage.createVideoFilepath;
-
   // This is set so that the video recorder can
   // automatically stop when video size limit is reached.
   camera.set('maxFileSizeBytes', activity.data.maxFileSizeBytes);
   camera.set('selectedCamera', settings.cameras.selected('key'));
   camera.setMode(settings.mode.selected('key'));
+  camera.load();
+
   debug('configured');
 };
 
 CameraController.prototype.onSettingsConfigured = function() {
-  var settings = this.app.settings;
-  var recorderProfile = settings.recorderProfiles.selected('key');
-  var pictureSize = settings.pictureSizes.selected('data');
+  var recorderProfile = this.settings.recorderProfiles.selected('key');
+  var pictureSize = this.settings.pictureSizes.selected('data');
+
   this.setWhiteBalance();
   this.setFlashMode();
   this.setISO();
@@ -124,10 +118,6 @@ CameraController.prototype.onSettingsConfigured = function() {
     .configure();
 
   debug('camera configured with final settings');
-
-  // TODO: Move to a new StorageController (or App?)
-  var maxFileSize = (pictureSize.width * pictureSize.height * 4) + 4096;
-  this.storage.setMaxFileSize(maxFileSize);
 };
 
 /**
@@ -164,64 +154,6 @@ CameraController.prototype.shouldCountdown = function() {
   var recording = this.app.get('recording');
 
   return timerSet && !timerActive && !recording;
-};
-
-CameraController.prototype.onNewImage = function(image) {
-  var storage = this.storage;
-  var memoryBlob = image.blob;
-  var self = this;
-
-  // In either case, save the memory-backed photo blob to
-  // device storage, retrieve the resulting File (blob) and
-  // pass that around instead of the original memory blob.
-  // This is critical for "pick" activity consumers where
-  // the memory-backed Blob is either highly inefficent or
-  // will almost-immediately become inaccesible, depending
-  // on the state of the platform. https://bugzil.la/982779
-  storage.addImage(memoryBlob, function(filepath, abspath, fileBlob) {
-    debug('stored image', filepath);
-    image.blob = fileBlob;
-    image.filepath = filepath;
-
-    debug('new image', image);
-    self.app.emit('newmedia', image);
-  });
-};
-
-/**
- * Store the poster image,
- * then emit the app 'newvideo'
- * event. This signifies the video
- * fully ready.
- *
- * We don't store the video blob like
- * we do for images, as it is recorded
- * directly to the final location.
- * This is for memory reason.
- *
- * @param  {Object} video
- */
-CameraController.prototype.onNewVideo = function(video) {
-  debug('new video', video);
-
-  var storage = this.storage;
-  var poster = video.poster;
-  var self = this;
-  video.isVideo = true;
-
-  // Add the poster image to the image storage
-  poster.filepath = video.filepath.replace('.3gp', '.jpg');
-
-  storage.addImage(
-    poster.blob, { filepath: poster.filepath },
-    function(path, absolutePath, fileBlob) {
-      // Replace the memory-backed Blob with the DeviceStorage file-backed File.
-      // Note that "video" references "poster", so video previews will use this
-      // File.
-      poster.blob = fileBlob;
-      debug('new video', video);
-      self.app.emit('newmedia', video);
-    });
 };
 
 CameraController.prototype.onPictureSizeChange = function() {
@@ -326,14 +258,15 @@ CameraController.prototype.onBatteryStatusChange = function(status) {
 };
 
 /**
- * Respond to storage `statechange` events.
+ * Stop recording if storage becomes
+ * 'shared' (unavailable) usually due
+ * to the device being connected to
+ * a computer via USB.
  *
- * @param  {String} value  ['nospace'|'shared'|'unavailable'|'available']
+ * @private
  */
-CameraController.prototype.onStorageStateChange = function(value) {
-  if (value === 'shared' && this.camera.get('recording')) {
-    this.camera.stopRecording();
-  }
+CameraController.prototype.onStorageShared = function() {
+  this.camera.stopRecording();
 };
 
 /**

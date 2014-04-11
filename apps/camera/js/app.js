@@ -56,9 +56,7 @@ function App(options) {
   this.geolocation = options.geolocation;
   this.activity = options.activity;
   this.settings = options.settings;
-  this.storage = options.storage;
   this.camera = options.camera;
-  // this.sounds = options.sounds;
   debug('initialized');
 }
 
@@ -109,6 +107,7 @@ App.prototype.runControllers = function() {
 
 App.prototype.loadControllers = function() {
   this.loadController(this.controllers.previewGallery);
+  this.loadController(this.controllers.storage);
   this.loadController(this.controllers.confirm);
   this.loadController(this.controllers.battery);
   this.loadController(this.controllers.sounds);
@@ -156,8 +155,8 @@ App.prototype.injectViews = function() {
  * @private
  */
 App.prototype.bindEvents = function() {
+  this.once('storage:healthy', this.geolocationWatch);
   this.once('viewfinder:visible', this.onceViewfinderVisible);
-  this.storage.once('checked:healthy', this.geolocationWatch);
   bind(this.doc, 'visibilitychange', this.onVisibilityChange);
   bind(this.win, 'beforeunload', this.onBeforeUnload);
   bind(this.el, 'click', this.onClick);
@@ -187,7 +186,6 @@ App.prototype.unbindEvents = function() {
  */
 App.prototype.onFocus = function() {
   this.geolocationWatch();
-  this.storage.check();
   orientation.start();
   debug('focus');
 };
@@ -210,7 +208,7 @@ App.prototype.onClick = function() {
 App.prototype.onceViewfinderVisible = function() {
   var start = window.performance.timing.domLoading;
   var time = Date.now() - start;
-  setTimeout(this.loadControllers, 5000);
+  setTimeout(this.loadControllers, 500);
   console.log('critical-path took ' + time + 'ms');
 };
 

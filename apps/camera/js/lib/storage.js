@@ -222,7 +222,7 @@ Storage.prototype.available = function() {
   return this.state === 'available';
 };
 
-Storage.prototype.deleteImage = function(filepath) {
+Storage.prototype.deletePicture = function(filepath) {
   var pictureStorage = this.image;
   pictureStorage.delete(filepath).onerror = function(e) {
     console.warn('Failed to delete', filepath,

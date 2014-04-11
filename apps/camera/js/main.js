@@ -2,23 +2,22 @@ require(['config/require', 'config'], function() {
   'use strict';
 
   define('boot', function(require) {
-    var debug = require('debug')('main');
     var timing = window.performance.timing;
-    debug('domloaded in %s', (timing.domComplete - timing.domLoading) + 'ms');
+    var domLoaded = timing.domComplete - timing.domLoading;
+    var debug = require('debug')('main');
+    debug('domloaded in %s', domLoaded + 'ms');
 
     /**
      * Module Dependencies
      */
 
-    var App = require('app');
-    var Camera = require('lib/camera');
-    var Settings = require('lib/settings');
-    var settings = new Settings(require('config/settings'));
     var GeoLocation = require('lib/geo-location');
     var Activity = require('lib/activity');
-    var Storage = require('lib/storage');
+    var Settings = require('lib/settings');
+    var Camera = require('lib/camera');
+    var App = require('app');
 
-    // Attach navigator.mozL10n
+    // navigator.mozL10n
     require('l10n');
 
     /**
@@ -26,13 +25,13 @@ require(['config/require', 'config'], function() {
      */
 
     var app = window.app = new App({
-      win: window,
-      doc: document,
-      el: document.body,
+      settings: new Settings(require('config/settings')),
       geolocation: new GeoLocation(),
       activity: new Activity(),
-      storage: new Storage(),
-      settings: settings,
+
+      el: document.body,
+      doc: document,
+      win: window,
 
       camera: new Camera({
         maxFileSizeBytes: 0,
@@ -57,18 +56,16 @@ require(['config/require', 'config'], function() {
 
         // Lazy loaded
         previewGallery: 'controllers/preview-gallery',
+        storage: 'controllers/storage',
         confirm: 'controllers/confirm',
         battery: 'controllers/battery',
         sounds: 'controllers/sounds'
       }
     });
 
-    debug('created app');
-
-    // Fetch persistent settings
-    app.settings.fetch();
-
+    // Fetch persistent settings,
     // Check for activities, then boot
+    app.settings.fetch();
     app.activity.check(app.boot);
   });
 

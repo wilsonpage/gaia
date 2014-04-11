@@ -32,14 +32,13 @@ function PreviewGalleryController(app) {
   debug('initializing');
   bindAll(this);
   this.app = app;
-  this.storage = this.app.storage;
   this.bindEvents();
   this.configure();
   debug('initialized');
 }
 
 PreviewGalleryController.prototype.bindEvents = function() {
-  this.storage.on('itemdeleted', this.onItemDeleted);
+  this.app.on('storage:itemdeleted', this.onItemDeleted);
   this.app.on('preview', this.openPreview);
   this.app.on('newmedia', this.onNewMedia);
   this.app.on('blur', this.onBlur);
@@ -198,9 +197,9 @@ PreviewGalleryController.prototype.deleteCurrentItem = function() {
 
     // Actually delete the file
     if (item.isVideo) {
-      self.storage.deleteVideo(filepath);
+      self.app.emit('previewgallery:deletevideo', filepath);
     } else {
-      self.storage.deleteImage(filepath);
+      self.app.emit('previewgallery:deletepicture', filepath);
     }
   }
 };
