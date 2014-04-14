@@ -5,11 +5,11 @@ define(function(require, exports, module) {
  * Dependencies
  */
 
-var debug = require('debug')('controller:preview-gallery');
-var bindAll = require('lib/bind-all');
-var PreviewGalleryView = require('views/preview-gallery');
 var createThumbnailImage = require('lib/create-thumbnail-image');
+var debug = require('debug')('controller:preview-gallery');
+var PreviewGalleryView = require('views/preview-gallery');
 var preparePreview = require('lib/prepare-preview-blob');
+var bindAll = require('lib/bind-all');
 var dialog = require('CustomDialog');
 
 /**
