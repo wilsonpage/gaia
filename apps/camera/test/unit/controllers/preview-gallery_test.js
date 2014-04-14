@@ -40,6 +40,12 @@ suite('controllers/preview-gallery', function() {
       controls: sinon.createStubInstance(this.ControlsView)
     };
 
+    // Fake dialog calls the
+    // 'delete' callback sync.
+    this.app.dialog = {
+      show: function(title, msg, cancel, del) { del.callback(); },
+      hide: sinon.stub()
+    };
 
     // Our test instance
     this.previewGalleryController = new this.PreviewGalleryController(this.app);
@@ -49,6 +55,7 @@ suite('controllers/preview-gallery', function() {
     this.previewGallery = this.previewGalleryController.view;
     this.controller = this.previewGalleryController;
     this.storage = this.app.storage;
+    this.dialog = this.app.dialog;
   });
 
   suite('PreviewGalleryController()', function() {
@@ -58,8 +65,6 @@ suite('controllers/preview-gallery', function() {
         translate: function() {}
       };
       if (!navigator.mozL10n) { navigator.mozL10n = mozL10n; }
-      sinon.stub(window, 'confirm');
-      window.confirm.returns(true);
       window.MozActivity = function() {};
       sinon.stub(window, 'MozActivity');
       sinon.stub(navigator.mozL10n, 'get');
@@ -77,7 +82,6 @@ suite('controllers/preview-gallery', function() {
     });
 
     teardown(function() {
-      window.confirm.restore();
       window.MozActivity.restore();
       navigator.mozL10n.get.restore();
     });
@@ -140,31 +144,38 @@ suite('controllers/preview-gallery', function() {
       assert.ok(arg.data.filepaths[0] === item.filepath);
     });
 
-    test('Should deleteCurrentItem which is image', function() {
-      var item = {
-        blob: {},
-        filepath: 'root/fileName',
-        isVideo: false
-      };
+    suite('PreviewGalleryController#deleteCurrentItem()', function() {
+      setup(function() {
 
-      this.previewGalleryController.items = [item];
-      this.previewGalleryController.currentItemIndex = 0;
-      this.previewGalleryController.deleteCurrentItem();
+      });
 
-      assert.ok(this.app.emit.calledWith('previewgallery:deletepicture', 'root/fileName'));
-    });
+      test('Should deleteCurrentItem which is image', function() {
+        var item = {
+          blob: {},
+          filepath: 'root/fileName',
+          isVideo: false
+        };
 
-    test('Should deleteCurrentItem which is video', function() {
-      var item = {
-        blob: {},
-        filepath: 'root/fileName',
-        isVideo: true
-      };
-      this.previewGalleryController.items = [item];
-      this.previewGalleryController.currentItemIndex = 0;
-      this.previewGalleryController.deleteCurrentItem();
+        this.previewGalleryController.items = [item];
+        this.previewGalleryController.currentItemIndex = 0;
+        this.previewGalleryController.deleteCurrentItem();
 
-      assert.ok(this.app.emit.calledWith('previewgallery:deletevideo', 'root/fileName'));
+        assert.ok(this.app.emit.calledWith('previewgallery:deletepicture', 'root/fileName'));
+      });
+
+      test('Should deleteCurrentItem which is video', function() {
+        var item = {
+          blob: {},
+          filepath: 'root/fileName',
+          isVideo: true
+        };
+
+        this.previewGalleryController.items = [item];
+        this.previewGalleryController.currentItemIndex = 0;
+        this.previewGalleryController.deleteCurrentItem();
+
+        assert.ok(this.app.emit.calledWith('previewgallery:deletevideo', 'root/fileName'));
+      });
     });
 
     test('Check onNewMedia callback', function() {

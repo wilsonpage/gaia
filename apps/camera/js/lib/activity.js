@@ -6,13 +6,13 @@ define(function(require, exports, module) {
  */
 
 var debug = require('debug')('activity');
-var model = require('vendor/model');
+var events = require('vendor/evt');
 
 /**
- * Mixin `Model` methods
+ * Mixin event emitter
  */
 
-model(Activity.prototype);
+events(Activity.prototype);
 
 /**
  * Exports
@@ -26,7 +26,7 @@ module.exports = Activity;
  * @constructor
  */
 function Activity(options) {
-  this.win = options.win || window; // for unit-testing
+  this.win = options && options.win || window; // test hook
   this.modes = ['picture', 'video'];
   this.active = false;
   this.data = {};
@@ -52,6 +52,9 @@ Activity.prototype.check = function(done) {
 
   navigator.mozSetMessageHandler('activity', onActivity);
 
+  // When there is no pending message
+  // we call the callback sync, so we
+  // can complete App startup ASAP.
   if (!hasMessage) {
     debug('none');
     done();

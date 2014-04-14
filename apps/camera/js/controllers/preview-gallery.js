@@ -10,7 +10,7 @@ var bindAll = require('lib/bind-all');
 var PreviewGalleryView = require('views/preview-gallery');
 var createThumbnailImage = require('lib/create-thumbnail-image');
 var preparePreview = require('lib/prepare-preview-blob');
-var CustomDialog = require('CustomDialog');
+var dialog = require('CustomDialog');
 
 /**
  * The size of the thumbnail images we generate.
@@ -32,6 +32,7 @@ function PreviewGalleryController(app) {
   debug('initializing');
   bindAll(this);
   this.app = app;
+  this.dialog = app.dialog || dialog; // test hook
   this.bindEvents();
   this.configure();
   debug('initialized');
@@ -158,18 +159,20 @@ PreviewGalleryController.prototype.shareCurrentItem = function() {
 /**
  * Delete the current item
  * when the delete button is pressed.
+ *
  * @private
  */
 PreviewGalleryController.prototype.deleteCurrentItem = function() {
-  // The button should be gone, but hard exit from this function
-  // just in case.
+  // The button should be gone,but
+  // hard exit from this function just in case.
   if (this.app.inSecureMode) { return; }
 
   var index = this.currentItemIndex;
   var item = this.items[index];
   var filepath = item.filepath;
-  var msg;
+  var dialog = this.dialog;
   var self = this;
+  var msg;
 
   if (item.isVideo) {
     msg = navigator.mozL10n.get('delete-video?');
@@ -178,20 +181,21 @@ PreviewGalleryController.prototype.deleteCurrentItem = function() {
     msg = navigator.mozL10n.get('delete-photo?');
   }
 
-  CustomDialog.show('',
-                    msg,
-                    { title: navigator.mozL10n.get('cancel'),
-                      callback: closeDialog },
-                    { title: navigator.mozL10n.get('delete'),
-                      callback: deleteItem,
-                      recommend: false });
+  dialog.show('', msg, {
+      title: navigator.mozL10n.get('cancel'),
+      callback: closeDialog
+    }, {
+      title: navigator.mozL10n.get('delete'),
+      callback: deleteItem,
+      recommend: false
+    });
 
   function closeDialog() {
-    CustomDialog.hide();
+    dialog.hide();
   }
 
   function deleteItem() {
-    CustomDialog.hide();
+    dialog.hide();
 
     self.updatePreviewGallery(index);
 

@@ -244,25 +244,23 @@ module.exports = View.extend({
    * @param  {Boolean} mirrored
    */
   updatePreview: function(preview, sensorAngle, mirrored) {
-    var elementWidth = this.width;
-    var elementHeight = this.height;
     var aspect;
 
     // Invert dimensions if the camera's `sensorAngle` is
     // 0 or 180 degrees.
     if (sensorAngle % 180 === 0) {
       this.container = {
-        width: elementWidth,
-        height: elementHeight,
-        aspect: elementWidth / elementHeight
+        width: this.width,
+        height: this.height,
+        aspect: this.width / this.height
       };
 
       aspect = preview.height / preview.width;
     } else {
       this.container = {
-        width: elementHeight,
-        height: elementWidth,
-        aspect: elementHeight / elementWidth
+        width: this.height,
+        height: this.width,
+        aspect: this.height / this.width
       };
 
       aspect = preview.width / preview.height;
