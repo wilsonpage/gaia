@@ -36,6 +36,7 @@ events(Storage.prototype);
 function Storage(options) {
   bindAll(this);
   this.maxFileSize = 0;
+  options = options || {};
   this.video = navigator.getDeviceStorage('videos');
   this.picture = navigator.getDeviceStorage('pictures');
   this.picture.addEventListener('change', this.onStorageChange);

@@ -11,9 +11,10 @@ require(['config/require', 'config'], function() {
      * Module Dependencies
      */
 
-    var GeoLocation = require('lib/geo-location');
     var Activity = require('lib/activity');
     var Settings = require('lib/settings');
+    var GeoLocation = require('lib/geo-location');
+    var settings = new Settings(require('config/settings'));
     var Camera = require('lib/camera');
     var App = require('app');
 
@@ -25,7 +26,7 @@ require(['config/require', 'config'], function() {
      */
 
     var app = window.app = new App({
-      settings: new Settings(require('config/settings')),
+      settings: settings,
       geolocation: new GeoLocation(),
       activity: new Activity(),
 

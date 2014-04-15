@@ -196,7 +196,6 @@ Camera.prototype.configureCamera = function(mozCamera) {
   this.mozCamera.onShutter = this.onShutter;
   this.mozCamera.onPreviewStateChange = this.onPreviewStateChange;
   this.mozCamera.onRecorderStateChange = this.onRecorderStateChange;
-  this.configureFocus(capabilities.focusModes);
   this.capabilities = this.formatCapabilities(capabilities);
   this.emit('newcamera', this.capabilities);
   debug('configured camera');
@@ -877,7 +876,7 @@ Camera.prototype.setSceneMode = function(value){
 };
 
 Camera.prototype.configureFocus = function(captureMode) {
-  var focusModes = this.get('capabilities').focusModes;
+  var focusModes = this.capabilities.focusModes;
 
   // If we're taking still pictures, and C-AF is enabled and supported
   // (and gecko supports resumeContinuousFocus) then use C-AF.
