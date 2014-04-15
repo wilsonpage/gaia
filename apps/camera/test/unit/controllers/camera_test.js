@@ -98,6 +98,10 @@ suite('controllers/camera', function() {
       assert.isTrue(this.camera.on.calledWith('change:focus'));
       assert.isTrue(this.app.firer.calledWith('camera:focuschanged'));
     });
+
+    test('Should listen to storage:statechange', function() {
+      assert.isTrue(this.app.on.calledWith('storage:statechange'));
+    });
   });
 
   suite('CameraController#onSettingsConfigured()', function() {
@@ -317,6 +321,19 @@ suite('controllers/camera', function() {
 
     test('Should release the camera hardware', function() {
       assert.isTrue(this.camera.release.called);
+    });
+  });
+
+  suite('CameraController#onStorageStateChange()', function() {
+    test('Should stop recording if shared', function() {
+      this.controller.onStorageStateChange('foo');
+      assert.isFalse(this.camera.stopRecording.called);
+
+      this.controller.onStorageStateChange('bar');
+      assert.isFalse(this.camera.stopRecording.called);
+
+      this.controller.onStorageStateChange('shared');
+      assert.isTrue(this.camera.stopRecording.called);
     });
   });
 });

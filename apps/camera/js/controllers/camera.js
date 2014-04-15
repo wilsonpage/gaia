@@ -59,7 +59,7 @@ CameraController.prototype.bindEvents = function() {
   app.on('previewgallery:opened', this.onPreviewGalleryOpened);
   app.on('change:batteryStatus', this.onBatteryStatusChange);
   app.on('settings:configured', this.onSettingsConfigured);
-  app.on('storage:shared', this.onStorageShared);
+  app.on('storage:statechange', this.onStorageStateChange);
   app.on('timer:ended', this.capture);
   app.on('focus', this.camera.load);
   app.on('capture', this.capture);
@@ -265,8 +265,8 @@ CameraController.prototype.onBatteryStatusChange = function(status) {
  *
  * @private
  */
-CameraController.prototype.onStorageShared = function() {
-  this.camera.stopRecording();
+CameraController.prototype.onStorageStateChange = function(state) {
+  if (state === 'shared') { this.camera.stopRecording(); }
 };
 
 /**
