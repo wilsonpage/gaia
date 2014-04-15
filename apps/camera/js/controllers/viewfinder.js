@@ -87,14 +87,14 @@ ViewfinderController.prototype.bindEvents = function() {
   this.viewfinder.on('click', this.app.firer('viewfinder:click'));
   this.viewfinder.on('pinchChange', this.onPinchChange);
   this.camera.on('zoomchanged', this.onZoomChanged);
+  this.app.on('camera:shutter', this.viewfinder.shutter);
   this.app.on('camera:focuschanged', this.focusRing.setState);
   this.app.on('camera:configured', this.onCameraConfigured);
-  this.app.on('camera:shutter', this.onShutter);
-  this.app.on('previewgallery:closed', this.startStream);
+  this.app.on('previewgallery:closed', this.onPreviewGalleryClosed);
   this.app.on('previewgallery:opened', this.stopStream);
   this.app.on('settings:closed', this.configureGrid);
   this.app.on('settings:opened', this.hideGrid);
-  this.app.on('blur', this.stopStream);
+  this.app.on('hidden', this.stopStream);
 };
 
 /**
@@ -125,6 +125,17 @@ ViewfinderController.prototype.show = function() {
 ViewfinderController.prototype.onShutter = function() {
   this.focusRing.setState('none');
   this.viewfinder.shutter();
+};
+
+/**
+ * Starts the stream, only if
+ * the app is currently visible.
+ *
+ * @private
+ */
+ViewfinderController.prototype.onPreviewGalleryClosed = function() {
+  if (this.app.hidden) { return; }
+  this.startStream();
 };
 
 /**

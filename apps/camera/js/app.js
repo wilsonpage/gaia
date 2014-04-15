@@ -172,8 +172,8 @@ App.prototype.bindEvents = function() {
   bind(this.doc, 'visibilitychange', this.onVisibilityChange);
   bind(this.win, 'beforeunload', this.onBeforeUnload);
   bind(this.el, 'click', this.onClick);
-  this.on('focus', this.onFocus);
-  this.on('blur', this.onBlur);
+  this.on('visible', this.onVisible);
+  this.on('hidden', this.onHidden);
   debug('events bound');
 };
 
@@ -185,8 +185,8 @@ App.prototype.bindEvents = function() {
 App.prototype.unbindEvents = function() {
   unbind(this.doc, 'visibilitychange', this.onVisibilityChange);
   unbind(this.win, 'beforeunload', this.onBeforeUnload);
-  this.off('focus', this.onFocus);
-  this.off('blur', this.onBlur);
+  this.off('visible', this.onVisible);
+  this.off('hidden', this.onHidden);
   debug('events unbound');
 };
 
@@ -198,10 +198,10 @@ App.prototype.unbindEvents = function() {
  * may have made changes since the
  * app was minimised
  */
-App.prototype.onFocus = function() {
+App.prototype.onVisible = function() {
   this.geolocationWatch();
   orientation.start();
-  debug('focus');
+  debug('visible');
 };
 
 /**
@@ -210,10 +210,10 @@ App.prototype.onFocus = function() {
  *
  * @private
  */
-App.prototype.onBlur = function() {
+App.prototype.onHidden = function() {
   this.geolocation.stopWatching();
   orientation.stop();
-  debug('blur');
+  debug('hidden');
 };
 
 /**
@@ -261,7 +261,7 @@ App.prototype.criticalPathDone = function() {
  */
 App.prototype.geolocationWatch = function() {
   var delay = this.settings.geolocation.get('promptDelay');
-  var shouldWatch = !this.activity.active && !this.doc.hidden;
+  var shouldWatch = !this.activity.active && !this.hidden;
   if (shouldWatch) { setTimeout(this.geolocation.watch, delay); }
 };
 
@@ -274,8 +274,8 @@ App.prototype.geolocationWatch = function() {
  * @private
  */
 App.prototype.onVisibilityChange = function() {
-  if (this.doc.hidden) { this.emit('blur'); }
-  else { this.emit('focus'); }
+  this.hidden = this.doc.hidden;
+  this.emit(this.hidden ? 'hidden' : 'visible');
 };
 
 /**

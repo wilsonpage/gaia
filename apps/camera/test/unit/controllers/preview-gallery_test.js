@@ -91,7 +91,7 @@ suite('controllers/preview-gallery', function() {
 
       assert.ok(this.app.on.calledWith('preview'));
       assert.ok(this.app.on.calledWith('newmedia'));
-      assert.ok(this.app.on.calledWith('blur'));
+      assert.ok(this.app.on.calledWith('hidden'));
       assert.ok(this.app.on.calledWith('storage:itemdeleted'));
     });
 
@@ -256,7 +256,7 @@ suite('controllers/preview-gallery', function() {
 
     test('Should close the preview on blur', function() {
       this.previewGalleryController.closePreview = sinon.spy();
-      this.previewGalleryController.onBlur();
+      this.previewGalleryController.onHidden();
       assert.ok(this.previewGalleryController.closePreview.called);
     });
 
@@ -265,7 +265,7 @@ suite('controllers/preview-gallery', function() {
       this.previewGalleryController.closePreview = sinon.spy();
       this.previewGalleryController.configure = sinon.spy();
       this.previewGalleryController.updateThumbnail = sinon.spy();
-      this.previewGalleryController.onBlur();
+      this.previewGalleryController.onHidden();
       assert.ok(this.previewGalleryController.configure.called);
       assert.ok(this.previewGalleryController.updateThumbnail.called);
       assert.ok(this.previewGalleryController.closePreview.calledAfter(this.previewGalleryController.updateThumbnail));

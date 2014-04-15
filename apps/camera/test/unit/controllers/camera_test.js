@@ -69,11 +69,11 @@ suite('controllers/camera', function() {
 
   suite('CameraController()', function() {
     setup(function() {
-      sinon.stub(this.CameraController.prototype, 'onBlur');
+      sinon.stub(this.CameraController.prototype, 'onHidden');
     });
 
     teardown(function() {
-      this.CameraController.prototype.onBlur.restore();
+      this.CameraController.prototype.onHidden.restore();
     });
 
     test('Should set the capture mode to \'picture\' by default', function() {
@@ -86,12 +86,12 @@ suite('controllers/camera', function() {
       assert.isTrue(this.camera.load.calledOnce);
     });
 
-    test('Should load camera on app `focus`', function() {
-      assert.isTrue(this.app.on.calledWith('focus', this.camera.load));
+    test('Should load camera on app `visible`', function() {
+      assert.isTrue(this.app.on.calledWith('visible', this.camera.load));
     });
 
-    test('Should teardown camera on app `blur`', function() {
-      assert.isTrue(this.app.on.calledWith('blur', this.controller.onBlur));
+    test('Should teardown camera on app `hidden`', function() {
+      assert.isTrue(this.app.on.calledWith('hidden', this.controller.onHidden));
     });
 
     test('Should relay focus change events', function() {
@@ -310,9 +310,9 @@ suite('controllers/camera', function() {
     });
   });
 
-  suite('CameraController#onBlur()', function() {
+  suite('CameraController#onHidden()', function() {
     setup(function() {
-      this.controller.onBlur();
+      this.controller.onHidden();
     });
 
     test('Should stop recording if recording', function() {

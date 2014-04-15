@@ -42,7 +42,7 @@ PreviewGalleryController.prototype.bindEvents = function() {
   this.app.on('storage:itemdeleted', this.onItemDeleted);
   this.app.on('preview', this.openPreview);
   this.app.on('newmedia', this.onNewMedia);
-  this.app.on('blur', this.onBlur);
+  this.app.on('hidden', this.onHidden);
   debug('events bound');
 };
 
@@ -330,7 +330,7 @@ PreviewGalleryController.prototype.onItemDeleted = function(data) {
  * forget our state.  In practice, it appears that the system app actually
  * kills the camera when this happens, so this code is redundant.
  */
-PreviewGalleryController.prototype.onBlur = function() {
+PreviewGalleryController.prototype.onHidden = function() {
   if (this.app.inSecureMode) {
     this.configure();          // Forget all stored images
     this.updateThumbnail();    // Get rid of any thumbnail

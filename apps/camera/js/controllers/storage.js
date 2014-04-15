@@ -61,7 +61,7 @@ StorageController.prototype.bindEvents = function() {
   this.app.on('settings:configured', this.updateMaxFileSize);
   this.app.on('camera:newimage', this.storePicture);
   this.app.on('camera:newvideo', this.storeVideo);
-  this.app.on('focus', this.storage.check);
+  this.app.on('visible', this.storage.check);
 
   // Storage
   this.storage.on('itemdeleted', this.app.firer('storage:itemdeleted'));

@@ -62,8 +62,8 @@ suite('controllers/storage', function() {
       assert.isTrue(this.app.on.calledWith('camera:newvideo', this.controller.storeVideo));
     });
 
-    test('Should check storage when the app is focused', function() {
-      assert.isTrue(this.app.on.calledWith('focus', this.storage.check));
+    test('Should check storage when the app becomes visible', function() {
+      assert.isTrue(this.app.on.calledWith('visible', this.storage.check));
     });
   });
 });

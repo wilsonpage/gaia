@@ -44,7 +44,7 @@ function TimerController(app) {
 TimerController.prototype.bindEvents = function() {
   this.app.on('startcountdown', this.start);
   this.view.on('timer:immanent', this.beep);
-  this.app.on('blur', this.clear);
+  this.app.on('hidden', this.clear);
 };
 
 /**

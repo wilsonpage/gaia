@@ -214,7 +214,7 @@ suite('app', function() {
       });
 
       test('Should *not* watch location if not in activity', function() {
-        this.app.doc.hidden = false;
+        this.app.hidden = false;
         this.app.activity.active = true;
 
         this.app.geolocationWatch();
@@ -224,7 +224,7 @@ suite('app', function() {
       });
 
       test('Should *not* watch location if app hidden', function() {
-        this.app.doc.hidden = true;
+        this.app.hidden = true;
         this.app.activity.active = false;
 
         this.app.geolocationWatch();
@@ -235,9 +235,44 @@ suite('app', function() {
     });
   });
 
-  suite('App#onBlur', function() {
+  suite('App#bindEvents()', function() {
     setup(function() {
-      this.app.onBlur();
+      this.app.bindEvents();
+    });
+
+    test('Should listen for visibilitychange on document', function() {
+      assert.isTrue(this.app.doc.addEventListener.calledWith('visibilitychange'));
+    });
+  });
+
+  suite('App#onVisibilityChange', function() {
+
+    test('Should update the `app.hidden` property', function() {
+      this.app.doc.hidden = true;
+      this.app.onVisibilityChange();
+      assert.equal(this.app.hidden, true);
+
+      this.app.doc.hidden = false;
+      this.app.onVisibilityChange();
+      assert.equal(this.app.hidden, false);
+    });
+
+    test('Should emit a \'visible\' event when the document is not hidden', function() {
+      this.app.doc.hidden = false;
+      this.app.onVisibilityChange();
+      assert.isTrue(this.app.emit.calledWith('visible'));
+    });
+
+    test('Should emit a \'hidden\' event when the document is hidden', function() {
+      this.app.doc.hidden = true;
+      this.app.onVisibilityChange();
+      assert.isTrue(this.app.emit.calledWith('hidden'));
+    });
+  });
+
+  suite('App#onHidden', function() {
+    setup(function() {
+      this.app.onHidden();
     });
 
     test('Should stop watching location', function() {
@@ -245,10 +280,10 @@ suite('app', function() {
     });
   });
 
-  suite('App#onFocus()', function() {
+  suite('App#onVisible()', function() {
     setup(function() {
       sinon.spy(this.app, 'geolocationWatch');
-      this.app.onFocus();
+      this.app.onVisible();
     });
 
     test('Should begin watching location again', function() {

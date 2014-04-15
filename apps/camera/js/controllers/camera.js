@@ -61,9 +61,9 @@ CameraController.prototype.bindEvents = function() {
   app.on('settings:configured', this.onSettingsConfigured);
   app.on('storage:statechange', this.onStorageStateChange);
   app.on('timer:ended', this.capture);
-  app.on('focus', this.camera.load);
+  app.on('visible', this.camera.load);
   app.on('capture', this.capture);
-  app.on('blur', this.onBlur);
+  app.on('hidden', this.onHidden);
 
   // Settings
   settings.recorderProfiles.on('change:selected', this.onRecorderProfileChange);
@@ -212,7 +212,7 @@ CameraController.prototype.setFlashMode = function() {
   this.camera.setFlashMode(flashSetting.selected('key'));
 };
 
-CameraController.prototype.onBlur = function() {
+CameraController.prototype.onHidden = function() {
   this.camera.stopRecording();
   this.camera.set('previewActive', false);
   this.camera.set('focus', 'none');
