@@ -44,6 +44,7 @@ function StorageController(app) {
  */
 StorageController.prototype.configure = function() {
   this.camera.createVideoFilepath = this.storage.createVideoFilepath;
+  this.updateMaxFileSize();
 };
 
 /**

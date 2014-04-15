@@ -50,7 +50,6 @@ function App(options) {
   this.el = options.el;
   this.win = options.win;
   this.doc = options.doc;
-  this.perf = { init: Date.now() };
   this.inSecureMode = (this.win.location.hash === '#secure');
   this.controllers = options.controllers;
   this.geolocation = options.geolocation;

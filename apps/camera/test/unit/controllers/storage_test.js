@@ -31,6 +31,10 @@ suite('controllers/storage', function() {
     this.settings = this.app.settings;
     this.storage = this.app.storage;
 
+    this.settings.pictureSizes.selected
+      .withArgs('data')
+      .returns({ width: 400, height: 300 });
+
     // Create a test instance
     this.controller = new this.StorageController(this.app);
   });
@@ -64,6 +68,98 @@ suite('controllers/storage', function() {
 
     test('Should check storage when the app becomes visible', function() {
       assert.isTrue(this.app.on.calledWith('visible', this.storage.check));
+    });
+
+    test('Should set the maxFileSize initially', function() {
+      assert.isTrue(this.storage.setMaxFileSize.calledOnce);
+    });
+
+    test('Should run an intitial storage check', function() {
+      this.storage.setMaxFileSize.restore();
+      this.controller = new this.StorageController(this.app);
+      assert.isTrue(this.storage.check.calledOnce);
+    });
+  });
+
+  suite('StorageController#storePicture()', function() {
+    setup(function() {
+      this.storage.addPicture.callsArgWith(1, '<filepath>', '<abspath>', '<file-blob>');
+
+      this.picture = { blob: '<memory-blob>' };
+      this.controller.storePicture(this.picture);
+    });
+
+    test('Should store the picture', function() {
+      assert.isTrue(this.storage.addPicture.calledWith('<memory-blob>'));
+    });
+
+    test('Should emit a `newmedia` app event', function() {
+      assert.isTrue(this.app.emit.calledWith('newmedia', this.picture));
+    });
+
+    test('Should switch the <memory-blob> with the <file-blob>', function() {
+      assert.equal(this.picture.blob, '<file-blob>');
+    });
+
+    test('Should store the <filepath>', function() {
+      assert.equal(this.picture.filepath, '<filepath>');
+    });
+  });
+
+  suite('StorageController#storeVideo()', function() {
+    setup(function() {
+      this.storage.addPicture.callsArgWith(2, '<filepath>', '<abspath>', '<file-blob>');
+
+      this.video = {
+        blob: '<file-blob>',
+        filepath: 'path/to/video.3gp',
+        poster: { blob: '<poster-memory-blob>' }
+      };
+
+      this.controller.storeVideo(this.video);
+    });
+
+    test('Should store the picture', function() {
+      assert.isTrue(this.storage.addPicture.calledWith('<poster-memory-blob>'));
+    });
+
+    test('Should store the poster image', function() {
+      var blob = this.storage.addPicture.args[0][0];
+      var options = this.storage.addPicture.args[0][1];
+
+      assert.equal(blob, '<poster-memory-blob>');
+      assert.equal(options.filepath, 'path/to/video.jpg');
+    });
+
+    test('Should emit a `newmedia` app event', function() {
+      assert.isTrue(this.app.emit.calledWith('newmedia', this.video));
+    });
+
+    test('Should switch the <poster-memory-blob> with the <file-blob>', function() {
+      assert.equal(this.video.poster.blob, '<file-blob>');
+    });
+
+    test('Should flag it as `isVideo`', function() {
+      assert.equal(this.video.isVideo, true);
+    });
+  });
+
+  suite('StorageController#updateMaxFileSize()', function() {
+    setup(function() {
+      // Reset calls in constructor
+      this.storage.setMaxFileSize.reset();
+    });
+
+    test('Should call `storage.setMaxFileSize` with picture file size estimate', function() {
+      this.settings.pictureSizes.selected.withArgs('data').returns({ width: 400, height: 300 });
+      this.controller.updateMaxFileSize();
+
+      var exif = 4096;
+      var expected = ((400 * 300) * 4) + exif;
+      var bytes = this.storage.setMaxFileSize.args[0][0];
+
+      assert.equal(this.storage.setMaxFileSize.callCount, 1);
+      assert.equal(bytes, expected);
     });
   });
 });
