@@ -88,11 +88,8 @@ module.exports = View.extend({
   },
 
   getSize: function() {
-    var self = this;
-    setTimeout(function() {
-      self.width = self.el.clientWidth;
-      self.height = self.el.clientHeight;
-    });
+    this.width = window.innerWidth;
+    this.height = window.innerHeight;
   },
 
   onClick: function(e) {
