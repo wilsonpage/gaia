@@ -66,7 +66,7 @@ StorageController.prototype.bindEvents = function() {
 
   // Storage
   this.storage.on('itemdeleted', this.app.firer('storage:itemdeleted'));
-  this.storage.on('statechange', this.onStateChange);
+  this.storage.on('changed', this.onChanged);
   this.storage.on('checked', this.onChecked);
   debug('events bound');
 };
@@ -77,9 +77,9 @@ StorageController.prototype.bindEvents = function() {
  * @param  {String} state
  * @private
  */
-StorageController.prototype.onStateChange = function(state) {
-  debug('state change: %s', state);
-  this.app.emit('storage:statechange', state);
+StorageController.prototype.onChanged = function(state) {
+  debug('changed: %s', state);
+  this.app.emit('storage:changed', state);
 };
 
 /**
@@ -92,7 +92,8 @@ StorageController.prototype.onStateChange = function(state) {
  */
 StorageController.prototype.onChecked = function(value) {
   debug('checked: %s', value);
-  this.app.emit('storage:' + value);
+  this.app.emit('storage:checked', value);
+  this.app.emit('storage:checked:' + value);
 };
 
 /**

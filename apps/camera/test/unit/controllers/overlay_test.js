@@ -50,23 +50,23 @@ suite('controllers/overlay', function() {
   suite('OverlayController()', function() {
     test('Should bind to the storage state change event', function() {
       this.controller = new Controller(this.app);
-      assert.ok(this.app.on.calledWith('storage:statechange'));
+      assert.ok(this.app.on.calledWith('storage:changed'));
     });
   });
 
-  suite('OverlayController#onStorageStateChange()', function() {
+  suite('OverlayController#onStorageChanged()', function() {
     setup(function() {
       this.controller = new Controller(this.app);
       sinon.stub(this.controller, 'createOverlay');
     });
 
     test('Should *not* insert a new overlay', function() {
-      this.controller.onStorageStateChange('available');
+      this.controller.onStorageChanged('available');
       assert.isFalse(this.controller.createOverlay.called);
     });
 
     test('Should call createOverlay whenever the value is not \'available\'', function() {
-      this.controller.onStorageStateChange('foo');
+      this.controller.onStorageChanged('foo');
       assert.isTrue(this.controller.createOverlay.calledWith('foo'));
     });
   });
@@ -140,7 +140,7 @@ suite('controllers/overlay', function() {
     });
   });
 
-  suite('OverlayController#onBatteryStatusChange()', function() {
+  suite('OverlayController#onBatteryChanged()', function() {
     setup(function() {
       this.controller = new Controller(this.app);
       sinon.stub(this.controller, 'createOverlay');
@@ -148,13 +148,13 @@ suite('controllers/overlay', function() {
 
     test('Should call createOverlay if status is shutdown', function() {
       this.controller.previousOverlay = 'foo';
-      this.controller.onBatteryStatusChange('shutdown');
+      this.controller.onBatteryChanged('shutdown');
       assert.isTrue(this.controller.createOverlay.calledWith('shutdown'));
     });
 
     test('Should call destroyOverlays if previous is shutdown', function() {
       this.controller.previousOverlay = 'shutdown';
-      this.controller.onBatteryStatusChange('foo');
+      this.controller.onBatteryChanged('foo');
     });
   });
 });

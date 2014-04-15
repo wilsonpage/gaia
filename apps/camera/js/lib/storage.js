@@ -174,7 +174,7 @@ Storage.prototype.checkFilepath = function(filepath) {
 Storage.prototype.setState = function(value) {
   this.state = value;
   debug('set state: %s', value);
-  this.emit('statechange', value);
+  this.emit('changed', value);
 };
 
 Storage.prototype.setMaxFileSize = function(maxFileSize) {

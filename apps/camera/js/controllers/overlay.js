@@ -33,8 +33,8 @@ function OverlayController(app) {
 }
 
 OverlayController.prototype.bindEvents = function() {
-  this.app.on('storage:statechange', this.onStorageStateChange);
-  this.app.on('change:batteryStatus', this.onBatteryStatusChange);
+  this.app.on('storage:changed', this.onStorageChanged);
+  this.app.on('change:batteryStatus', this.onBatteryChanged);
 };
 
 /**
@@ -44,16 +44,16 @@ OverlayController.prototype.bindEvents = function() {
  *
  * @param  {String} value  ['nospace'|'shared'|'unavailable'|'available']
  */
-OverlayController.prototype.onStorageStateChange = function(value) {
-  debug('storage state change: \'%s\'', value);
+OverlayController.prototype.onStorageChanged = function(state) {
+  debug('storage changed: \'%s\'', state);
 
   if (this.storageOverlay) {
     this.storageOverlay.destroy();
     this.storageOverlay = null;
   }
 
-  if (value !== 'available') {
-    this.storageOverlay = this.createOverlay(value);
+  if (state !== 'available') {
+    this.storageOverlay = this.createOverlay(state);
   }
 };
 
@@ -64,16 +64,16 @@ OverlayController.prototype.onStorageStateChange = function(value) {
  *
  * @param  {String} status  ['shutdown'|'critical'|'verylow'|'low']
  */
-OverlayController.prototype.onBatteryStatusChange = function(status) {
-  debug('battery state change: \'%s\'', status);
+OverlayController.prototype.onBatteryChanged = function(state) {
+  debug('battery state change: \'%s\'', state);
 
   if (this.batteryOverlay) {
     this.batteryOverlay.destroy();
     this.batteryOverlay = null;
   }
 
-  if (status === 'shutdown') {
-    this.batteryOverlay = this.createOverlay(status);
+  if (state === 'shutdown') {
+    this.batteryOverlay = this.createOverlay(state);
   }
 };
 

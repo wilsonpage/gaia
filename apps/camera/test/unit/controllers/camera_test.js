@@ -99,8 +99,8 @@ suite('controllers/camera', function() {
       assert.isTrue(this.app.firer.calledWith('camera:focuschanged'));
     });
 
-    test('Should listen to storage:statechange', function() {
-      assert.isTrue(this.app.on.calledWith('storage:statechange'));
+    test('Should listen to storage:changed', function() {
+      assert.isTrue(this.app.on.calledWith('storage:changed'));
     });
   });
 
@@ -324,15 +324,15 @@ suite('controllers/camera', function() {
     });
   });
 
-  suite('CameraController#onStorageStateChange()', function() {
+  suite('CameraController#onStorageChanged()', function() {
     test('Should stop recording if shared', function() {
-      this.controller.onStorageStateChange('foo');
+      this.controller.onStorageChanged('foo');
       assert.isFalse(this.camera.stopRecording.called);
 
-      this.controller.onStorageStateChange('bar');
+      this.controller.onStorageChanged('bar');
       assert.isFalse(this.camera.stopRecording.called);
 
-      this.controller.onStorageStateChange('shared');
+      this.controller.onStorageChanged('shared');
       assert.isTrue(this.camera.stopRecording.called);
     });
   });
