@@ -281,7 +281,6 @@ return View.extend({
   },
 
    showOptionsMenu: function() {
-    var l10n = navigator.mozL10n;
     this.container = document.createElement('div');
     // Create the structure
     this.container.innerHTML = this.optionTemplate();
@@ -290,9 +289,7 @@ return View.extend({
     // We add the event listner for menu items and cancel buttons
     var cancelButton = this.find('.js-cancel');
     bind(cancelButton, 'click', this.hideOptionMenu);
-    if (this.menu) {
-      attach.on(this.menu, 'click', '.js-btn', this.onButtonClick);
-    }
+    attach.on(this.container, 'click', '.js-btn', this.onButtonClick);
   },
 
   optionTemplate: function() {
@@ -302,11 +299,11 @@ return View.extend({
       'role="dialog" data-z-index-level="action-menu">' +
       '<header>' + l10n.get('options') + '</header>' +
       '<menu>' +
-      '<button class=" js-btn" name="gallery">' +
+      '<button class=" js-btn" name="gallery" type="button">' +
       l10n.get('open-gallery') + '</button>' +
-      '<button class=" js-btn" name="delete">' +
+      '<button class=" js-btn" name="delete" type="button">' +
       l10n.get('delete') + '</button>' +
-      '<button class="js-cancel" data-action="cancel">' +
+      '<button class="js-cancel" data-action="cancel" type="button">' +
       l10n.get('cancel') + '</button>' +
       '</menu>' +
       '</form>';
