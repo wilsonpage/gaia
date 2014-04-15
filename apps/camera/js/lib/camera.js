@@ -208,8 +208,11 @@ Camera.prototype.formatCapabilities = function(capabilities) {
 };
 
 Camera.prototype.configure = function() {
+  debug('configuring hardware...');
+
   var self = this;
   var success = function() {
+    debug('hardware configuration complete');
     self.emit('configured');
   };
 
