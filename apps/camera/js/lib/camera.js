@@ -12,6 +12,7 @@ var constants = require('config/camera');
 var debug = require('debug')('camera');
 var bindAll = require('lib/bind-all');
 var model = require('vendor/model');
+var mix = require('lib/mixin');
 
 /**
  * Locals
@@ -112,7 +113,7 @@ Camera.prototype.loadStreamInto = function(videoElement) {
  *
  * @public
  */
-Camera.prototype.load = function(done) {
+Camera.prototype.load = function(config, done) {
   debug('load camera');
 
   var selectedCamera = this.get('selectedCamera');
@@ -145,7 +146,7 @@ Camera.prototype.load = function(done) {
   }
 
   function ready() {
-    self.requestCamera(selectedCamera, done);
+    self.requestCamera(config, done);
     self.lastLoadedCamera = selectedCamera;
   }
 };
@@ -157,11 +158,13 @@ Camera.prototype.load = function(done) {
  * @param  {String}   camera  'front'|'back'
  * @private
  */
-Camera.prototype.requestCamera = function(camera, done) {
+Camera.prototype.requestCamera = function(config, done) {
   done = done || function() {};
 
   var self = this;
-  navigator.mozCameras.getCamera(camera, {}, onSuccess, onError);
+  var camera = this.get('selectedCamera');
+  navigator.mozCameras.getCamera(camera, config || {}, onSuccess, onError);
+  this.needsConfig = !config;
 
   function onSuccess(mozCamera) {
     debug('successfully got mozCamera');
@@ -193,47 +196,60 @@ Camera.prototype.configureCamera = function(mozCamera) {
   debug('configuring camera');
   var capabilities = mozCamera.capabilities;
   this.mozCamera = mozCamera;
+
+  // Bind to some events
   this.mozCamera.onShutter = this.onShutter;
   this.mozCamera.onPreviewStateChange = this.onPreviewStateChange;
   this.mozCamera.onRecorderStateChange = this.onRecorderStateChange;
+
   this.capabilities = this.formatCapabilities(capabilities);
   this.emit('newcamera', this.capabilities);
+
+  // Configure focus
+  this.configureFocus(this.mode);
+
   debug('configured camera');
 };
 
 Camera.prototype.formatCapabilities = function(capabilities) {
   var hasHDR = capabilities.sceneModes.indexOf('hdr') > -1;
-  capabilities.hdr = hasHDR ? ['on', 'off'] : undefined;
-  return capabilities;
+  var hdr = hasHDR ? ['on', 'off'] : undefined;
+  return mix({ hdr: hdr }, capabilities);
 };
 
 Camera.prototype.configure = function() {
   debug('configuring hardware...');
-
   var self = this;
-  var success = function() {
-    debug('hardware configuration complete');
-    self.emit('configured');
-  };
 
-  var error = function() {
-    console.log('Error configuring camera');
-  };
+  if (!this.needsConfig) {
+    onSuccess();
+    return;
+  }
 
   var previewSize = this.previewSize();
-  var options = {
+
+  // Create a camera config
+  var config = {
     mode: this.mode,
     previewSize: previewSize,
     recorderProfile: this.recorderProfile.key
   };
 
   debug('mozCamera configuration pw: %s, ph: %s',
-    options.previewSize.width,
-    options.previewSize.height);
+    config.previewSize.width,
+    config.previewSize.height);
 
-  this.mozCamera.setConfiguration(options, success, error);
-  this.configureFocus(this.mode);
-  this.configureZoom(previewSize);
+  this.mozCamera.setConfiguration(config, onSuccess, onError);
+
+  function onSuccess() {
+    debug('hardware configuration complete');
+    self.needsConfig = null;
+    self.emit('configured', config);
+  }
+
+  function onError() {
+    console.log('Error configuring camera');
+  }
 };
 
 Camera.prototype.previewSizes = function() {
@@ -913,7 +929,8 @@ Camera.prototype.isZoomSupported = function() {
   return this.mozCamera.capabilities.zoomRatios.length > 1;
 };
 
-Camera.prototype.configureZoom = function(previewSize) {
+Camera.prototype.configureZoom = function() {
+  var previewSize = this.previewSize();
   var maxPreviewSize =
     CameraUtils.getMaximumPreviewSize(this.previewSizes());
 
@@ -944,6 +961,7 @@ Camera.prototype.configureZoom = function(previewSize) {
 
   this.setZoom(this.getMinimumZoom());
   this.emit('zoomconfigured');
+  return this;
 };
 
 Camera.prototype.getMinimumZoom = function() {

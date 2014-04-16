@@ -59,7 +59,7 @@ module.exports = {
         key: 'video'
       }
     ],
-    persistent: false
+    persistent: true
   },
 
   isoModes: {
@@ -91,7 +91,7 @@ module.exports = {
         key: 'front'
       }
     ],
-    persistent: false
+    persistent: true
   },
 
   pictureSizesFront: {

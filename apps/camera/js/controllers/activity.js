@@ -65,19 +65,18 @@ ActivityController.prototype.bindEvents = function() {
  * @return {[type]} [description]
  */
 ActivityController.prototype.configureMode = function() {
-  var modes = this.activity.modes;
-  this.settings.mode.filterOptions(modes);
-
-  var mode = modes[0];
-  if (mode) {
-    this.settings.mode.select(mode);
-  }
-
-  debug('configured mode', modes);
+  this.settings.mode.filterOptions(this.activity.modes);
+  debug('configured mode', this.activity.modes);
 };
 
 ActivityController.prototype.onActivityReceived = function() {
-  this.configure();
+  var firstMode = this.activity.modes[0];
+
+  this.configureMode();
+
+  if (firstMode) {
+    this.settings.mode.select(firstMode);
+  }
 };
 
 /**

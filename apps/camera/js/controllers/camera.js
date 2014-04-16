@@ -45,12 +45,12 @@ CameraController.prototype.bindEvents = function() {
   camera.on('change:videoElapsed', app.firer('camera:recorderTimeUpdate'));
   camera.on('filesizelimitreached', this.onFileSizeLimitReached);
   camera.on('change:focus', app.firer('camera:focuschanged'));
-  camera.on('configured', app.firer('camera:configured'));
   camera.on('change:recording', app.setter('recording'));
   camera.on('newcamera', app.firer('camera:newcamera'));
   camera.on('newimage', app.firer('camera:newimage'));
   camera.on('newvideo', app.firer('camera:newvideo'));
   camera.on('shutter', app.firer('camera:shutter'));
+  camera.on('configured', this.onCameraConfigured);
   camera.on('loaded', app.firer('camera:loaded'));
   camera.on('ready', app.firer('camera:ready'));
   camera.on('busy', app.firer('camera:busy'));
@@ -86,6 +86,7 @@ CameraController.prototype.bindEvents = function() {
  * @private
  */
 CameraController.prototype.configure = function() {
+  var mozCameraConfig = this.getCameraConfig();
   var settings = this.app.settings;
   var activity = this.activity;
   var camera = this.camera;
@@ -99,7 +100,7 @@ CameraController.prototype.configure = function() {
   camera.set('maxFileSizeBytes', activity.data.maxFileSizeBytes);
   camera.set('selectedCamera', settings.cameras.selected('key'));
   camera.setMode(settings.mode.selected('key'));
-  camera.load();
+  camera.load(mozCameraConfig);
 
   debug('configured');
 };
@@ -115,9 +116,25 @@ CameraController.prototype.onSettingsConfigured = function() {
   this.camera
     .setRecorderProfile(recorderProfile)
     .setPictureSize(pictureSize)
+    .configureZoom()
     .configure();
 
   debug('camera configured with final settings');
+};
+
+CameraController.prototype.onCameraConfigured = function(config) {
+  this.saveCameraConfig(config);
+  this.app.emit('camera:configured');
+};
+
+CameraController.prototype.saveCameraConfig = function(config) {
+  if (!config) { return; }
+  localStorage.setItem('mozCameraConfig', JSON.stringify(config));
+};
+
+CameraController.prototype.getCameraConfig = function() {
+  var string = localStorage.getItem('mozCameraConfig');
+  return string && JSON.parse(string);
 };
 
 /**
