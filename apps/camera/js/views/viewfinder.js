@@ -62,7 +62,7 @@ var clamp = function(value, minimum, maximum) {
 module.exports = View.extend({
   name: 'viewfinder',
   className: 'js-viewfinder',
-  fadeTime: 150,
+  fadeTime: 200,
 
   initialize: function() {
     this.render();

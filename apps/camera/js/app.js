@@ -245,6 +245,7 @@ App.prototype.onceViewfinderVisible = function() {
 App.prototype.criticalPathDone = function() {
   var start = window.performance.timing.domLoading;
   var took = Date.now() - start;
+  this.criticalPathDone = true;
   console.log('critical-path took %s', took + 'ms');
 };
 
