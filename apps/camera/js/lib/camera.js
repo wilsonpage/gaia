@@ -159,12 +159,13 @@ Camera.prototype.load = function(config, done) {
  * @private
  */
 Camera.prototype.requestCamera = function(config, done) {
+  debug('request camera', config);
   done = done || function() {};
 
   var self = this;
   var camera = this.get('selectedCamera');
   navigator.mozCameras.getCamera(camera, config || {}, onSuccess, onError);
-  this.needsConfig = !config;
+  this.preConfigured = !!config;
 
   function onSuccess(mozCamera) {
     debug('successfully got mozCamera');
@@ -221,7 +222,7 @@ Camera.prototype.configure = function() {
   debug('configuring hardware...');
   var self = this;
 
-  if (!this.needsConfig) {
+  if (this.preConfigured) {
     onSuccess();
     return;
   }
@@ -243,7 +244,7 @@ Camera.prototype.configure = function() {
 
   function onSuccess() {
     debug('hardware configuration complete');
-    self.needsConfig = null;
+    delete self.preConfigured;
     self.emit('configured', config);
   }
 
@@ -320,6 +321,7 @@ Camera.prototype.setFlashMode = function(key) {
  * @param  {Function} done
  */
 Camera.prototype.release = function(done) {
+  debug('release');
   done = done || function() {};
   var self = this;
 

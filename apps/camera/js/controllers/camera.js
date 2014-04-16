@@ -128,8 +128,10 @@ CameraController.prototype.onCameraConfigured = function(config) {
 };
 
 CameraController.prototype.saveCameraConfig = function(config) {
+  debug('save camera config', config);
   if (!config) { return; }
   localStorage.setItem('mozCameraConfig', JSON.stringify(config));
+  debug('saved camera config', config);
 };
 
 CameraController.prototype.getCameraConfig = function() {
