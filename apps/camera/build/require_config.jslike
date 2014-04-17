@@ -11,6 +11,8 @@
     'config'
   ],
 
+  exclude: ['l10n'],
+
   findNestedDependencies: true,
 
   // Be sure to normalize all define() calls by extracting

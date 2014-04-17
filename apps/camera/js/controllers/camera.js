@@ -31,6 +31,7 @@ function CameraController(app) {
   this.controls = app.views.controls;
   this.hdrDisabled = this.settings.hdr.get('disabled');
   this.storage = app.storage  || localStorage; // test hook
+  this.localize = app.localize;
   this.configure();
   this.bindEvents();
   debug('initialized');
@@ -239,7 +240,7 @@ CameraController.prototype.showSizeLimitAlert = function() {
   var alertText = this.activity.active ?
     'activity-size-limit-reached' :
     'storage-size-limit-reached';
-  alert(navigator.mozL10n.get(alertText));
+  alert(this.localize(alertText));
   this.sizeLimitAlertActive = false;
 };
 

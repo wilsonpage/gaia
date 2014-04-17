@@ -17,10 +17,6 @@ var settings = new Settings(require('config/settings'));
 var Camera = require('lib/camera');
 var App = require('app');
 
-// navigator.mozL10n
-require('l10n');
-// navigator.mozL10n = { get: function() {} };
-
 /**
  * Create new `App`
  */

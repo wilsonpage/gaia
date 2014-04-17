@@ -72,7 +72,6 @@ App.prototype.boot = function() {
   this.runControllers();
   this.injectViews();
   this.bindEvents();
-  this.configureL10n();
   this.emit('boot');
   this.didBoot = true;
   debug('booted');
@@ -115,6 +114,7 @@ App.prototype.loadControllers = function() {
   this.loadController(this.controllers.confirm);
   this.loadController(this.controllers.battery);
   this.loadController(this.controllers.sounds);
+  this.loadL10n();
 };
 
 /**
@@ -235,6 +235,7 @@ App.prototype.onClick = function() {
 App.prototype.onceViewfinderVisible = function() {
   this.onCriticalPathDone();
   this.loadControllers();
+  this.emit('criticalpathdone');
 };
 
 /**
@@ -246,7 +247,7 @@ App.prototype.onCriticalPathDone = function() {
   var start = window.performance.timing.domLoading;
   var took = Date.now() - start;
   console.log('critical-path took %s', took + 'ms');
-  this.critcalPathDone = true;
+  this.criticalPathDone = true;
 };
 
 /**
@@ -301,10 +302,34 @@ App.prototype.onBeforeUnload = function() {
  *
  * @private
  */
-App.prototype.configureL10n = function() {
-  var complete = navigator.mozL10n.readyState === 'complete';
+App.prototype.loadL10n = function() {
   bind(this.win, 'localized', this.firer('localized'));
-  if (complete) { this.emit('localized'); }
+  requirejs(['l10n']);
+};
+
+/**
+ * States whether localization
+ * has completed or not.
+ *
+ * @return {Boolean}
+ * @public
+ */
+App.prototype.localized = function() {
+  var l10n = navigator.mozL10n;
+  var result = l10n && l10n.readyState === 'complete';
+  debug('localized: %s', result);
+  return result;
+};
+
+/**
+ * Central place to localize a string.
+ *
+ * @param  {String} key
+ * @public
+ */
+App.prototype.localize = function(key) {
+  var l10n = navigator.mozL10n;
+  return (l10n && l10n.get(key)) || key;
 };
 
 });

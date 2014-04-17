@@ -26,6 +26,7 @@ function OverlayController(app) {
   bindAll(this);
   this.app = app;
   this.activity = app.activity;
+  this.localize = app.localize;
   this.batteryOverlay = null;
   this.storageOverlay = null;
   this.bindEvents();
@@ -110,31 +111,30 @@ OverlayController.prototype.createOverlay = function(type) {
  * @return {Object}
  */
 OverlayController.prototype.getOverlayData = function(type) {
-  var l10n = navigator.mozL10n;
   var data = {};
 
   switch (type) {
     case 'unavailable':
-      data.title = l10n.get('nocard2-title');
-      data.body = l10n.get('nocard3-text');
+      data.title = this.localize('nocard2-title');
+      data.body = this.localize('nocard3-text');
     break;
     case 'nospace':
-      data.title = l10n.get('nospace2-title');
-      data.body = l10n.get('nospace2-text');
+      data.title = this.localize('nospace2-title');
+      data.body = this.localize('nospace2-text');
     break;
     case 'shared':
-      data.title = l10n.get('pluggedin-title');
-      data.body = l10n.get('pluggedin-text');
+      data.title = this.localize('pluggedin-title');
+      data.body = this.localize('pluggedin-text');
     break;
     case 'shutdown':
-      data.title = l10n.get('battery-shutdown-title');
-      data.body = l10n.get('battery-shutdown-text');
+      data.title = this.localize('battery-shutdown-title');
+      data.body = this.localize('battery-shutdown-text');
     break;
     default:
       return false;
   }
 
-  data.closeButtonText = l10n.get('close-button');
+  data.closeButtonText = this.localize('close-button');
 
   return data;
 };
