@@ -194,7 +194,7 @@ suite('app', function() {
 
     test('Should watch location only once storage confirmed healthy', function() {
       var geolocationWatch = this.app.geolocationWatch;
-      assert.ok(this.app.once.calledWith('storage:healthy', geolocationWatch));
+      assert.ok(this.app.once.calledWith('storage:checked:healthy', geolocationWatch));
     });
 
     suite('App#geolocationWatch()', function() {

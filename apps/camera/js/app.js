@@ -166,7 +166,7 @@ App.prototype.injectViews = function() {
  * @private
  */
 App.prototype.bindEvents = function() {
-  this.once('storage:healthy', this.geolocationWatch);
+  this.once('storage:checked:healthy', this.geolocationWatch);
   this.once('viewfinder:visible', this.onceViewfinderVisible);
   bind(this.doc, 'visibilitychange', this.onVisibilityChange);
   bind(this.win, 'beforeunload', this.onBeforeUnload);
