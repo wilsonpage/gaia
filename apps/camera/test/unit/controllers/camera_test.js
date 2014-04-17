@@ -30,6 +30,7 @@ suite('controllers/camera', function() {
   });
 
   setup(function() {
+    this.sandbox = sinon.sandbox.create();
     this.app = sinon.createStubInstance(this.App);
     this.app.camera = sinon.createStubInstance(this.Camera);
     this.app.geolocation = sinon.createStubInstance(this.GeoLocation);
@@ -40,6 +41,11 @@ suite('controllers/camera', function() {
     // Views
     this.app.views = {
       viewfinder: sinon.createStubInstance(this.ViewfinderView)
+    };
+
+    this.app.storage = {
+      getItem: sinon.stub(),
+      setItem: sinon.stub()
     };
 
     // Settings
@@ -58,6 +64,7 @@ suite('controllers/camera', function() {
     // Aliases
     this.viewfinder = this.app.views.viewfinder;
     this.settings = this.app.settings;
+    this.storage = this.app.storage;
     this.camera = this.app.camera;
 
     // Call the callback
@@ -67,13 +74,13 @@ suite('controllers/camera', function() {
     this.controller = new this.CameraController(this.app);
   });
 
+  teardown(function() {
+    this.sandbox.restore();
+  });
+
   suite('CameraController()', function() {
     setup(function() {
-      sinon.stub(this.CameraController.prototype, 'onHidden');
-    });
-
-    teardown(function() {
-      this.CameraController.prototype.onHidden.restore();
+      this.sandbox.stub(this.CameraController.prototype, 'onHidden');
     });
 
     test('Should set the capture mode to \'picture\' by default', function() {
@@ -102,6 +109,32 @@ suite('controllers/camera', function() {
     test('Should listen to storage:changed', function() {
       assert.isTrue(this.app.on.calledWith('storage:changed'));
     });
+
+    test('Should listen to \'configured\' event', function() {
+      assert.isTrue(this.camera.on.calledWith('configured'));
+    });
+  });
+
+  suite('camera.on(\'configured\')', function() {
+    setup(function() {
+      sinon.stub(this.controller, 'saveCameraConfig');
+
+      // Get the callback registered
+      var spy = this.camera.on.withArgs('configured');
+      var callback = spy.args[0][1];
+
+      // Call the callback
+      this.config = {};
+      callback(this.config);
+    });
+
+    test('Should save the passed configuration', function() {
+      assert.isTrue(this.controller.saveCameraConfig.calledWith(this.config));
+    });
+
+    test('Should relay via app event', function() {
+      assert.isTrue(this.app.emit.calledWith('camera:configured'));
+    });
   });
 
   suite('CameraController#onSettingsConfigured()', function() {
@@ -116,6 +149,7 @@ suite('controllers/camera', function() {
       // Returns `this` to allow chaining
       this.app.camera.setRecorderProfile.returns(this.app.camera);
       this.app.camera.setPictureSize.returns(this.app.camera);
+      this.app.camera.configureZoom.returns(this.app.camera);
 
       this.controller = new this.CameraController(this.app);
       this.controller.onSettingsConfigured();
@@ -334,6 +368,46 @@ suite('controllers/camera', function() {
 
       this.controller.onStorageChanged('shared');
       assert.isTrue(this.camera.stopRecording.called);
+    });
+  });
+
+  suite('CameraController#saveCameraConfig()', function() {
+    test('Should store stringified config in localStorage', function() {
+      this.controller.saveCameraConfig({ foo: 'bar' });
+      assert.isTrue(this.storage.setItem.calledWith('mozCameraConfig', '{"foo":"bar"}'));
+    });
+
+    test('Should not store config if activity active', function() {
+      this.app.activity.active = true;
+      this.controller.saveCameraConfig({ foo: 'bar' });
+      assert.isFalse(this.storage.setItem.called);
+    });
+
+    test('Should not store if config is falsy', function() {
+      this.controller.saveCameraConfig();
+      this.controller.saveCameraConfig(null);
+      this.controller.saveCameraConfig('');
+      this.controller.saveCameraConfig(false);
+      assert.isFalse(this.storage.setItem.called);
+    });
+  });
+
+  suite.only('CameraController#fetchCameraConfig()', function() {
+    setup(function() {
+      this.storage.getItem
+        .withArgs('mozCameraConfig')
+        .returns('{"foo":"bar"}');
+    });
+
+    test('Should return stored camera config', function() {
+      var returned = this.controller.fetchCameraConfig();
+      assert.deepEqual(returned, { foo: 'bar' });
+    });
+
+    test('Should not return config if activity active', function() {
+      this.app.activity.active = true;
+      var returned = this.controller.fetchCameraConfig();
+      assert.equal(returned, undefined);
     });
   });
 });

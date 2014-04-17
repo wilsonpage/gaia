@@ -30,6 +30,7 @@ function CameraController(app) {
   this.viewfinder = app.views.viewfinder;
   this.controls = app.views.controls;
   this.hdrDisabled = this.settings.hdr.get('disabled');
+  this.storage = app.storage  || localStorage; // test hook
   this.configure();
   this.bindEvents();
   debug('initialized');
@@ -86,25 +87,31 @@ CameraController.prototype.bindEvents = function() {
  * @private
  */
 CameraController.prototype.configure = function() {
-  var mozCameraConfig = this.getCameraConfig();
-  var settings = this.app.settings;
-  var activity = this.activity;
   var camera = this.camera;
 
   // Configure the 'cameras' setting using the
   // cameraList data given by the camera hardware
-  settings.cameras.filterOptions(camera.cameraList);
+  this.settings.cameras.filterOptions(camera.cameraList);
 
   // This is set so that the video recorder can
   // automatically stop when video size limit is reached.
-  camera.set('maxFileSizeBytes', activity.data.maxFileSizeBytes);
-  camera.set('selectedCamera', settings.cameras.selected('key'));
-  camera.setMode(settings.mode.selected('key'));
-  camera.load(mozCameraConfig);
+  camera.set('maxFileSizeBytes', this.activity.data.maxFileSizeBytes);
+  camera.set('selectedCamera', this.settings.cameras.selected('key'));
+  camera.setMode(this.settings.mode.selected('key'));
 
+  // Load the camera, passing in a previous
+  // mozCameraConfig that may have been
+  // retreved from persistent storage.
+  camera.load(this.fetchCameraConfig());
   debug('configured');
 };
 
+/**
+ * Once the settings have finished configuring
+ * we do the final camera configuration.
+ *
+ * @private
+ */
 CameraController.prototype.onSettingsConfigured = function() {
   var recorderProfile = this.settings.recorderProfiles.selected('key');
   var pictureSize = this.settings.pictureSizes.selected('data');
@@ -122,20 +129,55 @@ CameraController.prototype.onSettingsConfigured = function() {
   debug('camera configured with final settings');
 };
 
+/**
+ * Saves the last camera configuration
+ * and relays the event through the app.
+ *
+ * @param  {Object} config
+ * @private
+ */
 CameraController.prototype.onCameraConfigured = function(config) {
   this.saveCameraConfig(config);
   this.app.emit('camera:configured');
 };
 
+/**
+ * Stores mozCamera configuration
+ * so that next time the app is booted
+ * we can get and configure the camera
+ * in one go.
+ *
+ * This means we don't have to call
+ * mozCamera.setConfiguration() on our
+ * critical startup path.
+ *
+ * @param  {Object} config
+ * @private
+ */
 CameraController.prototype.saveCameraConfig = function(config) {
-  debug('save camera config', config);
-  if (!config) { return; }
-  localStorage.setItem('mozCameraConfig', JSON.stringify(config));
+  if (!config || this.activity.active) { return; }
+  this.storage.setItem('mozCameraConfig', JSON.stringify(config));
   debug('saved camera config', config);
 };
 
-CameraController.prototype.getCameraConfig = function() {
-  var string = localStorage.getItem('mozCameraConfig');
+/**
+ * Fetch the last stored config from
+ * localStorage.
+ *
+ * The config object stores the last `mode`,
+ * `pictureSize`, and `recorderProfile`
+ * that the camera was configured with.
+ *
+ * We don't want to fetch the last camera
+ * configuration if we're in pick activity
+ * as the activity could have requested
+ * a particular mode or resolution.
+ *
+ * @private
+ */
+CameraController.prototype.fetchCameraConfig = function() {
+  if (this.activity.active) { return; }
+  var string = this.storage.getItem('mozCameraConfig');
   return string && JSON.parse(string);
 };
 
@@ -143,7 +185,7 @@ CameraController.prototype.getCameraConfig = function() {
  * Begins capture, first checking if
  * a countdown timer should be installed.
  *
- * @return {[type]} [description]
+ * @private
  */
 CameraController.prototype.capture = function() {
   if (this.shouldCountdown()) {
