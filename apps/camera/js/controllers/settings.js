@@ -29,6 +29,7 @@ function SettingsController(app) {
   bindAll(this);
   this.app = app;
   this.settings = app.settings;
+  this.activity = app.activity;
   this.notification = app.views.notification;
 
   // Allow test stubs
@@ -44,6 +45,7 @@ function SettingsController(app) {
 }
 
 SettingsController.prototype.configure = function() {
+  if (this.activity.active) { this.settings.dontSave(); }
   this.settings.alias('recorderProfiles', this.aliases.recorderProfiles);
   this.settings.alias('pictureSizes', this.aliases.pictureSizes);
   this.settings.alias('flashModes', this.aliases.flashModes);

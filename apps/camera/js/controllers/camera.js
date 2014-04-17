@@ -177,7 +177,9 @@ CameraController.prototype.saveCameraConfig = function(config) {
  */
 CameraController.prototype.fetchCameraConfig = function() {
   if (this.activity.active) { return; }
+  debug('fetch camera config');
   var string = this.storage.getItem('mozCameraConfig');
+  debug('fetched camera config', string);
   return string && JSON.parse(string);
 };
 

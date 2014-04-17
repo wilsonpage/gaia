@@ -58,6 +58,23 @@ Settings.prototype.fetch = function(done) {
   this.items.forEach(function(setting) { setting.fetch(); });
 };
 
+/**
+ * Prevent all settings from saving
+ * when they are changed.
+ *
+ * This is used in activity sessions
+ * whereby we don't want any settings
+ * changes to persist to future camera
+ * sessions.
+ *
+ * @public
+ */
+Settings.prototype.dontSave = function() {
+  this.items.forEach(function(setting) {
+    setting.off('change:selected', setting.save);
+  });
+};
+
 Settings.prototype.alias = function(key, options) {
   options.settings = this;
   options.key = key;

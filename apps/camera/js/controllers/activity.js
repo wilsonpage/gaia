@@ -43,6 +43,7 @@ function ActivityController(app) {
  * @private
  */
 ActivityController.prototype.configure = function() {
+  if (!this.activity.active) { return; }
   this.configureMode();
 };
 
@@ -55,28 +56,17 @@ ActivityController.prototype.configure = function() {
  * @private
  */
 ActivityController.prototype.bindEvents = function() {
-  this.activity.on('activityreceived', this.onActivityReceived);
+  this.activity.on('activityreceived', this.configureMode);
   this.settings.recorderProfiles.on('configured', this.filterRecorderProfiles);
   this.settings.pictureSizes.on('configured', this.filterPictureSize);
 };
 
-/**
- * Set filter the capture mode options
- * @return {[type]} [description]
- */
+
 ActivityController.prototype.configureMode = function() {
-  this.settings.mode.filterOptions(this.activity.modes);
-  debug('configured mode', this.activity.modes);
-};
-
-ActivityController.prototype.onActivityReceived = function() {
   var firstMode = this.activity.modes[0];
-
-  this.configureMode();
-
-  if (firstMode) {
-    this.settings.mode.select(firstMode);
-  }
+  this.settings.mode.filterOptions(this.activity.modes);
+  if (firstMode) { this.settings.mode.select(firstMode); }
+  debug('configured mode', this.activity.modes);
 };
 
 /**

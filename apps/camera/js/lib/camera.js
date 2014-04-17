@@ -220,6 +220,7 @@ Camera.prototype.formatCapabilities = function(capabilities) {
 
 Camera.prototype.configure = function() {
   debug('configuring hardware...');
+  if (!this.mozCamera) { return; }
   var self = this;
 
   if (this.preConfigured) {
