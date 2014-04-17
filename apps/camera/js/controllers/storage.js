@@ -29,6 +29,7 @@ function StorageController(app) {
   this.storage = app.storage || new Storage();
   this.configure();
   this.bindEvents();
+  debug('initialized');
 }
 
 /**

@@ -114,8 +114,8 @@ ViewfinderController.prototype.onCameraConfigured = function() {
   // video element appears not to have painted the
   // newly set dimensions before fading in.
   // https://bugzilla.mozilla.org/show_bug.cgi?id=982230
-  var ms = this.app.criticalPathDone ? 280 : 0;
-  setTimeout(this.show, ms);
+  if (!this.app.criticalPathDone) { this.show(); }
+  else { setTimeout(this.show, 280); }
 };
 
 ViewfinderController.prototype.show = function() {

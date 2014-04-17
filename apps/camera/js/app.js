@@ -233,7 +233,7 @@ App.prototype.onClick = function() {
  * @private
  */
 App.prototype.onceViewfinderVisible = function() {
-  this.criticalPathDone();
+  this.onCriticalPathDone();
   this.loadControllers();
 };
 
@@ -242,11 +242,11 @@ App.prototype.onceViewfinderVisible = function() {
  *
  * @return {Number}
  */
-App.prototype.criticalPathDone = function() {
+App.prototype.onCriticalPathDone = function() {
   var start = window.performance.timing.domLoading;
   var took = Date.now() - start;
-  this.criticalPathDone = true;
   console.log('critical-path took %s', took + 'ms');
+  this.critcalPathDone = true;
 };
 
 /**
