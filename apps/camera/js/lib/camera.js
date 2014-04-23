@@ -792,6 +792,7 @@ Camera.prototype.onPreviewStateChange = function(state) {
   var busy = state === 'stopped' || state === 'paused';
   if (busy) { this.emit('busy'); }
   else { this.emit('ready'); }
+  this.emit('preview:' + state);
 };
 
 /**

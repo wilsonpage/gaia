@@ -87,6 +87,7 @@ ViewfinderController.prototype.bindEvents = function() {
   this.viewfinder.on('click', this.app.firer('viewfinder:click'));
   this.viewfinder.on('pinchChange', this.onPinchChange);
   this.camera.on('zoomchanged', this.onZoomChanged);
+  this.camera.on('preview:started', this.show);
   this.app.on('camera:shutter', this.onShutter);
   this.app.on('camera:focuschanged', this.focusRing.setState);
   this.app.on('camera:configured', this.onCameraConfigured);
@@ -95,6 +96,10 @@ ViewfinderController.prototype.bindEvents = function() {
   this.app.on('settings:closed', this.configureGrid);
   this.app.on('settings:opened', this.hideGrid);
   this.app.on('hidden', this.stopStream);
+
+  this.app.on('camera:newcamera', this.configurePreview);
+  this.app.settings.mode.on('change:selected', this.configurePreview);
+  this.app.settings.cameras.on('change:selected', this.configurePreview);
 };
 
 /**
@@ -105,8 +110,10 @@ ViewfinderController.prototype.bindEvents = function() {
  */
 ViewfinderController.prototype.onCameraConfigured = function() {
   debug('configuring');
+
+  // setTimeout(function() {
   this.startStream();
-  this.configurePreview();
+  // this.configurePreview();
   this.configureZoom();
 
   // BUG: We have to use a 300ms timeout here
@@ -114,12 +121,15 @@ ViewfinderController.prototype.onCameraConfigured = function() {
   // video element appears not to have painted the
   // newly set dimensions before fading in.
   // https://bugzilla.mozilla.org/show_bug.cgi?id=982230
-  if (!this.app.criticalPathDone) { this.show(); }
-  else { setTimeout(this.show, 280); }
+  // if (!this.app.criticalPathDone) { this.show(); }
+  // else { setTimeout(this.show, 280); }
+
+  // }.bind(this), 200);
 };
 
 ViewfinderController.prototype.show = function() {
-  this.viewfinder.fadeIn();
+  // this.viewfinder.fadeIn();
+  this.viewfinder.el.style.opacity = 1;
   this.app.emit('viewfinder:visible');
 };
 

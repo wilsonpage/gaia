@@ -207,7 +207,11 @@ CameraController.prototype.showSizeLimitAlert = function() {
 CameraController.prototype.setMode = function(mode) {
   this.setFlashMode();
   this.camera.setMode(mode);
-  this.viewfinder.fadeOut(this.camera.configure);
+  // this.viewfinder.fadeOut(this.camera.configure);
+  this.viewfinder.el.style.opacity = 0;
+  this.reflow = this.viewfinder.el.offsetTop;
+  this.camera.configure();
+  debug('mode set to: %s', mode);
 };
 
 CameraController.prototype.setPictureSize = function(value) {

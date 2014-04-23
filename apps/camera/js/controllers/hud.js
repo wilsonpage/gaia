@@ -52,7 +52,7 @@ HudController.prototype.configure = function() {
  */
 HudController.prototype.bindEvents = function() {
   this.app.settings.flashModes.on('change:selected', this.updateFlash);
-  this.app.settings.mode.on('change:selected', this.updateFlash);
+  // this.app.settings.mode.on('change:selected', this.updateFlash);
   this.app.on('settings:configured', this.updateFlash);
 
   // View
@@ -61,8 +61,8 @@ HudController.prototype.bindEvents = function() {
   this.hud.on('click:flash', this.onFlashClick);
 
   // Camera
-  this.app.on('camera:ready', this.hud.setter('camera', 'ready'));
-  this.app.on('camera:busy', this.hud.setter('camera', 'busy'));
+  // this.app.on('camera:ready', this.hud.setter('camera', 'ready'));
+  // this.app.on('camera:busy', this.hud.setter('camera', 'busy'));
   this.app.on('change:recording', this.hud.setter('recording'));
 
   // Timer

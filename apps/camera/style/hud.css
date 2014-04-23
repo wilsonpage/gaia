@@ -1,6 +1,6 @@
 
 .hud {
-  display: flex;
+  display: none;
   position: absolute;
   top: 0; left: 0;
   width: 100%;
@@ -10,7 +10,7 @@
   justify-content: space-between;
   opacity: 1;
   transition: opacity 300ms;
-  transform: translateZ(1px);
+  /*transform: translateZ(1px);*/
 }
 
 /**

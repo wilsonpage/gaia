@@ -41,16 +41,16 @@ function ControlsController(app) {
  * @private
  */
 ControlsController.prototype.bindEvents = function() {
-  this.app.settings.mode.on('change:selected', this.controls.setter('mode'));
+  // this.app.settings.mode.on('change:selected', this.controls.setter('mode'));
 
   // App
   this.app.on('change:recording', this.onRecordingChange);
   this.app.on('camera:shutter', this.captureHighlightOff);
-  this.app.on('camera:busy', this.controls.disable);
+  // this.app.on('camera:busy', this.controls.disable);
   this.app.on('timer:started', this.onTimerStarted);
   this.app.on('newthumbnail', this.onNewThumbnail);
   this.app.on('timer:cleared', this.restore);
-  this.app.on('camera:ready', this.restore);
+  // this.app.on('camera:ready', this.restore);
 
   // Controls
   this.controls.on('click:thumbnail', this.app.firer('preview'));
@@ -189,7 +189,7 @@ ControlsController.prototype.captureHighlightOff = function() {
  * @private
  */
 ControlsController.prototype.onSwitchButtonClick = function() {
-  this.controls.disable();
+  // this.controls.disable();
   this.app.settings.mode.next();
 };
 
