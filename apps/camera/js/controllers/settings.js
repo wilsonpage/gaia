@@ -231,7 +231,6 @@ SettingsController.prototype.formatPictureSizeTitles = function() {
     var data = size.data;
     var mp = data.mp ? data.mp + MP + ' ' : '';
     size.title = mp + data.width + 'x' + data.height + ' ' + data.aspect;
-    debug('', data);
   });
 
   debug('picture size titles formatted');

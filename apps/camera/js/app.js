@@ -16,7 +16,6 @@ var model = require('vendor/model');
 var debug = require('debug')('app');
 var HudView = require('views/hud');
 var bind = require('lib/bind');
-var requirejs = window.requirejs;
 
 /**
  * Locals
@@ -50,6 +49,7 @@ function App(options) {
   this.el = options.el;
   this.win = options.win;
   this.doc = options.doc;
+  this.require = options.require || window.requirejs;
   this.inSecureMode = (this.win.location.hash === '#secure');
   this.controllers = options.controllers;
   this.geolocation = options.geolocation;
@@ -68,11 +68,10 @@ function App(options) {
 App.prototype.boot = function() {
   debug('boot');
   if (this.didBoot) { return; }
+  this.bindEvents();
   this.initializeViews();
   this.runControllers();
   this.injectViews();
-  this.bindEvents();
-  this.emit('boot');
   this.didBoot = true;
   debug('booted');
 };
@@ -109,12 +108,7 @@ App.prototype.runControllers = function() {
  * @private
  */
 App.prototype.loadControllers = function() {
-  this.loadController(this.controllers.previewGallery);
-  this.loadController(this.controllers.storage);
-  this.loadController(this.controllers.confirm);
-  this.loadController(this.controllers.battery);
-  this.loadController(this.controllers.sounds);
-  this.loadL10n();
+
 };
 
 /**
@@ -123,9 +117,10 @@ App.prototype.loadControllers = function() {
  * @param  {String} path
  */
 App.prototype.loadController = function(path) {
-  requirejs([path], function(controller) {
-    controller(this);
-  }.bind(this));
+  var self = this;
+  this.require([path], function(controller) {
+    controller(self);
+  });
 };
 
 /**
@@ -166,13 +161,20 @@ App.prototype.injectViews = function() {
  * @private
  */
 App.prototype.bindEvents = function() {
+  debug('binding events');
+
+  // App
+  this.once('viewfinder:visible', this.onCriticalPathDone);
   this.once('storage:checked:healthy', this.geolocationWatch);
-  this.once('viewfinder:visible', this.onceViewfinderVisible);
-  bind(this.doc, 'visibilitychange', this.onVisibilityChange);
-  bind(this.win, 'beforeunload', this.onBeforeUnload);
-  bind(this.el, 'click', this.onClick);
   this.on('visible', this.onVisible);
   this.on('hidden', this.onHidden);
+
+  // DOM
+  bind(this.doc, 'visibilitychange', this.onVisibilityChange);
+  bind(this.win, 'localized', this.firer('localized'));
+  bind(this.win, 'beforeunload', this.onBeforeUnload);
+  bind(this.el, 'click', this.onClick);
+
   debug('events bound');
 };
 
@@ -227,27 +229,24 @@ App.prototype.onClick = function() {
 };
 
 /**
- * Load non-critical modules once
- * the viewfinder is visible.
- *
- * @private
- */
-App.prototype.onceViewfinderVisible = function() {
-  this.onCriticalPathDone();
-  this.loadControllers();
-  this.emit('criticalpathdone');
-};
-
-/**
  * Log when critical path has completed.
  *
- * @return {Number}
+ * @private
  */
 App.prototype.onCriticalPathDone = function() {
   var start = window.performance.timing.domLoading;
   var took = Date.now() - start;
+
   console.log('critical-path took %s', took + 'ms');
+  this.loadController(this.controllers.previewGallery);
+  this.loadController(this.controllers.storage);
+  this.loadController(this.controllers.confirm);
+  this.loadController(this.controllers.battery);
+  this.loadController(this.controllers.sounds);
+  this.loadL10n();
+
   this.criticalPathDone = true;
+  this.emit('criticalpathdone');
 };
 
 /**
@@ -303,8 +302,7 @@ App.prototype.onBeforeUnload = function() {
  * @private
  */
 App.prototype.loadL10n = function() {
-  bind(this.win, 'localized', this.firer('localized'));
-  requirejs(['l10n']);
+  this.require(['l10n']);
 };
 
 /**
@@ -316,9 +314,7 @@ App.prototype.loadL10n = function() {
  */
 App.prototype.localized = function() {
   var l10n = navigator.mozL10n;
-  var result = l10n && l10n.readyState === 'complete';
-  debug('localized: %s', result);
-  return result;
+  return l10n && l10n.readyState === 'complete';
 };
 
 /**

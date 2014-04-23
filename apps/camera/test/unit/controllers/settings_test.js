@@ -33,6 +33,7 @@ suite('controllers/settings', function() {
 
     // Settings
     this.app.el = {};
+    this.app.activity = { active: false };
     this.app.formatPictureSizes = sinon.stub();
     this.app.formatRecorderProfiles = sinon.stub();
     this.app.settings = sinon.createStubInstance(this.Settings);
@@ -80,6 +81,22 @@ suite('controllers/settings', function() {
     test('Should update the settings when the camera hardware changes', function() {
       assert.isTrue(this.app.on.calledWith('camera:newcamera', this.controller.onNewCamera));
     });
+
+    test('Should format pictreSize titles when the app is localized', function() {
+      assert.isTrue(this.app.on.calledWith('localized', this.controller.formatPictureSizeTitles));
+    });
+
+    test('Should listen to \'camera:newcamera\'', function() {
+      assert.isTrue(this.app.on.calledWith('camera:newcamera', this.controller.onNewCamera));
+    });
+
+    test('Should not save settings changes when in activity', function() {
+      sinon.assert.notCalled(this.settings.dontSave);
+
+      this.app.activity.active = true;
+      this.controller = new this.SettingsController(this.app);
+      sinon.assert.called(this.settings.dontSave);
+    });
   });
 
   suite('SettingsController#configurePictureSizes()', function() {
@@ -118,11 +135,10 @@ suite('controllers/settings', function() {
       assert.equal(arg1, this.pictureSizes);
     });
 
-    test('Should pass the `exclude`, `maxPixelSize` and `mp` options', function() {
+    test('Should pass the `exclude` and `maxPixelSize`', function() {
       var options = this.app.formatPictureSizes.args[0][1];
 
       assert.equal(options.exclude, this.exclude);
-      assert.equal(options.mp, 'mp');
       assert.equal(options.maxPixelSize, 123);
     });
 
@@ -345,6 +361,81 @@ suite('SettingsController#configureRecorderProfiles()', function() {
     test('Should null out `view`', function() {
       this.controller.closeSettings();
       assert.equal(this.controller.view, null);
+    });
+  });
+
+
+  suite('SettingsController#formatPictureSizeTitles()', function() {
+    setup(function() {
+      this.options = [
+        {
+          key: '400x300',
+          data: {
+            mp: 0,
+            width: 400,
+            height: 300,
+            aspect: '4:3'
+          }
+        },
+        {
+          key: '1600x900',
+          data: {
+            mp: 1,
+            width: 1600,
+            height: 900,
+            aspect: '16:9'
+          }
+        },
+        {
+          key: '3200x1800',
+          data: {
+            mp: 6,
+            width: 3200,
+            height: 1800,
+            aspect: '16:9'
+          }
+        }
+      ];
+
+      this.settings.pictureSizes.get
+        .withArgs('options')
+        .returns(this.options);
+
+      this.app.localized.returns(true);
+      this.controller.localize.withArgs('MP').returns('MP');
+
+      // Call the test subject
+      this.controller.formatPictureSizeTitles();
+    });
+
+    test('Should include the apect ratio', function() {
+      assert.ok(this.options[0].title.indexOf('4:3') > -1);
+    });
+
+    test('Should include MP value for > 1MP', function() {
+      assert.isTrue(this.options[2].title.indexOf('6MP') > -1, this.options[2].title);
+      assert.isFalse(this.options[0].title.indexOf('MP') > -1, this.options[0].title);
+    });
+
+    test('Should include the resolution', function() {
+      assert.isTrue(this.options[0].title.indexOf('400x300') > -1);
+    });
+
+    test('Should use localized \'MP\' string', function() {
+      this.controller.localize
+        .withArgs('MP')
+        .returns('MP-LOCALIZED');
+
+      this.controller.formatPictureSizeTitles();
+      assert.isTrue(this.options[2].title.indexOf('MP-LOCALIZED') > -1, this.options[2].title);
+    });
+
+    test('Should not run if app isn\'t localized yet', function() {
+      this.app.localized.returns(false);
+      delete this.options[0].title;
+
+      this.controller.formatPictureSizeTitles();
+      assert.equal(this.options[0].title, undefined);
     });
   });
 });

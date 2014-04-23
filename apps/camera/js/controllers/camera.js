@@ -30,7 +30,6 @@ function CameraController(app) {
   this.viewfinder = app.views.viewfinder;
   this.controls = app.views.controls;
   this.hdrDisabled = this.settings.hdr.get('disabled');
-  this.storage = app.storage  || localStorage; // test hook
   this.localize = app.localize;
   this.configure();
   this.bindEvents();
@@ -100,10 +99,14 @@ CameraController.prototype.configure = function() {
   camera.set('selectedCamera', this.settings.cameras.selected('key'));
   camera.setMode(this.settings.mode.selected('key'));
 
+  // Disable camera config caches when in activity
+  // to prevent activity specific configuration persisting.
+  if (this.activity.active) { camera.cacheConfig = false; }
+
   // Load the camera, passing in a previous
   // mozCameraConfig that may have been
   // retreved from persistent storage.
-  camera.load(this.fetchCameraConfig());
+  camera.load();
   debug('configured');
 };
 
@@ -138,50 +141,7 @@ CameraController.prototype.onSettingsConfigured = function() {
  * @private
  */
 CameraController.prototype.onCameraConfigured = function(config) {
-  this.saveCameraConfig(config);
   this.app.emit('camera:configured');
-};
-
-/**
- * Stores mozCamera configuration
- * so that next time the app is booted
- * we can get and configure the camera
- * in one go.
- *
- * This means we don't have to call
- * mozCamera.setConfiguration() on our
- * critical startup path.
- *
- * @param  {Object} config
- * @private
- */
-CameraController.prototype.saveCameraConfig = function(config) {
-  if (!config || this.activity.active) { return; }
-  this.storage.setItem('mozCameraConfig', JSON.stringify(config));
-  debug('saved camera config', config);
-};
-
-/**
- * Fetch the last stored config from
- * localStorage.
- *
- * The config object stores the last `mode`,
- * `pictureSize`, and `recorderProfile`
- * that the camera was configured with.
- *
- * We don't want to fetch the last camera
- * configuration if we're in pick activity
- * as the activity could have requested
- * a particular mode or resolution.
- *
- * @private
- */
-CameraController.prototype.fetchCameraConfig = function() {
-  if (this.activity.active) { return; }
-  debug('fetch camera config');
-  var string = this.storage.getItem('mozCameraConfig');
-  debug('fetched camera config', string);
-  return string && JSON.parse(string);
 };
 
 /**

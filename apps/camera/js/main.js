@@ -34,7 +34,7 @@ var app = window.app = new App({
     maxFileSizeBytes: 0,
     maxWidth: 0,
     maxHeight: 0,
-    container: document.body,
+    cacheConfig: true,
     cafEnabled: settings.caf.enabled()
   }),
 

@@ -1,3 +1,5 @@
+/*jshint maxlen:false*/
+
 suite('controllers/camera', function() {
   'use strict';
 
@@ -86,7 +88,27 @@ suite('controllers/camera', function() {
     test('Should set the capture mode to \'picture\' by default', function() {
       this.app.settings.mode.selected.withArgs('key').returns('picture');
       this.controller = new this.CameraController(this.app);
-      assert.isTrue(this.app.camera.setMode.called);
+      assert.isTrue(this.app.camera.setMode.calledWith('picture'));
+    });
+
+    test('Should set the `maxFileSizeBytes` for video recording limits', function() {
+      this.app.activity.data.maxFileSizeBytes = 100;
+      this.controller = new this.CameraController(this.app);
+      assert.isTrue(this.camera.set.calledWith('maxFileSizeBytes', 100));
+    });
+
+    test('Should set the `selectedCamera`', function() {
+      this.camera.set.reset();
+      this.settings.cameras.selected.withArgs('key').returns('back');
+      this.controller = new this.CameraController(this.app);
+      assert.isTrue(this.camera.set.calledWith('selectedCamera', 'back'));
+    });
+
+    test('Should set the `mode`', function() {
+      this.camera.setMode.reset();
+      this.settings.mode.selected.withArgs('key').returns('video');
+      this.controller = new this.CameraController(this.app);
+      assert.isTrue(this.camera.setMode.calledWith('video'));
     });
 
     test('Should load the camera', function() {
@@ -113,11 +135,19 @@ suite('controllers/camera', function() {
     test('Should listen to \'configured\' event', function() {
       assert.isTrue(this.camera.on.calledWith('configured'));
     });
+
+    test('Should disable `cacheConfig` if in activity', function() {
+      assert.equal(this.camera.cacheConfig, undefined);
+
+      this.app.activity.active = true;
+      this.controller = new this.CameraController(this.app);
+
+      assert.equal(this.camera.cacheConfig, false);
+    });
   });
 
   suite('camera.on(\'configured\')', function() {
     setup(function() {
-      sinon.stub(this.controller, 'saveCameraConfig');
 
       // Get the callback registered
       var spy = this.camera.on.withArgs('configured');
@@ -126,10 +156,6 @@ suite('controllers/camera', function() {
       // Call the callback
       this.config = {};
       callback(this.config);
-    });
-
-    test('Should save the passed configuration', function() {
-      assert.isTrue(this.controller.saveCameraConfig.calledWith(this.config));
     });
 
     test('Should relay via app event', function() {
@@ -368,46 +394,6 @@ suite('controllers/camera', function() {
 
       this.controller.onStorageChanged('shared');
       assert.isTrue(this.camera.stopRecording.called);
-    });
-  });
-
-  suite('CameraController#saveCameraConfig()', function() {
-    test('Should store stringified config in localStorage', function() {
-      this.controller.saveCameraConfig({ foo: 'bar' });
-      assert.isTrue(this.storage.setItem.calledWith('mozCameraConfig', '{"foo":"bar"}'));
-    });
-
-    test('Should not store config if activity active', function() {
-      this.app.activity.active = true;
-      this.controller.saveCameraConfig({ foo: 'bar' });
-      assert.isFalse(this.storage.setItem.called);
-    });
-
-    test('Should not store if config is falsy', function() {
-      this.controller.saveCameraConfig();
-      this.controller.saveCameraConfig(null);
-      this.controller.saveCameraConfig('');
-      this.controller.saveCameraConfig(false);
-      assert.isFalse(this.storage.setItem.called);
-    });
-  });
-
-  suite.only('CameraController#fetchCameraConfig()', function() {
-    setup(function() {
-      this.storage.getItem
-        .withArgs('mozCameraConfig')
-        .returns('{"foo":"bar"}');
-    });
-
-    test('Should return stored camera config', function() {
-      var returned = this.controller.fetchCameraConfig();
-      assert.deepEqual(returned, { foo: 'bar' });
-    });
-
-    test('Should not return config if activity active', function() {
-      this.app.activity.active = true;
-      var returned = this.controller.fetchCameraConfig();
-      assert.equal(returned, undefined);
     });
   });
 });

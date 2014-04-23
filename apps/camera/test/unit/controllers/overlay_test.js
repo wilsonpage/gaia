@@ -3,60 +3,46 @@
 'use strict';
 
 suite('controllers/overlay', function() {
-  var Controller;
-
   suiteSetup(function(done) {
     var self = this;
 
-    this.modules = {};
-
     req([
+      'app',
       'controllers/overlay',
-      'lib/activity',
       'views/overlay'
-    ], function(controller, activity, Overlay) {
-      Controller = self.modules.controller = controller;
-      self.modules.activity = activity;
-      self.modules.Overlay = Overlay;
+    ], function(App, controller, Overlay) {
+      self.Controller = controller;
+      self.Overlay = Overlay;
+      self.App = App;
       done();
     });
   });
 
   setup(function() {
-    var Activity = this.modules.activity;
-
-    this.app = {
-      on: sinon.spy(),
-      camera: {
-        get: sinon.spy()
-      },
-      activity: new Activity()
+    this.app = sinon.createStubInstance(this.App);
+    this.app.activity = {
+      active: false,
+      cancel: sinon.spy()
     };
 
-    navigator.mozL10n = { get: sinon.stub() };
-    navigator.mozL10n.get.withArgs('nocard2-title').returns('nocard title');
-    navigator.mozL10n.get.withArgs('nocard3-text').returns('nocard body');
-    navigator.mozL10n.get.withArgs('nospace2-title').returns('nospace title');
-    navigator.mozL10n.get.withArgs('nospace2-text').returns('nospace body');
-    navigator.mozL10n.get.withArgs(
-      'pluggedin-title').returns('pluggedin title');
-    navigator.mozL10n.get.withArgs('pluggedin-text').returns('pluggedin body');
-  });
-
-  teardown(function() {
-    delete navigator.mozL10n;
+    this.app.localize.withArgs('nocard2-title').returns('nocard title');
+    this.app.localize.withArgs('nocard3-text').returns('nocard body');
+    this.app.localize.withArgs('nospace2-title').returns('nospace title');
+    this.app.localize.withArgs('nospace2-text').returns('nospace body');
+    this.app.localize.withArgs('pluggedin-title').returns('pluggedin title');
+    this.app.localize.withArgs('pluggedin-text').returns('pluggedin body');
   });
 
   suite('OverlayController()', function() {
     test('Should bind to the storage state change event', function() {
-      this.controller = new Controller(this.app);
+      this.controller = new this.Controller(this.app);
       assert.ok(this.app.on.calledWith('storage:changed'));
     });
   });
 
   suite('OverlayController#onStorageChanged()', function() {
     setup(function() {
-      this.controller = new Controller(this.app);
+      this.controller = new this.Controller(this.app);
       sinon.stub(this.controller, 'createOverlay');
     });
 
@@ -73,10 +59,10 @@ suite('controllers/overlay', function() {
 
   suite('OverlayController#createOverlay()', function() {
     setup(function() {
-      this.OverlayProto = this.modules.Overlay.prototype;
+      this.OverlayProto = this.Overlay.prototype;
       sinon.stub(this.OverlayProto, 'initialize');
       sinon.stub(this.OverlayProto, 'appendTo', function() { return this; });
-      this.controller = new Controller(this.app);
+      this.controller = new this.Controller(this.app);
     });
 
     teardown(function() {
@@ -94,7 +80,7 @@ suite('controllers/overlay', function() {
       assert.isTrue(this.OverlayProto.appendTo.called);
     });
 
-    test('Should not be closable only if not activity pending', function() {
+    test('Should not be closable if activity not pending', function() {
       this.controller.createOverlay('unavailable');
       assert.isFalse(this.OverlayProto.initialize.args[0][0].closable);
     });
@@ -113,7 +99,7 @@ suite('controllers/overlay', function() {
 
   suite('OverlayController#getOverlayData()', function() {
     setup(function() {
-      this.controller = new Controller(this.app);
+      this.controller = new this.Controller(this.app);
     });
 
     test('Should return correct data for \'unavailable\'', function() {
@@ -142,7 +128,7 @@ suite('controllers/overlay', function() {
 
   suite('OverlayController#onBatteryChanged()', function() {
     setup(function() {
-      this.controller = new Controller(this.app);
+      this.controller = new this.Controller(this.app);
       sinon.stub(this.controller, 'createOverlay');
     });
 
