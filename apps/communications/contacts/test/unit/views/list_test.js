@@ -159,9 +159,12 @@ suite('Render contacts list', function() {
   // Poor man's way of delaying until an element is onscreen as determined
   // by the visibility monitor.
   function doOnscreen(list, element, callback) {
+    onscreenListeners.push(function(child) {
+      if (child === element) {
+        callback();
+      }
+    });
     element.scrollIntoView(true);
-    // XXX Replace this with a true callback from monitor or list
-    window.setTimeout(callback);
   }
 
   function assertNoGroup(title, container) {
@@ -431,6 +434,42 @@ suite('Render contacts list', function() {
     navigator.mozContacts = realMozContacts;
     mocksForListView.suiteTeardown();
   });
+
+  var onscreenListeners = [];
+
+  setup(function() {
+    // TODO use a mock for monitorTagVisibility
+    var realMonitorTagVisibility = window.monitorTagVisiblity;
+
+    function fakeMonitorTagVisibility(
+      container,
+      tag,
+      scrollMargin,
+      scrollDelta,
+      onscreenCallback,
+      offscreenCallback
+    ) {
+      function fakeOnscreenCallback(child) {
+        onscreenListeners.forEach((func) => func(child));
+        onscreenCallback(child);
+      }
+
+      realMonitorTagVisibility(
+        container,
+        tag,
+        scrollMargin,
+        scrollDelta,
+        fakeOnscreenCallback,
+        offscreenCallback
+      );
+    }
+    this.sinon.stub(window, 'monitorTagVisibility', fakeMonitorTagVisibility);
+  });
+
+  teardown(function() {
+    onscreenListeners = [];
+  });
+
 
   suite('Render contacts with cursors', function() {
     suiteSetup(function() {
