@@ -78,8 +78,11 @@ suite('SimSettingsHelper > ', function() {
     var fakeSettingKey = 'ril.sms.defaultServiceId';
     var fakeSettingValue = 0;
 
-    suiteSetup(function() {
-      SimSettingsHelper._setToSettingsDB(fakeSettingKey, fakeSettingValue);
+    suiteSetup(function(done) {
+      // TODO use the synchronous version of the mock for mozSettings
+      SimSettingsHelper._setToSettingsDB(
+        fakeSettingKey, fakeSettingValue, done
+      );
     });
 
     test('setToSettingsDB is called successfully', function() {
