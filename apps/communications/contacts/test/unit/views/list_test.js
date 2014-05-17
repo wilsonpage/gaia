@@ -17,7 +17,6 @@
 /* global MockNavigationStack */
 /* global Normalizer */
 
-require('/shared/js/lazy_loader.js');
 require('/shared/js/text_normalizer.js');
 require('/shared/js/tag_visibility_monitor.js');
 require('/shared/js/contacts/utilities/dom.js');
@@ -26,6 +25,7 @@ require('/shared/js/contacts/utilities/event_listeners.js');
 require('/shared/test/unit/mocks/mock_contact_all_fields.js');
 require('/shared/js/contacts/search.js');
 requireApp('communications/contacts/js/views/list.js');
+require('/shared/test/unit/mocks/mock_lazy_loader.js');
 requireApp('communications/contacts/test/unit/mock_cookie.js');
 requireApp('communications/contacts/test/unit/mock_asyncstorage.js');
 requireApp('communications/contacts/test/unit/mock_navigation.js');
@@ -84,7 +84,8 @@ if (!window.asyncScriptsLoaded) {
 }
 
 var mocksForListView = new MocksHelper([
-  'ContactPhotoHelper'
+  'ContactPhotoHelper',
+  'LazyLoader'
 ]).init();
 
 suite('Render contacts list', function() {
@@ -159,12 +160,9 @@ suite('Render contacts list', function() {
   // Poor man's way of delaying until an element is onscreen as determined
   // by the visibility monitor.
   function doOnscreen(list, element, callback) {
-    onscreenListeners.push(function(child) {
-      if (child === element) {
-        callback();
-      }
-    });
     element.scrollIntoView(true);
+    window.monitorTagVisibility.yield(element);
+    callback();
   }
 
   function assertNoGroup(title, container) {
@@ -435,41 +433,9 @@ suite('Render contacts list', function() {
     mocksForListView.suiteTeardown();
   });
 
-  var onscreenListeners = [];
-
   setup(function() {
-    // TODO use a mock for monitorTagVisibility
-    var realMonitorTagVisibility = window.monitorTagVisiblity;
-
-    function fakeMonitorTagVisibility(
-      container,
-      tag,
-      scrollMargin,
-      scrollDelta,
-      onscreenCallback,
-      offscreenCallback
-    ) {
-      function fakeOnscreenCallback(child) {
-        onscreenListeners.forEach((func) => func(child));
-        onscreenCallback(child);
-      }
-
-      realMonitorTagVisibility(
-        container,
-        tag,
-        scrollMargin,
-        scrollDelta,
-        fakeOnscreenCallback,
-        offscreenCallback
-      );
-    }
-    this.sinon.stub(window, 'monitorTagVisibility', fakeMonitorTagVisibility);
+    this.sinon.stub(window, 'monitorTagVisibility');
   });
-
-  teardown(function() {
-    onscreenListeners = [];
-  });
-
 
   suite('Render contacts with cursors', function() {
     suiteSetup(function() {
