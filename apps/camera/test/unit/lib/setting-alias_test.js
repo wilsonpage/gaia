@@ -17,7 +17,10 @@ suite('lib/setting-alias', function() {
   setup(function() {
     var self = this;
 
-    this.value = 'a';
+    this.state = {
+      value: 'a'
+    };
+
     this.settings = {
       a: new this.Setting({ key: 'a' }),
       b: new this.Setting({ key: 'b' })
@@ -31,7 +34,7 @@ suite('lib/setting-alias', function() {
         'b': 'b',
       },
       get: function() {
-        return this.settings[this.map[self.value]];
+        return this.settings[this.map[self.state.value]];
       }
     });
   });
@@ -47,7 +50,7 @@ suite('lib/setting-alias', function() {
   suite('SettingAlias#get()', function() {
     test('Should get the current setting', function() {
       assert.ok(this.alias.get().key === 'a');
-      this.value = 'b';
+      this.state.value = 'b';
       assert.ok(this.alias.get().key === 'b');
     });
   });
