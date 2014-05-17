@@ -161,7 +161,7 @@ suite('lib/camera', function() {
       };
 
       // Stub all camera methods
-      sinon.stub(this.camera);
+      this.sinon.stub(this.camera);
 
       // Happy defaults
       this.camera.getFreeVideoStorageSpace.callsArgWith(0, null, 9999);
@@ -274,11 +274,11 @@ suite('lib/camera', function() {
 
   suite('Camera#stopRecording()', function() {
     setup(function() {
-      sinon.stub(this.camera, 'get');
-      sinon.stub(this.camera, 'set');
-      sinon.stub(this.camera, 'stopVideoTimer');
-      sinon.stub(this.camera, 'onRecordingError');
-      sinon.stub(this.camera, 'onNewVideo');
+      this.sinon.stub(this.camera, 'get');
+      this.sinon.stub(this.camera, 'set');
+      this.sinon.stub(this.camera, 'stopVideoTimer');
+      this.sinon.stub(this.camera, 'onRecordingError');
+      this.sinon.stub(this.camera, 'onNewVideo');
       this.camera.get.withArgs('recording').returns(true);
 
       this.camera.mozCamera = {
@@ -370,8 +370,8 @@ suite('lib/camera', function() {
 
   suite('Camera#onNewVideo()', function() {
     setup(function() {
-      sinon.stub(this.camera, 'get');
-      sinon.stub(this.camera, 'onRecordingError');
+      this.sinon.stub(this.camera, 'get');
+      this.sinon.stub(this.camera, 'onRecordingError');
       this.camera.get.withArgs('videoElapsed').returns(2000);
       this.camera.minRecordingTime = 1000;
       this.video = {
@@ -563,8 +563,8 @@ suite('lib/camera', function() {
   suite('Camera#takePicture()', function() {
     setup(function() {
       this.camera = new this.Camera();
-      sinon.stub(this.camera, 'focus').callsArg(0);
-      sinon.stub(this.camera, 'set');
+      this.sinon.stub(this.camera, 'focus').callsArg(0);
+      this.sinon.stub(this.camera, 'set');
       this.camera.mozCamera = {
         takePicture: sinon.stub().callsArgWith(1, 'the-blob'),
         resumePreview: sinon.stub()
@@ -572,7 +572,7 @@ suite('lib/camera', function() {
     });
 
     test('Should emit a `busy` when picture taking starts', function() {
-      sinon.stub(this.camera, 'emit');
+      this.sinon.stub(this.camera, 'emit');
       this.camera.takePicture({});
       assert.isTrue(this.camera.emit.calledWith('busy'));
     });
@@ -644,7 +644,7 @@ suite('lib/camera', function() {
   suite('Camera#onPreviewStateChange()', function() {
     setup(function() {
       this.camera = new this.Camera();
-      sinon.stub(this.camera, 'emit');
+      this.sinon.stub(this.camera, 'emit');
     });
 
     test('Should fire \'busy\' event if \'stopped\' or \'paused\'', function() {
@@ -670,10 +670,11 @@ suite('lib/camera', function() {
     setup(function() {
       var self = this;
 
-      sinon.stub(this.camera, 'release').callsArg(0);
-      sinon.stub(this.camera, 'setupNewCamera');
+      this.sinon.stub(this.camera, 'release').callsArg(0);
+      this.sinon.stub(this.camera, 'setupNewCamera');
 
-      sinon.stub(this.camera, 'requestCamera', function(camera, config) {
+      this.sinon.stub(this.camera, 'requestCamera', function(camera, config) {
+        console.log('requestCamera stub');
         self.camera.mozCamera = self.mozCamera;
       });
 
@@ -682,7 +683,7 @@ suite('lib/camera', function() {
 
     test('Should run first load if this is the first load', function() {
       this.camera = new this.Camera(this.options);
-      sinon.stub(this.camera, 'firstLoad');
+      this.sinon.stub(this.camera, 'firstLoad');
 
       this.camera.load();
 
@@ -703,8 +704,8 @@ suite('lib/camera', function() {
 
     test('Should `requestCamera` first time called', function() {
       this.camera.load();
-      assert.isTrue(this.camera.requestCamera.called);
-      assert.isFalse(this.camera.release.called);
+      sinon.assert.called(this.camera.requestCamera);
+      sinon.assert.notCalled(this.camera.release);
     });
 
     test('Should `release` camera then `request` if selectedCamera changed', function() {
@@ -984,8 +985,8 @@ suite('lib/camera', function() {
         pictureSize: { width: 400, height: 300 }
       };
 
-      sinon.stub(this.camera, 'requestCamera');
-      sinon.stub(this.camera, 'fetchBootConfig')
+      this.sinon.stub(this.camera, 'requestCamera');
+      this.sinon.stub(this.camera, 'fetchBootConfig')
         .returns(this.bootConfig);
 
     });
@@ -1001,8 +1002,8 @@ suite('lib/camera', function() {
     });
 
     test('Should set the pictureSize and recorderProfile once we have the camera', function() {
-      sinon.stub(this.camera, 'setRecorderProfile');
-      sinon.stub(this.camera, 'setPictureSize');
+      this.sinon.stub(this.camera, 'setRecorderProfile');
+      this.sinon.stub(this.camera, 'setPictureSize');
 
       this.camera.firstLoad();
 
@@ -1088,7 +1089,7 @@ suite('lib/camera', function() {
 
   suite('Camera#setRecorderProfile()', function() {
     setup(function() {
-      sinon.stub(this.camera, 'configure');
+      this.sinon.stub(this.camera, 'configure');
     });
 
     test('Should set `this.recorderProfile`', function() {
@@ -1122,8 +1123,8 @@ suite('lib/camera', function() {
 
   suite('Camera#setPictureSize()', function() {
     setup(function() {
-      sinon.stub(this.camera, 'configure');
-      sinon.stub(this.camera, 'setThumbnailSize');
+      this.sinon.stub(this.camera, 'configure');
+      this.sinon.stub(this.camera, 'setThumbnailSize');
       this.camera.mozCamera = this.mozCamera;
     });
 
