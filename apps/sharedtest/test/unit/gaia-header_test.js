@@ -5,15 +5,9 @@ require('/shared/elements/gaia-header/script.js');
 
 suite('GaiaHeader', function() {
   setup(function() {
-    this.clock = sinon.useFakeTimers();
-    this.sandbox = sinon.sandbox.create();
+    this.sinon.useFakeTimers();
     this.container = document.createElement('div');
-    this.sandbox.spy(HTMLElement.prototype, 'addEventListener');
-  });
-
-  teardown(function() {
-    this.sandbox.restore();
-    this.clock.restore();
+    this.sinon.spy(HTMLElement.prototype, 'addEventListener');
   });
 
   test('Should hide action button if no action type defined', function() {
@@ -59,7 +53,7 @@ suite('GaiaHeader', function() {
   });
 
   suite('style', function() {
-    setup(function() {
+    setup(function(done) {
 
       // Sizes are in rems, so we set the base font-size
       document.documentElement.style.fontSize = '10px';
@@ -76,6 +70,10 @@ suite('GaiaHeader', function() {
 
       // Insert into DOM to get styling
       document.body.appendChild(this.element);
+
+      // give some time for the style to apply
+      // TODO we should have a better way
+      this.sinon.clock._setTimeout.call(window, done, 50);
     });
 
     teardown(function() {
@@ -146,7 +144,7 @@ suite('GaiaHeader', function() {
 
       element.addEventListener('action', callback);
       element._onActionButtonClick();
-      this.clock.tick(1);
+      this.sinon.clock.tick(1);
 
       sinon.assert.called(callback);
     });
@@ -158,7 +156,7 @@ suite('GaiaHeader', function() {
 
       element.addEventListener('action', callback);
       element._onActionButtonClick();
-      this.clock.tick(1);
+      this.sinon.clock.tick(1);
 
       assert.equal(callback.args[0][0].detail.type, 'menu');
     });
