@@ -13,9 +13,6 @@ suite('lib/camera', function() {
   });
 
   setup(function() {
-
-    this.clock = sinon.useFakeTimers();
-
     var mozCameras = {
       getListOfCameras: function() {},
       getCamera: function() {}
@@ -63,8 +60,8 @@ suite('lib/camera', function() {
   });
 
   teardown(function() {
-    this.clock.restore();
     this.sandbox.restore();
+    delete this.camera;
   });
 
   suite('Camera#focus()', function() {
@@ -674,7 +671,6 @@ suite('lib/camera', function() {
       this.sinon.stub(this.camera, 'setupNewCamera');
 
       this.sinon.stub(this.camera, 'requestCamera', function(camera, config) {
-        console.log('requestCamera stub');
         self.camera.mozCamera = self.mozCamera;
       });
 
@@ -682,12 +678,12 @@ suite('lib/camera', function() {
     });
 
     test('Should run first load if this is the first load', function() {
-      this.camera = new this.Camera(this.options);
-      this.sinon.stub(this.camera, 'firstLoad');
+      var camera = new this.Camera(this.options);
+      this.sinon.stub(camera, 'firstLoad');
 
-      this.camera.load();
+      camera.load();
 
-      sinon.assert.calledOnce(this.camera.firstLoad);
+      sinon.assert.calledOnce(camera.firstLoad);
     });
 
     test('Should not request camera until camera has finished releasing', function() {
@@ -764,11 +760,14 @@ suite('lib/camera', function() {
       this.camera.selectedCamera = 'back';
     });
 
-    test('Should emit a \'busy\', then \'ready\' event', function(done) {
-      navigator.mozCameras.getCamera.callsArgWithAsync(2, this.mozCamera);
+    test('Should emit a \'busy\', then \'ready\' event', function() {
+      navigator.mozCameras.getCamera.callsArgWith(2, this.mozCamera);
       this.camera.requestCamera();
-      sinon.assert.calledWith(this.camera.emit, 'busy');
-      this.camera.on('ready', done);
+
+      var busy = this.camera.emit.withArgs('busy');
+      var ready = this.camera.emit.withArgs('ready');
+
+      assert.isTrue(busy.calledBefore(ready));
     });
 
     test('Should call `navigator.mozCameras.getCamera()` with currently selected camera', function() {
@@ -821,6 +820,11 @@ suite('lib/camera', function() {
       this.sandbox.stub(this.camera, 'previewSize');
       this.sandbox.spy(this.camera, 'saveBootConfig');
       this.camera.previewSize.returns({ width: 400, height: 300 });
+      this.clock = sinon.useFakeTimers();
+    });
+
+    teardown(function() {
+      this.clock.restore();
     });
 
     test('Should call `mozCamera.setConfiguration` with expected config', function() {
@@ -859,8 +863,8 @@ suite('lib/camera', function() {
 
     test('Should flag dirty configuration', function() {
 
-      // Use async for this case
-      this.mozCamera.setConfiguration.callsArgAsync(1);
+      // Make sure the callback isn't called
+      this.mozCamera.setConfiguration = sinon.stub();
 
       this.camera.configure();
       this.clock.tick(1);
@@ -871,20 +875,25 @@ suite('lib/camera', function() {
     test('Should flag clean configuration once complete', function(done) {
       var self = this;
 
-      // Use async for this case
-      this.mozCamera.setConfiguration.callsArgAsync(1);
-
-      this.camera.configure();
-      this.clock.tick(1);
-
-      // Dirty while configuring
-      assert.isFalse(this.camera.configured);
+      this.mozCamera.setConfiguration = sinon.stub();
 
       // Clean once configured
       this.camera.on('configured', function() {
         assert.isTrue(self.camera.configured);
         done();
       });
+
+      // Call the function 'ticking'
+      // past the debounce
+      this.camera.configure();
+      this.clock.tick(1);
+
+      // Dirty while configuring
+      assert.isFalse(this.camera.configured);
+
+      // Find the callback and call it
+      var callback = this.mozCamera.setConfiguration.args[0][1];
+      callback();
     });
 
     test('Should defer calls until camera is \'ready\'', function() {
@@ -919,8 +928,9 @@ suite('lib/camera', function() {
       var self = this;
 
       // Use async for this case
-      this.mozCamera.setConfiguration.callsArgAsync(1);
+      this.mozCamera.setConfiguration = sinon.stub();
 
+      // Call and 'tick' past the debouce
       this.camera.configure();
       this.clock.tick(1);
 
@@ -934,6 +944,9 @@ suite('lib/camera', function() {
         sinon.assert.calledWith(self.camera.emit, 'ready');
         done();
       });
+
+      // Find and call the callback
+      this.mozCamera.setConfiguration.args[0][1]();
     });
   });
 

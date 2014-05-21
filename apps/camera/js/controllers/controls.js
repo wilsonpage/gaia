@@ -172,6 +172,7 @@ ControlsController.prototype.onTimerStarted = function() {
  * @private
  */
 ControlsController.prototype.restore = function() {
+  console.log('restore');
   this.captureHighlightOff();
   this.view.unset('faded');
   this.view.enable();

@@ -406,6 +406,7 @@ Camera.prototype.configure = function() {
   debug('mozCamera configuring', this.mozCameraConfig);
 
   function onSuccess() {
+    debug('success');
     self.configured = true;
     self.saveBootConfig();
     self.ready();
@@ -413,7 +414,7 @@ Camera.prototype.configure = function() {
   }
 
   function onError() {
-    console.log('Error configuring camera');
+    debug('Error configuring camera');
     self.configured = true;
     self.ready();
   }
