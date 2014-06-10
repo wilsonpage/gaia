@@ -1,0 +1,82 @@
+
+/**
+ * Gaia Slider
+ */
+
+gaia-slider {
+  display: block;
+}
+
+::-moz-focus-inner {
+  outline: 0;
+}
+
+:focus {
+  outline: 0;
+}
+
+
+body {
+  padding: 0 50px;
+  background-color: #f4f4f4;
+  font-family: source-sans-pro, sans-serif;
+  font-size:16px;
+}
+
+.title {
+  letter-spacing: -.065em;
+}
+
+/* Desperate to remove focus outline in firefox */
+::-moz-focus-inner {
+  outline:0;
+}
+
+:focus {
+  outline:0;
+}
+
+input {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  box-sizing: border-box;
+  background-clip: padding-box;
+  vertical-align: top;
+  outline: none;
+}
+
+input::-moz-range-thumb {
+  cursor: pointer;
+}
+
+input {
+  border-radius: 6px;
+  border: 1px solid #a5a8a8;
+  background: #d3d7d7;
+  height: 1rem;
+  border-radius: 30px;
+}
+
+input::-moz-range-track {
+  border-radius: 6px;
+  border: 1px solid #a5a8a8;
+  background: #d3d7d7;
+  height: 1rem;
+  border-radius: 30px;
+}
+
+input::-moz-range-thumb {
+  height: 3rem;
+  width: 2rem;
+  border: 1px solid rgba(0,0,0,0.36);
+  border-radius: 6px; background:url("http://db.tt/q5LHtPKx") center center no-repeat #e5e9e8;
+  background-size: 7px 18px;
+  box-shadow: inset 0 1px white;
+}
+
+input:active::-moz-range-thumb {
+  border: 1px solid #0940fd;
+  box-shadow: 0 0 0 2px #6fb5f1;
+}
