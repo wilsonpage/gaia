@@ -11,8 +11,13 @@ var PreviewGalleryView = require('views/preview-gallery');
 var preparePreview = require('lib/prepare-preview-blob');
 var resizeImageAndSave = require('lib/resize-image-and-save');
 var StringUtils = require('lib/string-utils');
+var GaiaHeader = require('gaia-header');
 var bindAll = require('lib/bind-all');
 var dialog = require('CustomDialog');
+
+// Use exported constructor or just
+// drop <gaia-header> HTML into DOM
+console.log(GaiaHeader);
 
 /**
  * Exports
@@ -336,7 +341,7 @@ PreviewGalleryController.prototype.previewItem = function() {
  * @param  {Object} filepath
  */
 PreviewGalleryController.prototype.onItemDeleted = function(data) {
-  
+
   // Check if this event is being stopped such as in the case
   // of resizing an image for a share activity.
   if (this.stopItemDeletedEvent) {

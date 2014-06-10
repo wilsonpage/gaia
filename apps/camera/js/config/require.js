@@ -16,6 +16,8 @@ require.config({
     'BlobView': '../shared/js/blobview',
     'CustomDialog': '../shared/js/custom_dialog',
     'FontSizeUtils': '../shared/js/font_size_utils',
+    'gaia-component-utils': '../bower_components/gaia-component-utils/index',
+    'gaia-header': '../bower_components/gaia-header/script',
     'debug': 'vendor/debug'
   },
   shim: {

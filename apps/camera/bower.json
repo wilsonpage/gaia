@@ -1,0 +1,6 @@
+{
+  "name": "camera",
+  "dependencies": {
+    "gaia-header": "wilsonpage/gaia-header#v0.1.1"
+  }
+}
