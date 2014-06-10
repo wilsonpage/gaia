@@ -1,0 +1,9 @@
+{
+  "name": "gallery",
+  "resolutions": {
+    "gaia-header": "0.1.2"
+  },
+  "dependencies": {
+    "gaia-header": "wilsonpage/gaia-header#0.1.2"
+  }
+}
