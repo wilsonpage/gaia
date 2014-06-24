@@ -16,7 +16,23 @@
   }
 
   ContextMenuUI.prototype = {
-    show: function() {
+    show: function(e) {
+      // calculate the offset of the click this will account for anything above
+      // the gaia-grid
+      var scrollTop = this.grid.parentNode.scrollTop;
+      var yOffset = scrollTop + this.grid.getBoundingClientRect().y;
+
+      var nearestIndex = this.grid._grid.getNearestItemIndex(
+        e.pageX,
+        e.pageY - yOffset + scrollTop
+      );
+
+      window.dispatchEvent(new CustomEvent('context-menu-open', {
+        detail: {
+          nearestIndex: nearestIndex
+        }
+      }));
+
       this.dialog.addEventListener('gaiamenu-cancel', this.handleCancel);
       this.dialog.removeAttribute('hidden');
       this.collectionOption.addEventListener('click', this);
@@ -52,6 +68,8 @@
         case 'create-smart-collection':
           this.hide();
 
+          window.dispatchEvent(new CustomEvent('collections-create-begin'));
+
           var maxIconSize = this.grid.maxIconSize;
           var activity = new MozActivity({
             name: 'create-collection',
@@ -61,7 +79,16 @@
             }
           });
 
+          activity.onsuccess = function(e) {
+            window.dispatchEvent(new CustomEvent('collections-create-return', {
+              detail: {
+                ids: activity.result
+              }
+            }));
+          };
+
           activity.onerror = function onerror(e) {
+            window.dispatchEvent(new CustomEvent('collections-create-return'));
             if (this.error.name !== 'ActivityCanceled') {
               alert(this.error.name);
             }

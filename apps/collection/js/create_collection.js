@@ -2,6 +2,7 @@
 /* global CategoryCollection */
 /* global CollectionsDatabase */
 /* global CollectionIcon */
+/* global NativeInfo */
 /* global Promise */
 /* global QueryCollection */
 /* global Suggestions */
@@ -95,7 +96,6 @@
                           function each(app) {
                             return app.icon;
                         });
-
                       var collection = new QueryCollection({
                         query: selected,
                         webicons: webicons
@@ -131,19 +131,63 @@
                 });
 
                 Promise.all(iconsReady).then(function then() {
-                  // TOOD
-                  // better use colleciton.save instead but it calles db.put
-                  // not sure if `put` works for new objects
-                  var trxs = collections.map(CollectionsDatabase.add);
-                  Promise.all(trxs).then(done, done);
+                  // Save the collections
+                  function saveAll(collections) {
+                    var trxs = collections.map(collection => {
+                      return collection.save('add');
+                    });
+                    return trxs;
+                  }
+
+                  // XXX: We currently need to save before we populate info.
+                  Promise.all(saveAll(collections))
+                  .then(populateNativeInfo.bind(null, collections))
+                  .then(generateIcons.bind(null, collections))
+                  .then(() => {
+                    return Promise.all(saveAll(collections));
+                  })
+                  .then(postResultIds.bind(null, collections), postResultIds);
                 }).catch(function _catch(ex) {
                   eme.log('caught exception', ex);
                   activity.postResult(false);
                 });
               });
 
-              function done() {
-                activity.postResult(true);
+              function populateNativeInfo(collections) {
+                var nativeTasks = [];
+                collections.forEach(collection => {
+                  nativeTasks.push(NativeInfo.processCollection(collection));
+                });
+                return Promise.all(nativeTasks);
+              }
+
+              function generateIcons(collections) {
+                var iconTasks = [];
+                collections.forEach(collection => {
+                  var promise =
+                    getBackground(collection, maxIconSize)
+                    .then(function setBackground(bgObject) {
+                      collection.background = bgObject;
+                      return collection.renderIcon();
+                    }, function noBackground() {
+                      return collection.renderIcon();
+                    });
+                  iconTasks.push(promise);
+                });
+                return Promise.all(iconTasks);
+              }
+
+              /**
+               * Return from the activity to the homescreen. Create a list of
+               * collection IDs and post it to the homescreen so it knows what
+               * collections will be created, and positions them accordingly.
+               */
+              function postResultIds(collections) {
+                collections = collections || [];
+                // Generate an array of collection IDs.
+                var ids = collections.map(c => c.id);
+
+                activity.postResult(ids);
               }
             },
             function cancel(reason) {
@@ -153,8 +197,8 @@
 
       }, function error(reason) {
         eme.log('create-collection: error', reason);
-        activity.postError(_(reason === 'network error' ?
-                                   'network-error-message' : undefined));
+        activity.postError(reason === 'network error' ?
+                            _('network-error-message') : undefined);
       }).catch(function fail(ex) {
         eme.log('create-collection: failed', ex);
         activity.postError();

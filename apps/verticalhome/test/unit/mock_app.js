@@ -18,6 +18,12 @@ MockApp.prototype = {
     save: function() {}
   },
   grid: {
+    add: function(detail) {
+      if (detail) {
+        MockApp.mItems.push(detail);
+      }
+    },
+    removeUntilDivider: function() {},
     removeIconByIdentifier: function(identifier) {
       delete MockApp.mIcons[identifier];
     },

@@ -1,6 +1,7 @@
 'use strict';
 /* global GaiaGrid */
 /* global BookmarksDatabase */
+/* global appManager */
 
 (function(exports) {
 
@@ -48,7 +49,7 @@
       }
 
       for (i in allAppBookmarks) {
-        this.removeIconFromGrid(allAppBookmarks[i].detail);
+        this.removeIconFromGrid(allAppBookmarks[i].detail.url);
       }
 
       for (i = 0; i < toAdd.length; i++) {
@@ -84,10 +85,17 @@
         case 'updated':
           this.addIconToGrid(e.target);
           app.itemStore.save(app.grid.getItems());
+          if (e.type === 'added') {
+            appManager.sendEventToCollectionApp('install',
+              { id: e.target.id });
+          }
           break;
         case 'removed':
           // The 'id' of a bookmark is really the url.
-          this.removeIconFromGrid(e.target.id);
+          var id = e.target.id;
+          this.removeIconFromGrid(id);
+          appManager.sendEventToCollectionApp('uninstall',
+            { id: id });
           break;
       }
     },

@@ -110,6 +110,7 @@ class GaiaApps(object):
 
     @property
     def running_apps(self):
+        self.marionette.switch_to_frame()
         apps = self.marionette.execute_script(
             'return GaiaApps.getRunningApps();')
         result = []
@@ -140,7 +141,10 @@ class GaiaData(object):
     @property
     def sim_contacts(self):
         self.marionette.switch_to_frame()
-        return self.marionette.execute_async_script('return GaiaDataLayer.getSIMContacts();', special_powers=True)
+        adn_contacts = self.marionette.execute_async_script('return GaiaDataLayer.getSIMContacts("adn");', special_powers=True)
+        sdn_contacts = self.marionette.execute_async_script('return GaiaDataLayer.getSIMContacts("sdn");', special_powers=True)
+
+        return adn_contacts + sdn_contacts
 
     def insert_contact(self, contact):
         self.marionette.switch_to_frame()
@@ -560,11 +564,11 @@ class GaiaDevice(object):
 
     def touch_home_button(self):
         apps = GaiaApps(self.marionette)
-        if apps.displayed_app.name.lower() != 'vertical':
+        if apps.displayed_app.name.lower() != 'homescreen':
             # touching home button will return to homescreen
             self._dispatch_home_button_event()
             Wait(self.marionette).until(
-                lambda m: apps.displayed_app.name.lower() == 'vertical')
+                lambda m: apps.displayed_app.name.lower() == 'homescreen')
             apps.switch_to_displayed_app()
         else:
             apps.switch_to_displayed_app()

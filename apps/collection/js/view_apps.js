@@ -1,6 +1,8 @@
 'use strict';
+/* global CollectionIcon */
 /* global eme */
-/* global GridIconRenderer */
+/* global NativeInfo */
+
 
 (function(exports) {
 
@@ -15,17 +17,40 @@
     var options = collection.categoryId ? {categoryId: collection.categoryId}
                                         : {query: collection.query};
 
+    loading();
+
+    // XXX: Override the grid render method default options
+    var defaultGridRender = grid._grid.render;
+    grid._grid.render = function(options) {
+      options = options || {};
+      options.skipDivider = true;
+      defaultGridRender.call(grid._grid, options);
+    };
 
     // render pinned apps first
     collection.render(grid);
 
-    if (navigator.onLine) {
-      makeRequest();
-    } else {
-      onOffline();
-    }
+    CollectionIcon.init(grid.maxIconSize);
 
-    addListeners();
+    // refresh since pinned apps might have been updated
+    eme.init()
+    .then(() => NativeInfo.setup())
+    .then(() => collection.refresh())
+    .then(() => {
+      loading(false);
+      collection.render(grid);
+      queueRequest();
+    });
+
+    function queueRequest() {
+      if (navigator.onLine) {
+        makeRequest();
+      } else {
+        onOffline();
+      }
+
+      addListeners();
+    }
 
     function onOffline() {
       loading(false);
@@ -41,24 +66,10 @@
       loading();
 
       eme.api.Apps.search(options)
-        .then(function success(searchResponse) {
-          var results = [];
-
-          searchResponse.response.apps.forEach(function each(webapp) {
-            results.push({
-              id: webapp.id, // e.me app id (int)
-              name: webapp.name,
-              url: webapp.appUrl,
-              icon: webapp.icon,
-              renderer: GridIconRenderer.TYPE.CLIP
-            });
-          });
-
+        .then(function success(response) {
           onResponse();
 
-          // XXX force layout or else grid isn't displayed
-          grid.clientLeft;
-          collection.webResults = results;
+          collection.addWebResults(response.response.apps);
           collection.render(grid);
 
         }, onResponse);

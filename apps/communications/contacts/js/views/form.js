@@ -494,6 +494,9 @@ contacts.Form = (function() {
         dateInput.valueAsDate = currField.value;
         renderDate(currField.value, dateInputText);
       }
+      else {
+        dateInputText.textContent = _('date-span-placeholder');
+      }
 
       dateInput.addEventListener('input',
         onInputDate.bind(null, dateInputText));
@@ -539,6 +542,11 @@ contacts.Form = (function() {
         contacts.Search.invalidateCache();
         contacts.Search.removeContact(contact.id);
         contacts.Search.exitSearchMode();
+      }
+      // As we jump back to the list, stop listening for NFC and
+      // prevent sharing contacts from the contact list.
+      if ('mozNfc' in navigator && contacts.NFC) {
+        contacts.NFC.stopListening();
       }
       Contacts.navigation.home();
     };

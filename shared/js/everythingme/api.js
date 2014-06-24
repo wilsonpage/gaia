@@ -4,8 +4,6 @@
 (function(eme) {
 
   const NETWORK_ERROR = 'network error';
-
-  const API_URL = 'https://api.everything.me/partners/1.0/{resource}/';
   const API_KEY = '79011a035b40ef3d7baeabc8f85b862f';
 
   const ICON_FORMAT = 20;
@@ -49,7 +47,7 @@
    */
   function Request(service, method, options) {
     var resource = service + '/' + method;
-    var url = API_URL.replace('{resource}', resource);
+    var url = eme.config.apiUrl.replace('{resource}', resource);
     var payload = '';
 
     options = options ? options : {};
@@ -74,7 +72,7 @@
 
     var httpRequest;
     var promise = new Promise(function done(resolve, reject) {
-      httpRequest = new XMLHttpRequest();
+      httpRequest = new XMLHttpRequest({mozSystem: true});
       httpRequest.open('POST', url, true);
       httpRequest.setRequestHeader(
         'Content-Type', 'application/x-www-form-urlencoded');
@@ -142,6 +140,16 @@
 
     this.Apps = {
       MAX_QUERY_LENGTH : 128,
+
+      nativeInfo: function nativeInfo(options) {
+        if (options.guids && options.guids.length) {
+          // string together ids like so:
+          // Apps/nativeInfo/?guids=["guid1","guid2","guid3", ...]
+          options.guids = JSON.stringify(options.guids);
+        }
+
+        return Request('Apps', 'nativeInfo', options);
+      },
 
       search: function search(options) {
         if (!!options.query && options.query.length > this.MAX_QUERY_LENGTH) {

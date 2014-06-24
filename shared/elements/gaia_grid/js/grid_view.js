@@ -67,8 +67,10 @@
     /**
      * Adds an item into the items array.
      * If the item is an icon, add it to icons.
+     * @param {Object} item The grid object, should inherit from GridItem.
+     * @param {Object} insertTo The position to insert the item into our list.
      */
-    add: function(item) {
+    add: function(item, insertTo) {
       if (!item) {
         return;
       }
@@ -86,7 +88,39 @@
         this.icons[item.identifier] = item;
       }
 
-      this.items.push(item);
+      // If isnsertTo it is a number, splice.
+      if (!isNaN(parseFloat(insertTo)) && isFinite(insertTo)) {
+        this.items.splice(insertTo, 0, item);
+      } else {
+        this.items.push(item);
+      }
+    },
+
+    /**
+     * Finds nearest item by and returns an index.
+     * @param {Number} x relative to the screen
+     * @param {Number} y relative to the screen
+     */
+    getNearestItemIndex: function(x, y) {
+      var leastDistance;
+      var foundIndex;
+      for (var i = 0, iLen = this.items.length; i < iLen; i++) {
+        var item = this.items[i];
+
+        // Do not consider dividers for dragdrop.
+        if (!item.isDraggable()) {
+          continue;
+        }
+
+        var distance = Math.sqrt(
+          (x - item.x) * (x - item.x) +
+          (y - item.y) * (y - item.y));
+        if (!leastDistance || distance < leastDistance) {
+          leastDistance = distance;
+          foundIndex = i;
+        }
+      }
+      return foundIndex;
     },
 
     start: function() {
@@ -111,6 +145,7 @@
      * Launches an app.
      */
     clickIcon: function(e) {
+      e.preventDefault();
       var container = e.target;
       var action = 'launch';
 
@@ -121,14 +156,19 @@
 
       var identifier = container.dataset.identifier;
       var icon = this.icons[identifier];
+      var inEditMode = this.dragdrop && this.dragdrop.inEditMode;
 
       if (!icon) {
+        if (e.target.classList.contains('placeholder') && inEditMode) {
+          // Exit from edit mode when user clicks an empty space
+          window.dispatchEvent(new CustomEvent('hashchange'));
+        }
         return;
       }
 
       // We do not allow users to launch icons in edit mode
-      if (action === 'launch' && this.dragdrop && this.dragdrop.inEditMode) {
-        if (icon.detail.type !== 'bookmark') {
+      if (action === 'launch' && inEditMode) {
+        if (icon.detail.type !== 'bookmark' || !icon.isEditable()) {
           return;
         }
         // Editing a bookmark in edit mode
@@ -143,7 +183,9 @@
         // will not work because activities do not fire it.
         var returnTimeout = 500;
         setTimeout(function stateReturn() {
-          icon.element.classList.remove('launching');
+          if (icon.element) {
+            icon.element.classList.remove('launching');
+          }
         }, returnTimeout);
       }
 
@@ -220,6 +262,24 @@
       toSplice.reverse().forEach(function(idx) {
         this.items.splice(idx, 1)[0].remove();
       }, this);
+    },
+
+    /**
+     * Clears the grid view of all items.
+     */
+    clear: function() {
+      for (var i = 0, iLen = this.items.length; i < iLen; i++) {
+        var item = this.items[i];
+        if (item.element) {
+          this.element.removeChild(item.element);
+
+          // We must de-reference element explicitly so we can re-use item
+          // objects the next time we call render.
+          item.element = null;
+        }
+      }
+      this.items = [];
+      this.icons = {};
     },
 
     /**

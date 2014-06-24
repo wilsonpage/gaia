@@ -129,6 +129,13 @@
     },
 
     /**
+     * Returns true if this item is draggable.
+     */
+    isDraggable: function() {
+      return true;
+    },
+
+    /**
      * Returns true if the icon is hosted at an origin.
      */
     isIconFromOrigin: function() {
@@ -175,8 +182,9 @@
      */
     _decorateIcon: function(img) {
       var strategy = this.detail.renderer || this.renderer;
-      this.renderer = new GridIconRenderer(this);
-      this.renderer[strategy](img).then(this._displayDecoratedIcon.bind(this));
+      this.rendererInstance = new GridIconRenderer(this);
+      this.rendererInstance[strategy](img).
+        then(this._displayDecoratedIcon.bind(this));
     },
 
     /**
@@ -188,7 +196,7 @@
       this.element.style.height = this.grid.layout.gridItemHeight + 'px';
       this.element.style.backgroundSize =
         ((this.grid.layout.gridIconSize * (1 / this.scale)) +
-        this.renderer.unscaledCanvasPadding) +'px';
+        this.rendererInstance.unscaledCanvasPadding) +'px';
       this.element.style.backgroundImage =
         'url(' + URL.createObjectURL(blob) + ')';
     },
@@ -307,6 +315,7 @@
         var tile = document.createElement('div');
         tile.className = 'icon';
         tile.dataset.identifier = this.identifier;
+        tile.dataset.isDraggable = this.isDraggable();
         tile.setAttribute('role', 'link');
 
         // This <p> has been added in order to place the title with respect
@@ -354,6 +363,37 @@
       scale = scale || 1;
       this.element.style.transform =
         'translate(' + x + 'px,' + y + 'px) scale(' + scale + ')';
+    },
+
+    /**
+     * Updates an icon on the page from a datastore record.
+     * Used for bookmarks and collections.
+     * @param {Object} record The datastore record.
+     */
+    updateFromDatastore: function(record) {
+      var iconChanged = record.icon !== this.icon;
+      var nameChanged = record.name !== this.name;
+
+      var type = this.detail.type;
+      var lastIcon = this.icon;
+      record.type = type;
+      this.detail = record;
+      var nameEl = this.element.querySelector('.title');
+      if (nameEl && nameChanged) {
+        nameEl.textContent = this.name;
+
+        // Bug 1007743 - Workaround for projected content nodes disappearing
+        document.body.clientTop;
+        this.element.style.display = 'none';
+        document.body.clientTop;
+        this.element.style.display = '';
+      }
+
+      if (iconChanged && record.icon) {
+        this.renderIcon();
+      } else if (!record.icon) {
+        this.detail.icon = lastIcon;
+      }
     }
   };
 

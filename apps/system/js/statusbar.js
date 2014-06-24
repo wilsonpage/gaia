@@ -242,14 +242,14 @@ var StatusBar = {
     // Listen to 'moztimechange'
     window.addEventListener('moztimechange', this);
 
-    // Listen to 'lock', 'unlock', and 'lockpanelchange' from lockscreen.js in
-    // order to correctly set the visibility of the statusbar clock depending
-    // on the active lockscreen panel
-    window.addEventListener('lock', this);
-    window.addEventListener('unlock', this);
+    // Listen to 'lockscreen-appopened', 'lockscreen-appclosed', and
+    // 'lockpanelchange' in order to correctly set the visibility of
+    // the statusbar clock depending on the active lockscreen panel
+    window.addEventListener('lockscreen-appopened', this);
+    window.addEventListener('lockscreen-appclosed', this);
     window.addEventListener('lockpanelchange', this);
 
-    window.addEventListener('appopened', this);
+    window.addEventListener('appopening', this);
     window.addEventListener('homescreenopened', this.show.bind(this));
 
     // We need to preventDefault on mouse events until
@@ -268,7 +268,7 @@ var StatusBar = {
 
   handleEvent: function sb_handleEvent(evt) {
     switch (evt.type) {
-      case 'appopened':
+      case 'appopening':
         var app = evt.detail;
         if (app.isFullScreen()) {
           this.hide();
@@ -281,7 +281,7 @@ var StatusBar = {
         this.setActive(evt.detail.screenEnabled);
         break;
 
-      case 'lock':
+      case 'lockscreen-appopened':
         // Hide the clock in the statusbar when screen is locked
         //
         // It seems no need to detect the locked value because
@@ -290,7 +290,7 @@ var StatusBar = {
         this.toggleTimeLabel(false);
         break;
 
-      case 'unlock':
+      case 'lockscreen-appclosed':
         // Display the clock in the statusbar when screen is unlocked
         this.toggleTimeLabel(true);
         break;
@@ -758,14 +758,20 @@ var StatusBar = {
           // "Carrier" / "Carrier (Roaming)" (EVDO)
           // Show signal strength of data call as EVDO only supports data call.
           this.updateSignalIcon(icon, data);
-        } else if (voice.connected || self.hasActiveCall()) {
+        } else if (voice.connected || self.hasActiveCall() &&
+            navigator.mozTelephony.active.serviceId === index) {
           // "Carrier" / "Carrier (Roaming)"
+          // If voice.connected is false but there is an active call, we should
+          // check whether the service id of that call equals the current index
+          // of the target sim card. If yes, that means the user is making an
+          // emergency call using the target sim card. In such case we should
+          // also display the signal bar as the normal cases.
           this.updateSignalIcon(icon, voice);
         } else if (simslot.isLocked()) {
           // SIM locked
           // We check if the sim card is locked after checking hasActiveCall
-          // because we still need to show the siganl bars in this case even
-          // the sim card is locked.
+          // because we still need to show the siganl bars in the case of
+          // making emergency calls when the sim card is locked.
           icon.hidden = true;
         } else {
           // "No Network" / "Emergency Calls Only (REASON)" / trying to connect
@@ -1047,7 +1053,7 @@ var StatusBar = {
     icon.setAttribute('aria-label', navigator.mozL10n.get(connInfo.roaming ?
       'statusbarSignalRoaming' : 'statusbarSignal', {
         level: icon.dataset.level,
-        operator: connInfo.network.shortName
+        operator: connInfo.network && connInfo.network.shortName
       }
     ));
   },
@@ -1238,8 +1244,7 @@ var StatusBar = {
 
   // To reduce the duplicated code
   isLocked: function() {
-    return 'undefined' !== typeof window.lockScreen &&
-      window.lockScreen.locked;
+    return System.locked;
   }
 };
 

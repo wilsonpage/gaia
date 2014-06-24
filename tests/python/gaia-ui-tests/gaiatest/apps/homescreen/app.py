@@ -11,15 +11,13 @@ from gaiatest.apps.base import PageRegion
 
 class Homescreen(Base):
 
-    name = 'Vertical'
+    name = 'Homescreen'
 
     _homescreen_icon_locator = (By.CSS_SELECTOR, 'gaia-grid .icon')
     _homescreen_all_icons_locator = (By.CSS_SELECTOR, 'gaia-grid .icon:not(.placeholder)')
     _edit_mode_locator = (By.CSS_SELECTOR, 'body.edit-mode')
-    _search_bar_icon_locator = (By.CSS_SELECTOR, '#evme-activation-icon input')
-    _landing_page_locator = (By.ID, 'icongrid')
-    _collections_locator = (By.CSS_SELECTOR, 'li.icon[data-collection-name]')
-    _collection_locator = (By.CSS_SELECTOR, "li.icon[data-collection-name *= '%s']")
+    _search_bar_icon_locator = (By.ID, 'search-input')
+    _landing_page_locator = (By.ID, 'icons')
 
     def launch(self):
         Base.launch(self)
@@ -27,6 +25,11 @@ class Homescreen(Base):
     def tap_search_bar(self):
         search_bar = self.marionette.find_element(*self._search_bar_icon_locator)
         search_bar.tap()
+
+        # TODO These two lines are a workaround for bug 1020974
+        self.marionette.switch_to_frame()
+        self.marionette.find_element('id', 'rocketbar-form').tap()
+
         from gaiatest.apps.homescreen.regions.search_panel import SearchPanel
         return SearchPanel(self.marionette)
 
@@ -46,6 +49,7 @@ class Homescreen(Base):
             press(app).\
             wait(3).\
             release().\
+            wait(1).\
             perform()
         self.wait_for_condition(lambda m: app.is_displayed())
         # Ensure that edit mode is active
@@ -62,48 +66,47 @@ class Homescreen(Base):
         return ContextMenu(self.marionette)
 
     def move_app_to_position(self, app_position, to_position):
-        app = self.marionette.find_elements(*self._homescreen_all_icons_locator)[app_position]
-        destination = self.marionette.find_elements(*self._homescreen_all_icons_locator)[to_position]
-
+        app_elements = self.app_elements
         Actions(self.marionette).\
-            press(app).\
+            press(app_elements[app_position]).\
             wait(3).\
-            move(destination).\
+            move(app_elements[to_position]).\
             wait(1).\
             release().\
+            wait(1).\
             perform()
 
     @property
     def is_edit_mode_active(self):
         return self.is_element_present(*self._edit_mode_locator)
 
+    def tap_collection(self, collection_name):
+        for root_el in self.marionette.find_elements(*self._homescreen_all_icons_locator):
+            if root_el.text == collection_name:
+                self.marionette.execute_script(
+                    'arguments[0].scrollIntoView(false);', [root_el])
+                root_el.tap()
+                from gaiatest.apps.homescreen.regions.collections import Collection
+                return Collection(self.marionette)
+
     @property
-    def collections_count(self):
-        return len(self.marionette.find_elements(*self._collections_locator))
-
-    def tap_collection(self, name):
-        el = self.marionette.find_element(self._collection_locator[0],
-                                          self._collection_locator[1] % name)
-        el.tap()
-
-        from gaiatest.apps.homescreen.regions.collections import Collection
-        return Collection(self.marionette)
+    def app_elements(self):
+        return self.marionette.execute_script("""
+        var gridItems = window.wrappedJSObject.app.grid.getItems();
+        var appElements = [];
+        for(var i=0; i<gridItems.length; i++){
+        // it must have an app to be a
+        if(gridItems[i].app) appElements.push(gridItems[i].element);
+        }
+        return appElements;
+        """)
 
     @property
     def visible_apps(self):
         # Bug 1020910 - Marionette cannot detect correctly detect icons on vertical homescreen
         # The icons' order on screen is not represented in the DOM, thus we use the grid
-        apps = self.marionette.execute_script("""
-        var gridItems = window.wrappedJSObject.app.grid.getItems();
-        var appElements = [];
-        for(var i=0; i<gridItems.length; i++){
-            // it must have an app to be a
-            if(gridItems[i].app) appElements.push(gridItems[i].element);
-        }
-        return appElements;
-        """)
         return [self.InstalledApp(self.marionette, root_element)
-                for root_element in apps if root_element.is_displayed()]
+                for root_element in self.app_elements if root_element.is_displayed()]
 
     def installed_app(self, app_name):
         for root_el in self.marionette.find_elements(*self._homescreen_all_icons_locator):
