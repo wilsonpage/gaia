@@ -1,8 +1,8 @@
 define(function(require) {
 'use strict';
 
-require('shared/elements/config.js');
-require('shared/elements/gaia-header/dist/script.js');
+require('shared/elements/config');
+require('shared/elements/gaia-header/script');
 
 var Tabs = require('tabs');
 var View = require('view');
