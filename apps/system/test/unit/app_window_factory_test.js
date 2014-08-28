@@ -1,8 +1,13 @@
-/* global MocksHelper, AppWindowFactory, MockApplications,
-          MockAppWindowManager, AppWindow, HomescreenLauncher */
+/* global MocksHelper,
+   AppWindowFactory,
+   MockApplications,
+   MockAppWindowManager,
+   AppWindow,
+   HomescreenLauncher,
+   appWindowFactory
+ */
+
 'use strict';
-/* global MocksHelper, MockApplications, MockAppWindowManager,
-          AppWindow, HomescreenLauncher, AppWindowFactory, appWindowFactory */
 
 requireApp('system/shared/test/unit/mocks/mock_manifest_helper.js');
 requireApp('system/test/unit/mock_applications.js');
@@ -100,6 +105,19 @@ suite('system/AppWindowFactory', function() {
     target: {}
   };
 
+  var fakeLaunchConfig7 = {
+    'isActivity': false,
+    'url': 'app://search.gaiamobile.org/index.html',
+    'name': 'search',
+    'manifestURL': 'app://search.gaiamobile.org/manifest.webapp',
+    'origin': 'app://search.gaiamobile.org',
+    'manifest': {
+      'name': 'Search',
+      'role': 'search',
+    },
+    target: {}
+  };
+
   var realApplications;
 
   setup(function(done) {
@@ -114,14 +132,13 @@ suite('system/AppWindowFactory', function() {
 
     stubById = this.sinon.stub(document, 'getElementById');
     stubById.returns(document.createElement('div'));
-    window.homescreenLauncher = new HomescreenLauncher().start();
+    window.homescreenLauncher = new HomescreenLauncher();
+    window.homescreenLauncher.start();
 
     requireApp('system/js/system.js');
     requireApp('system/js/browser_config_helper.js');
     requireApp('system/js/app_window_factory.js', function() {
       window.appWindowFactory = new AppWindowFactory();
-      window.appWindowFactory.start();
-
       done();
     });
   });
@@ -135,7 +152,101 @@ suite('system/AppWindowFactory', function() {
     realApplications = null;
   });
 
+  suite('check for open-app queueing', function() {
+    var applicationsReady;
+    var eventHandlerSpy, preEventHandlerSpy, queuePendingEventSpy;
+    var openAppEvent;
+
+    setup(function() {
+      openAppEvent = new CustomEvent('open-app', {'detail': {}});
+      applicationsReady = window.applications.ready;
+      eventHandlerSpy =
+        this.sinon.spy(window.appWindowFactory, 'handleEvent');
+      preEventHandlerSpy =
+        this.sinon.spy(window.appWindowFactory, 'preHandleEvent');
+      queuePendingEventSpy =
+        this.sinon.spy(window.appWindowFactory, '_queuePendingEvent');
+    });
+
+    teardown(function() {
+      window.applications.ready = applicationsReady;
+    });
+
+    suite('open-app delivered, applications.ready is false', function() {
+      setup(function() {
+        window.applications.ready = false;
+        window.appWindowFactory.start();
+        window.dispatchEvent(openAppEvent);
+      });
+
+      test('handleEvent not called', function() {
+        sinon.assert.notCalled(eventHandlerSpy);
+      });
+
+      test('preHandleEvent called', function() {
+        sinon.assert.called(preEventHandlerSpy);
+      });
+
+      test('_queuePendingEvent called', function() {
+        sinon.assert.calledOnce(queuePendingEventSpy);
+      });
+    });
+
+    suite('open-app delivered, applications.ready is true', function() {
+      setup(function() {
+        window.applications.ready = true;
+        window.appWindowFactory.start();
+        window.dispatchEvent(openAppEvent);
+      });
+
+      test('preHandleEvent called', function() {
+        sinon.assert.called(preEventHandlerSpy);
+      });
+
+      test('handleEvent called after open-app',
+        function() {
+          sinon.assert.calledWithExactly(eventHandlerSpy, openAppEvent);
+        });
+    });
+
+    suite('open-app delivered, applicationready event', function() {
+      var handlePendingSpy;
+      setup(function() {
+        window.applications.ready = false;
+        window.appWindowFactory.start();
+        window.dispatchEvent(openAppEvent);
+        handlePendingSpy =
+          this.sinon.spy(window.appWindowFactory, '_handlePendingEvents');
+        window.dispatchEvent(new CustomEvent('applicationready'));
+      });
+
+      test('preHandleEvent called', function() {
+        sinon.assert.called(preEventHandlerSpy);
+      });
+
+      test('_queuePendingEvent called', function() {
+        sinon.assert.calledOnce(queuePendingEventSpy);
+      });
+
+      test('_handlePendingEvents called', function() {
+        sinon.assert.calledOnce(handlePendingSpy);
+      });
+
+      test('handleEvent called', function() {
+        sinon.assert.called(eventHandlerSpy);
+      });
+
+      test('pending events cleared', function() {
+        assert.equal(0, window.appWindowFactory._queueEvents.length);
+      });
+    });
+  });
+
   suite('handle event', function() {
+     setup(function() {
+      window.appWindowFactory.start();
+    });
+
     test('classic app launch', function() {
       var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
       appWindowFactory.handleEvent({
@@ -152,6 +263,18 @@ suite('system/AppWindowFactory', function() {
       var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
       appWindowFactory.handleEvent({
         type: 'webapps-launch',
+        detail: fakeLaunchConfig2
+      });
+      assert.isTrue(stubDispatchEvent.called);
+      assert.equal(stubDispatchEvent.getCall(0).args[0].type, 'launchapp');
+      assert.equal(stubDispatchEvent.getCall(0).args[0].detail.url,
+        fakeLaunchConfig2.url);
+    });
+
+    test('redirect applaunch', function() {
+      var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
+      appWindowFactory.handleEvent({
+        type: 'appopenwindow',
         detail: fakeLaunchConfig2
       });
       assert.isTrue(stubDispatchEvent.called);
@@ -215,6 +338,16 @@ suite('system/AppWindowFactory', function() {
         detail: fakeLaunchConfig5
       });
       assert.isTrue(stubReviveBrowser.called);
+    });
+
+    test('open-app with search app', function() {
+      var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
+      appWindowFactory.launch(fakeLaunchConfig7);
+      assert.ok(stubDispatchEvent.notCalled);
+
+      fakeLaunchConfig7.url = 'app://search.gaiamobile.org/newtab.html';
+      appWindowFactory.launch(fakeLaunchConfig7);
+      assert.ok(stubDispatchEvent.calledOnce);
     });
   });
 });

@@ -4,7 +4,7 @@
 require('/shared/test/unit/load_body_html_helper.js');
 require('/shared/js/template.js');
 require('/shared/test/unit/mocks/mock_lazy_loader.js');
-requireApp('system/test/unit/mock_l10n.js');
+require('/shared/test/unit/mocks/mock_l10n.js');
 requireApp('system/test/unit/mock_applications.js');
 requireApp('system/shared/test/unit/mocks/mock_manifest_helper.js');
 
@@ -13,7 +13,8 @@ function sendChromeEvent(evt_type, evt_permission, remember) {
   var permissions = {};
   permissions[evt_permission] = [''];
   var detail = {'type': evt_type, 'permissions': permissions,
-                'origin': 'test', 'isApp': false, 'remember': remember };
+                'origin': 'test', 'isApp': false, 'remember': remember,
+                'id': 'perm1' };
   var evt = new CustomEvent('mozChromeEvent', { detail: detail });
   window.dispatchEvent(evt);
 }
@@ -25,7 +26,8 @@ function sendMediaEvent(evt_type, evt_permissions, app, isGranted) {
                 'origin': 'test', 'isApp': app,
                 'remember': true,
                 'isGranted': isGranted,
-                'manifestURL': 'app://uitest.gaiamobile.org/manifest.webapp'
+                'manifestURL': 'app://uitest.gaiamobile.org/manifest.webapp',
+                'id': 'perm1'
                };
   var evt = new CustomEvent('mozChromeEvent', { detail: detail });
   window.dispatchEvent(evt);
@@ -81,7 +83,6 @@ suite('system/permission manager', function() {
     test('default values', function() {
       assert.equal(permissionManager.fullscreenRequest, undefined);
       assert.equal(permissionManager.pending, '');
-      assert.equal(permissionManager.nextRequestID, null);
       assert.equal(permissionManager.currentRequestId, undefined);
       assert.equal(permissionManager.currentOrigin, undefined);
       assert.equal(permissionManager.permissionType, undefined);
@@ -107,6 +108,19 @@ suite('system/permission manager', function() {
     });
 
     test('cancel-permission-prompt', function() {
+      assert.isTrue(permissionManager.discardPermissionRequest.called);
+    });
+  });
+
+  suite('attentionscreenshow Handler', function() {
+    setup(function() {
+      this.sinon.stub(permissionManager, 'discardPermissionRequest');
+      var evt = document.createEvent('CustomEvent');
+      evt.initCustomEvent('attentionscreenshow', true, true, {origin: ''});
+      window.dispatchEvent(evt);
+    });
+
+    test('discardPermissionRequest is called', function() {
       assert.isTrue(permissionManager.discardPermissionRequest.called);
     });
   });
@@ -231,7 +245,7 @@ suite('system/permission manager', function() {
 
       var detail = {'type': 'permission-prompt',
                 'permission': 'geolocation',
-                'origin': 'test', 'isApp': false };
+                'origin': 'test', 'isApp': false, id: 'perm1' };
       var evt = new CustomEvent('mozChromeEvent', { detail: detail });
       window.dispatchEvent(evt);
     });
@@ -242,7 +256,7 @@ suite('system/permission manager', function() {
 
     test('permission id matched', function() {
       assert.isTrue(permissionManager.requestPermission
-        .calledWithMatch('test', 'geolocation',
+        .calledWithMatch('perm1', 'test', 'geolocation',
         sinon.match.string, 'perm-geolocation-more-info'));
     });
   });
@@ -254,14 +268,14 @@ suite('system/permission manager', function() {
 
       var detail = {'type': 'permission-prompt',
                 'permission': 'audio-capture',
-                'origin': 'test', 'isApp': false };
+                'origin': 'test', 'isApp': false, id: 'perm1' };
       var evt = new CustomEvent('mozChromeEvent', { detail: detail });
       window.dispatchEvent(evt);
     });
 
     test('permission id matched', function() {
       assert.isTrue(permissionManager.requestPermission
-        .calledWithMatch('test', 'audio-capture',
+        .calledWithMatch('perm1', 'test', 'audio-capture',
         sinon.match.string, 'perm-audio-capture-more-info'));
     });
 
@@ -284,7 +298,7 @@ suite('system/permission manager', function() {
 
     test('permission id matched', function() {
       assert.isTrue(permissionManager.requestPermission
-        .calledWithMatch('test', 'audio-capture',
+        .calledWithMatch('perm1', 'test', 'audio-capture',
         sinon.match.string, 'perm-audio-capture-more-info'));
     });
 
@@ -314,7 +328,7 @@ suite('system/permission manager', function() {
 
     test('permission id matched', function() {
       assert.isTrue(permissionManager.requestPermission
-        .calledWithMatch('test', 'video-capture',
+        .calledWithMatch('perm1', 'test', 'video-capture',
         sinon.match.string, 'perm-video-capture-more-info'));
     });
 
@@ -373,7 +387,7 @@ suite('system/permission manager', function() {
 
     test('permission id matched', function() {
       assert.isTrue(permissionManager.requestPermission
-        .calledWithMatch('test', 'video-capture',
+        .calledWithMatch('perm1', 'test', 'video-capture',
         sinon.match.string, 'perm-video-capture-more-info'));
     });
 
@@ -404,7 +418,7 @@ suite('system/permission manager', function() {
 
     test('permission id matched', function() {
       assert.isTrue(permissionManager.requestPermission
-        .calledWithMatch('test', 'media-capture',
+        .calledWithMatch('perm1', 'test', 'media-capture',
         sinon.match.string, 'perm-media-capture-more-info'));
     });
 
@@ -435,6 +449,24 @@ suite('system/permission manager', function() {
 
     test('should have 1 pending', function() {
       assert.equal(permissionManager.pending.length, 1);
+    });
+  });
+
+  suite('bug 1013509 Permission Prompt Never Hides',
+   function() {
+    setup(function() {
+      this.sinon.stub(permissionManager, 'discardPermissionRequest');
+      sendMediaEvent('permission-prompt', {'audio-capture': ['']});
+    });
+
+    test('should discard permission request when requester killed', function() {
+      assert.equal(permissionManager.currentOrigin, 'test');
+      assert.equal(permissionManager.permissionType, 'audio-capture');
+      var event = new CustomEvent('appterminated',
+                                  { 'detail': { 'origin': 'test'} });
+      window.dispatchEvent(event);
+
+      assert.isTrue(permissionManager.discardPermissionRequest.called);
     });
   });
 

@@ -1,6 +1,6 @@
 'use strict';
 /* global MockNavigatormozApps, MockNavigatormozSetMessageHandler,
-          MockMozActivity, Search, MockProvider, MockasyncStorage, Promise */
+          Search, MockProvider, MockasyncStorage, Promise */
 
 require('/shared/test/unit/mocks/mock_navigator_moz_apps.js');
 require('/shared/test/unit/mocks/mock_navigator_moz_set_message_handler.js');
@@ -14,9 +14,14 @@ requireApp('search/test/unit/mock_provider.js');
 suite('search/search', function() {
   var realAsyncStorage;
   var realMozApps;
-  var realMozActivity;
   var realSetMessageHandler;
+  var realOnLine;
+
   var clock;
+
+  function removeProvider(provider) {
+    delete Search.providers[provider.name];
+  }
 
   suiteSetup(function(done) {
     loadBodyHTML('/index.html');
@@ -26,9 +31,6 @@ suite('search/search', function() {
 
     realMozApps = navigator.mozApps;
     navigator.mozApps = MockNavigatormozApps;
-
-    realMozActivity = window.MozActivity;
-    window.MozActivity = MockMozActivity;
 
     realAsyncStorage = window.asyncStorage;
     window.asyncStorage = MockasyncStorage;
@@ -44,6 +46,8 @@ suite('search/search', function() {
       // true, so it will always show for integration tests.
       assert.equal(Search.toShowNotice, true);
       Search.toShowNotice = false;
+
+      Search._port = { postMessage: function() {} };
       done();
     });
   });
@@ -51,20 +55,16 @@ suite('search/search', function() {
   suiteTeardown(function() {
     navigator.mozSetMessageHandler = realSetMessageHandler;
     navigator.mozApps = realMozApps;
-    window.MozActivity = realMozActivity;
     window.asyncStorage = realAsyncStorage;
     clock.restore();
     delete window.SettingsListener;
   });
 
   setup(function() {
-
-    MockMozActivity.mSetup();
     MockNavigatormozSetMessageHandler.mSetup();
   });
 
   teardown(function() {
-    MockMozActivity.mTeardown();
     MockNavigatormozSetMessageHandler.mTeardown();
     MockNavigatormozApps.mTeardown();
   });
@@ -89,7 +89,34 @@ suite('search/search', function() {
       MockNavigatormozApps.mLastConnectionCallback([]);
       assert.ok(initCalled);
       Search.providers = [];
+      assert.isFalse(Search.suggestionsWrapper.classList.contains('offline'));
     });
+  });
+
+  suite('offline', function() {
+    suiteSetup(function() {
+      realOnLine = Object.getOwnPropertyDescriptor(navigator, 'onLine');
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        get: function() { return false; }
+      });
+    });
+
+    suiteTeardown(function() {
+      if (realOnLine) {
+        Object.defineProperty(navigator, 'onLine', realOnLine);
+      }
+    });
+
+    test('init while offline', function() {
+      this.sinon.spy(Search, 'initConnectivityCheck');
+      Search.init();
+
+      sinon.assert.calledOnce(Search.initConnectivityCheck);
+      assert.isTrue(Search.searchResults.classList.contains('offline'));
+    });
+
+
   });
 
   suite('provider', function() {
@@ -104,7 +131,7 @@ suite('search/search', function() {
       });
       assert.equal(count + 1, numProviders());
 
-      Search.removeProvider({
+      removeProvider({
         name: 'Foo'
       });
       assert.equal(count, numProviders());
@@ -250,7 +277,6 @@ suite('search/search', function() {
 
   suite('close', function() {
     test('posts a message to the port', function() {
-      Search._port = { postMessage: function() {} };
       var stub = this.sinon.stub(Search._port, 'postMessage');
       Search.close();
       assert.ok(stub.calledWith({action: 'hide'}));
@@ -260,9 +286,9 @@ suite('search/search', function() {
   suite('navigate', function() {
     test('Open activity is fired', function() {
       var url = 'http://mozilla.org';
-      assert.equal(MockMozActivity.calls.length, 0);
+      var stub = this.sinon.stub(window, 'open');
       Search.navigate(url);
-      assert.equal(MockMozActivity.calls.length, 1);
+      assert.ok(stub.calledOnce);
     });
   });
 
@@ -289,7 +315,6 @@ suite('search/search', function() {
 
   suite('setInput', function() {
     test('posts a message to the port', function() {
-      Search._port = { postMessage: function() {} };
       var stub = this.sinon.stub(Search._port, 'postMessage');
       this.sinon.stub(Search, 'expandSearch');
       Search.setInput('foo');
@@ -607,8 +632,8 @@ suite('search/search', function() {
       assert.ok(remoteStub.notCalled);
       assert.ok(localStub.calledOnce);
 
-      Search.removeProvider(localProvider);
-      Search.removeProvider(remoteProvider);
+      removeProvider(localProvider);
+      removeProvider(remoteProvider);
     });
 
     test('Search all providers when suggestions enabled', function() {
@@ -631,8 +656,8 @@ suite('search/search', function() {
       assert.ok(remoteStub.calledOnce);
       assert.ok(localStub.calledOnce);
 
-      Search.removeProvider(localProvider);
-      Search.removeProvider(remoteProvider);
+      removeProvider(localProvider);
+      removeProvider(remoteProvider);
     });
 
   });

@@ -1,11 +1,10 @@
 suite('lib/storage', function() {
   /*jshint maxlen:false*/
   'use strict';
-  var require = window.req;
 
   suiteSetup(function(done) {
     var self = this;
-    require([
+    requirejs([
       'lib/storage'
     ], function(Storage) {
       self.Storage = Storage;
@@ -23,6 +22,7 @@ suite('lib/storage', function() {
 
     this.picture = {};
     this.picture.addEventListener = sinon.spy();
+    this.picture.removeEventListener = sinon.spy();
     this.picture.delete = sinon.stub().returns(this.picture);
 
     // Stub getDeviceStorage
@@ -37,16 +37,29 @@ suite('lib/storage', function() {
       .withArgs('videos')
       .returns(this.video);
 
+    // Stub getDeviceStorages
+    if (!navigator.getDeviceStorages) { navigator.getDeviceStorages = function() {}; }
+    this.sandbox.stub(navigator, 'getDeviceStorages')
+      .withArgs('pictures').returns([this.picture])
+      .withArgs('videos').returns([this.video]);
+
+    // Stub mozSettings
+    navigator.mozSettings = {
+      addObserver: sinon.stub()
+    };
+
     var options = {
       createFilename: sinon.stub().callsArgWith(2, 'filename.file'),
       dcf: { init: sinon.spy() }
     };
 
-    // The test instance
-    this.storage = new this.Storage(options);
-
     // For convenience
     this.createFilename = options.createFilename;
+
+    // The test instance
+    this.storage = new this.Storage(options);
+    // Storage is a singleton. This forces reconfiguration for each suite
+    this.storage.configure();
   });
 
   teardown(function() {
@@ -57,6 +70,7 @@ suite('lib/storage', function() {
   suite('Storage()', function() {
     test('Should listen for change events', function() {
       assert.isTrue(this.picture.addEventListener.calledWith('change'));
+      assert.isTrue(navigator.mozSettings.addObserver.called);
     });
   });
 
@@ -77,7 +91,7 @@ suite('lib/storage', function() {
     });
 
     test('Should create a filename if one not given', function() {
-      assert.isTrue(this.createFilename.calledWith(this.picture, 'image'));
+      assert.isTrue(this.storage.createFilename.calledWith(this.picture, 'image'));
     });
 
     test('Should add the given blob to picture storage', function() {
@@ -90,6 +104,7 @@ suite('lib/storage', function() {
 
     test('Should callback passing the relative path, absolute path and memory-backed-blob', function() {
       assert.isTrue(this.callback.calledWith(
+        null,
         'filename.file',
         '/path/to/picture.jpg',
         'memory-backed-blob'));

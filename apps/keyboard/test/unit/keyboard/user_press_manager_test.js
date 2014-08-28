@@ -9,34 +9,34 @@ suite('UserPress', function() {
   test('(constructor)', function() {
     var el = {};
     var coords = {
-      pageX: 100,
-      pageY: 110
+      clientX: 100,
+      clientY: 110
     };
     var press = new UserPress(el, coords);
 
     assert.equal(press.target, el);
     assert.equal(press.moved, false);
-    assert.equal(press.pageX, 100);
-    assert.equal(press.pageY, 110);
+    assert.equal(press.clientX, 100);
+    assert.equal(press.clientY, 110);
   });
 
   test('updateCoords()', function() {
     var el = {};
     var coords = {
-      pageX: 100,
-      pageY: 110
+      clientX: 100,
+      clientY: 110
     };
     var press = new UserPress(el, coords);
 
     var newCoords = {
-      pageX: 200,
-      pageY: 210
+      clientX: 200,
+      clientY: 210
     };
 
     press.updateCoords(newCoords, true);
     assert.equal(press.moved, true);
-    assert.equal(press.pageX, 200);
-    assert.equal(press.pageY, 210);
+    assert.equal(press.clientX, 200);
+    assert.equal(press.clientY, 210);
   });
 });
 
@@ -73,6 +73,8 @@ suite('UserPressManager', function() {
 
     assert.isTrue(container.addEventListener.calledWith('touchstart', manager));
     assert.isTrue(container.addEventListener.calledWith('mousedown', manager));
+    assert.isTrue(
+      container.addEventListener.calledWith('contextmenu', manager));
   });
 
   test('stop()', function() {
@@ -88,6 +90,24 @@ suite('UserPressManager', function() {
       container.removeEventListener.calledWith('mousemove', manager));
     assert.isTrue(
       container.removeEventListener.calledWith('mouseup', manager));
+    assert.isTrue(
+      container.removeEventListener.calledWith('contextmenu', manager));
+  });
+
+  test('contextmenu event', function() {
+    var manager = new UserPressManager(app);
+    manager.start();
+
+    var el = new MockEventTarget();
+    var contextmenuEvent = {
+      type: 'contextmenu',
+      target: el,
+      preventDefault: this.sinon.stub()
+    };
+
+    container.dispatchEvent(contextmenuEvent);
+
+    assert.isTrue(contextmenuEvent.preventDefault.calledOnce);
   });
 
   suite('single touch', function() {
@@ -108,8 +128,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 100,
-            pageY: 110
+            clientX: 100,
+            clientY: 110
           }
         ]
       };
@@ -121,8 +141,8 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: false,
-          pageX: 100,
-          pageY: 110
+          clientX: 100,
+          clientY: 110
         }, 0]);
 
       document.elementFromPoint.returns(el);
@@ -136,8 +156,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 100,
-            pageY: 110
+            clientX: 100,
+            clientY: 110
           }
         ]
       };
@@ -149,8 +169,8 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: false,
-          pageX: 100,
-          pageY: 110
+          clientX: 100,
+          clientY: 110
         }, 0]);
 
       manager.stop();
@@ -164,8 +184,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 101,
-            pageY: 112
+            clientX: 101,
+            clientY: 112
           }
         ]
       };
@@ -179,8 +199,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 101,
-            pageY: 112
+            clientX: 101,
+            clientY: 112
           }
         ]
       };
@@ -192,8 +212,8 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: false,
-          pageX: 101,
-          pageY: 112
+          clientX: 101,
+          clientY: 112
         }, 0]);
 
       manager.stop();
@@ -207,8 +227,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 120,
-            pageY: 130
+            clientX: 120,
+            clientY: 130
           }
         ]
       };
@@ -219,8 +239,8 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: true,
-          pageX: 120,
-          pageY: 130
+          clientX: 120,
+          clientY: 130
         }, 0]);
 
       var touchendEvent = {
@@ -230,8 +250,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 120,
-            pageY: 130
+            clientX: 120,
+            clientY: 130
           }
         ]
       };
@@ -243,8 +263,8 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: true,
-          pageX: 120,
-          pageY: 130
+          clientX: 120,
+          clientY: 130
         }, 0]);
 
       manager.stop();
@@ -261,8 +281,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 120,
-            pageY: 130
+            clientX: 120,
+            clientY: 130
           }
         ]
       };
@@ -273,8 +293,8 @@ suite('UserPressManager', function() {
         [{
           target: el2,
           moved: true,
-          pageX: 120,
-          pageY: 130
+          clientX: 120,
+          clientY: 130
         }, 0]);
 
       var touchendEvent = {
@@ -284,8 +304,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 120,
-            pageY: 130
+            clientX: 120,
+            clientY: 130
           }
         ]
       };
@@ -297,8 +317,8 @@ suite('UserPressManager', function() {
         [{
           target: el2,
           moved: true,
-          pageX: 120,
-          pageY: 130
+          clientX: 120,
+          clientY: 130
         }, 0]);
 
       manager.stop();
@@ -308,8 +328,8 @@ suite('UserPressManager', function() {
       var mousedownEvent = {
         type: 'mousedown',
         target: el,
-        pageX: 120,
-        pageY: 130,
+        clientX: 120,
+        clientY: 130,
         preventDefault: this.sinon.stub()
       };
       el.dispatchEvent(mousedownEvent);
@@ -318,8 +338,8 @@ suite('UserPressManager', function() {
       var mousemoveEvent = {
         type: 'mousemove',
         target: el,
-        pageX: 120,
-        pageY: 130
+        clientX: 120,
+        clientY: 130
       };
       el.dispatchEvent(mousemoveEvent);
       container.dispatchEvent(mousemoveEvent);
@@ -327,8 +347,8 @@ suite('UserPressManager', function() {
       var mouseupEvent = {
         type: 'mouseup',
         target: el,
-        pageX: 120,
-        pageY: 130
+        clientX: 120,
+        clientY: 130
       };
       el.dispatchEvent(mouseupEvent);
       container.dispatchEvent(mouseupEvent);
@@ -357,8 +377,8 @@ suite('UserPressManager', function() {
       var mousedownEvent = {
         type: 'mousedown',
         target: el,
-        pageX: 100,
-        pageY: 110,
+        clientX: 100,
+        clientY: 110,
         preventDefault: this.sinon.stub()
       };
       container.dispatchEvent(mousedownEvent);
@@ -369,8 +389,8 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: false,
-          pageX: 100,
-          pageY: 110
+          clientX: 100,
+          clientY: 110
         }, '_mouse']);
 
       document.elementFromPoint.returns(el);
@@ -380,8 +400,8 @@ suite('UserPressManager', function() {
       var mouseupEvent = {
         type: 'mouseup',
         target: el,
-        pageX: 100,
-        pageY: 110
+        clientX: 100,
+        clientY: 110
       };
       container.dispatchEvent(mouseupEvent);
 
@@ -391,17 +411,77 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: false,
-          pageX: 100,
-          pageY: 110
+          clientX: 100,
+          clientY: 110
         }, '_mouse']);
+    });
+
+    test('mousemove after mouseup', function() {
+      var mouseupEvent = {
+        type: 'mouseup',
+        target: el,
+        clientX: 100,
+        clientY: 110
+      };
+      container.dispatchEvent(mouseupEvent);
+
+      var mousemoveEvent = {
+        type: 'mousemove',
+        target: el,
+        clientX: 101,
+        clientY: 112
+      };
+      container.dispatchEvent(mousemoveEvent);
+
+      assert.isTrue(true, 'Does not throw.');
+    });
+
+    test('mousemove after mouseleave', function() {
+      var mouseleaveEvent = {
+        type: 'mouseleave',
+        target: el,
+        clientX: 100,
+        clientY: 110
+      };
+      container.dispatchEvent(mouseleaveEvent);
+
+      var mousemoveEvent = {
+        type: 'mousemove',
+        target: el,
+        clientX: 101,
+        clientY: 112
+      };
+      container.dispatchEvent(mousemoveEvent);
+
+      assert.isTrue(true, 'Does not throw.');
+    });
+
+    test('mouseup after mouseup', function() {
+      var mouseupEvent = {
+        type: 'mouseup',
+        target: el,
+        clientX: 100,
+        clientY: 110
+      };
+      container.dispatchEvent(mouseupEvent);
+
+      var mouseupEvent2 = {
+        type: 'mouseup',
+        target: el,
+        clientX: 101,
+        clientY: 112
+      };
+      container.dispatchEvent(mouseupEvent2);
+
+      assert.isTrue(true, 'Does not throw.');
     });
 
     test('move within the element but less than MOVE_LIMIT', function() {
       var mousemoveEvent = {
         type: 'mousemove',
         target: el,
-        pageX: 101,
-        pageY: 112
+        clientX: 101,
+        clientY: 112
       };
       container.dispatchEvent(mousemoveEvent);
 
@@ -410,8 +490,8 @@ suite('UserPressManager', function() {
       var mouseupEvent = {
         type: 'mouseup',
         target: el,
-        pageX: 101,
-        pageY: 112
+        clientX: 101,
+        clientY: 112
       };
       container.dispatchEvent(mouseupEvent);
 
@@ -421,8 +501,8 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: false,
-          pageX: 101,
-          pageY: 112
+          clientX: 101,
+          clientY: 112
         }, '_mouse']);
 
       manager.stop();
@@ -432,8 +512,8 @@ suite('UserPressManager', function() {
       var mousemoveEvent = {
         type: 'mousemove',
         target: el,
-        pageX: 120,
-        pageY: 130
+        clientX: 120,
+        clientY: 130
       };
       container.dispatchEvent(mousemoveEvent);
 
@@ -442,15 +522,15 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: true,
-          pageX: 120,
-          pageY: 130
+          clientX: 120,
+          clientY: 130
         }, '_mouse']);
 
       var mouseupEvent = {
         type: 'mouseup',
         target: el,
-        pageX: 120,
-        pageY: 130
+        clientX: 120,
+        clientY: 130
       };
       container.dispatchEvent(mouseupEvent);
 
@@ -460,8 +540,8 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: true,
-          pageX: 120,
-          pageY: 130
+          clientX: 120,
+          clientY: 130
         }, '_mouse']);
 
       manager.stop();
@@ -474,8 +554,8 @@ suite('UserPressManager', function() {
       var mousemoveEvent = {
         type: 'mousemove',
         target: el,
-        pageX: 120,
-        pageY: 130
+        clientX: 120,
+        clientY: 130
       };
       container.dispatchEvent(mousemoveEvent);
 
@@ -484,15 +564,15 @@ suite('UserPressManager', function() {
         [{
           target: el2,
           moved: true,
-          pageX: 120,
-          pageY: 130
+          clientX: 120,
+          clientY: 130
         }, '_mouse']);
 
       var mouseupEvent = {
         type: 'mouseup',
         target: el2,
-        pageX: 120,
-        pageY: 130
+        clientX: 120,
+        clientY: 130
       };
       container.dispatchEvent(mouseupEvent);
 
@@ -502,8 +582,8 @@ suite('UserPressManager', function() {
         [{
           target: el2,
           moved: true,
-          pageX: 120,
-          pageY: 130
+          clientX: 120,
+          clientY: 130
         }, '_mouse']);
 
       manager.stop();
@@ -528,8 +608,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 100,
-            pageY: 110
+            clientX: 100,
+            clientY: 110
           }
         ]
       };
@@ -540,20 +620,20 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: false,
-          pageX: 100,
-          pageY: 110
+          clientX: 100,
+          clientY: 110
         }, 0]);
 
       el2 = new MockEventTarget();
       var touchstartEvent2 = {
         type: 'touchstart',
-        target: el,
+        target: el2,
         changedTouches: [
           {
             target: el2,
             identifier: 1,
-            pageX: 200,
-            pageY: 210
+            clientX: 200,
+            clientY: 210
           }
         ]
       };
@@ -565,8 +645,8 @@ suite('UserPressManager', function() {
         [{
           target: el2,
           moved: false,
-          pageX: 200,
-          pageY: 210
+          clientX: 200,
+          clientY: 210
         }, 1]);
 
       document.elementFromPoint.withArgs(100, 110).returns(el);
@@ -581,8 +661,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 100,
-            pageY: 110
+            clientX: 100,
+            clientY: 110
           }
         ]
       };
@@ -594,8 +674,8 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: false,
-          pageX: 100,
-          pageY: 110
+          clientX: 100,
+          clientY: 110
         }, 0]);
 
       var touchendEvent2 = {
@@ -605,8 +685,8 @@ suite('UserPressManager', function() {
           {
             target: el2,
             identifier: 1,
-            pageX: 200,
-            pageY: 210
+            clientX: 200,
+            clientY: 210
           }
         ]
       };
@@ -618,8 +698,8 @@ suite('UserPressManager', function() {
         [{
           target: el2,
           moved: false,
-          pageX: 200,
-          pageY: 210
+          clientX: 200,
+          clientY: 210
         }, 1]);
 
       manager.stop();
@@ -636,8 +716,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 120,
-            pageY: 130
+            clientX: 120,
+            clientY: 130
           }
         ]
       };
@@ -648,8 +728,8 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: true,
-          pageX: 120,
-          pageY: 130
+          clientX: 120,
+          clientY: 130
         }, 0]);
 
       var touchmoveEvent2 = {
@@ -659,8 +739,8 @@ suite('UserPressManager', function() {
           {
             target: el2,
             identifier: 1,
-            pageX: 220,
-            pageY: 230
+            clientX: 220,
+            clientY: 230
           }
         ]
       };
@@ -671,8 +751,8 @@ suite('UserPressManager', function() {
         [{
           target: el2,
           moved: true,
-          pageX: 220,
-          pageY: 230
+          clientX: 220,
+          clientY: 230
         }, 1]);
 
       var touchendEvent = {
@@ -682,8 +762,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 120,
-            pageY: 130
+            clientX: 120,
+            clientY: 130
           }
         ]
       };
@@ -695,8 +775,8 @@ suite('UserPressManager', function() {
         [{
           target: el,
           moved: true,
-          pageX: 120,
-          pageY: 130
+          clientX: 120,
+          clientY: 130
         }, 0]);
 
       var touchendEvent2 = {
@@ -706,8 +786,8 @@ suite('UserPressManager', function() {
           {
             target: el2,
             identifier: 1,
-            pageX: 220,
-            pageY: 230
+            clientX: 220,
+            clientY: 230
           }
         ]
       };
@@ -719,8 +799,8 @@ suite('UserPressManager', function() {
         [{
           target: el2,
           moved: true,
-          pageX: 220,
-          pageY: 230
+          clientX: 220,
+          clientY: 230
         }, 1]);
 
       manager.stop();
@@ -739,8 +819,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 120,
-            pageY: 130
+            clientX: 120,
+            clientY: 130
           }
         ]
       };
@@ -751,8 +831,8 @@ suite('UserPressManager', function() {
         [{
           target: el3,
           moved: true,
-          pageX: 120,
-          pageY: 130
+          clientX: 120,
+          clientY: 130
         }, 0]);
 
       var touchmoveEvent2 = {
@@ -762,8 +842,8 @@ suite('UserPressManager', function() {
           {
             target: el2,
             identifier: 1,
-            pageX: 220,
-            pageY: 230
+            clientX: 220,
+            clientY: 230
           }
         ]
       };
@@ -774,8 +854,8 @@ suite('UserPressManager', function() {
         [{
           target: el4,
           moved: true,
-          pageX: 220,
-          pageY: 230
+          clientX: 220,
+          clientY: 230
         }, 1]);
 
       var touchendEvent = {
@@ -785,8 +865,8 @@ suite('UserPressManager', function() {
           {
             target: el,
             identifier: 0,
-            pageX: 120,
-            pageY: 130
+            clientX: 120,
+            clientY: 130
           }
         ]
       };
@@ -798,8 +878,8 @@ suite('UserPressManager', function() {
         [{
           target: el3,
           moved: true,
-          pageX: 120,
-          pageY: 130
+          clientX: 120,
+          clientY: 130
         }, 0]);
 
       var touchendEvent2 = {
@@ -809,8 +889,8 @@ suite('UserPressManager', function() {
           {
             target: el2,
             identifier: 1,
-            pageX: 220,
-            pageY: 230
+            clientX: 220,
+            clientY: 230
           }
         ]
       };
@@ -822,9 +902,130 @@ suite('UserPressManager', function() {
         [{
           target: el4,
           moved: true,
-          pageX: 220,
-          pageY: 230
+          clientX: 220,
+          clientY: 230
         }, 1]);
+
+      manager.stop();
+    });
+  });
+
+  suite('two touches on the same element', function() {
+    var manager, el;
+
+    setup(function() {
+      manager = new UserPressManager(app);
+      manager.onpressstart = this.sinon.stub();
+      manager.onpressmove = this.sinon.stub();
+      manager.onpressend = this.sinon.stub();
+      manager.start();
+
+      el = new MockEventTarget();
+      this.sinon.stub(el, 'removeEventListener');
+      var touchstartEvent = {
+        type: 'touchstart',
+        target: el,
+        changedTouches: [
+          {
+            target: el,
+            identifier: 0,
+            clientX: 100,
+            clientY: 110
+          }
+        ]
+      };
+      container.dispatchEvent(touchstartEvent);
+
+      assert.isTrue(manager.onpressstart.calledOnce);
+      assert.deepEqual(manager.onpressstart.getCall(0).args,
+        [{
+          target: el,
+          moved: false,
+          clientX: 100,
+          clientY: 110
+        }, 0]);
+
+      var touchstartEvent2 = {
+        type: 'touchstart',
+        target: el,
+        changedTouches: [
+          {
+            target: el,
+            identifier: 1,
+            clientX: 200,
+            clientY: 210
+          }
+        ]
+      };
+      container.dispatchEvent(touchstartEvent2);
+
+      assert.isTrue(manager.onpressstart.calledTwice);
+      assert.equal(manager.presses.size, 2);
+      assert.deepEqual(manager.onpressstart.getCall(1).args,
+        [{
+          target: el,
+          moved: false,
+          clientX: 200,
+          clientY: 210
+        }, 1]);
+
+      document.elementFromPoint.withArgs(100, 110).returns(el);
+      document.elementFromPoint.withArgs(200, 210).returns(el);
+    });
+
+    test('without moving, touchend', function() {
+      var touchendEvent = {
+        type: 'touchend',
+        target: el,
+        changedTouches: [
+          {
+            target: el,
+            identifier: 0,
+            clientX: 100,
+            clientY: 110
+          }
+        ]
+      };
+      el.dispatchEvent(touchendEvent);
+
+      assert.isTrue(manager.onpressend.calledOnce);
+      assert.equal(manager.presses.size, 1);
+      assert.deepEqual(manager.onpressend.getCall(0).args,
+        [{
+          target: el,
+          moved: false,
+          clientX: 100,
+          clientY: 110
+        }, 0]);
+
+      var touchendEvent2 = {
+        type: 'touchend',
+        target: el,
+        changedTouches: [
+          {
+            target: el,
+            identifier: 1,
+            clientX: 200,
+            clientY: 210
+          }
+        ]
+      };
+      el.dispatchEvent(touchendEvent2);
+
+      assert.isTrue(manager.onpressend.calledTwice);
+      assert.equal(manager.presses.size, 0);
+      assert.deepEqual(manager.onpressend.getCall(1).args,
+        [{
+          target: el,
+          moved: false,
+          clientX: 200,
+          clientY: 210
+        }, 1]);
+
+      assert.isTrue(el.removeEventListener.calledWith('touchmove'));
+      assert.isTrue(el.removeEventListener.calledWith('touchend'));
+      assert.isTrue(el.removeEventListener.calledWith('touchcancel'));
+      assert.equal(el.removeEventListener.callCount, 3);
 
       manager.stop();
     });

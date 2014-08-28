@@ -30,7 +30,7 @@ contacts.Form = (function() {
       thumb,
       thumbAction,
       saveButton,
-      cancelButton,
+      formHeader,
       formTitle,
       currentContactId,
       givenName,
@@ -48,7 +48,6 @@ contacts.Form = (function() {
       fbContact,
       currentPhoto;
 
-  var REMOVED_CLASS = 'removed';
   var FB_CLASS = 'facebook';
   var INVALID_CLASS = 'invalid';
 
@@ -58,6 +57,9 @@ contacts.Form = (function() {
   // The size we want our contact photos to be
   var PHOTO_WIDTH = 320;
   var PHOTO_HEIGHT = 320;
+  // bug 1038414: ask for an image about 2MP before
+  // doing the crop to save memory in both apps
+  var MAX_PHOTO_SIZE = 200000;
 
   var touchstart = 'ontouchstart' in window ? 'touchstart' : 'mousedown';
 
@@ -68,14 +70,15 @@ contacts.Form = (function() {
       if (!this._textFields) {
         var fields = contactForm.querySelectorAll('input.textfield');
 
-        var removedFields =
-          Array.slice(contactForm.querySelectorAll('.removed input.textfield'));
+        var fbFields =
+          Array.slice(contactForm.querySelectorAll(
+                                                  '.facebook input.textfield'));
         var invalidFields =
           Array.slice(contactForm.querySelectorAll('.invalid input.textfield'));
 
         this._textFields = Array.filter(fields, function(field) {
-          return (removedFields.indexOf(field) === -1 &&
-                                          invalidFields.indexOf(field) === -1);
+          return (fbFields.indexOf(field) === -1 &&
+                                         invalidFields.indexOf(field) === -1);
         });
       }
 
@@ -90,12 +93,12 @@ contacts.Form = (function() {
   var initContainers = function cf_initContainers() {
     deleteContactButton = dom.querySelector('#delete-contact');
     thumb = dom.querySelector('#thumbnail-photo');
-    thumb.onclick = pickImage;
     thumbAction = dom.querySelector('#thumbnail-action');
+    thumbAction.querySelector('#photo-button').onclick = pickImage;
     saveButton = dom.querySelector('#save-button');
     addNewDateButton = dom.querySelector('#add-new-date');
-    cancelButton = dom.querySelector('#cancel-edit');
     contactForm = dom.getElementById('contact-form');
+    formHeader = dom.querySelector('#contact-form-header');
     formTitle = dom.getElementById('contact-form-title');
     currentContactId = dom.getElementById('contact-form-id');
     givenName = dom.getElementById('givenName');
@@ -155,7 +158,7 @@ contacts.Form = (function() {
 
   var init = function cf_init(tags, currentDom) {
     dom = currentDom || document;
-  
+
     _ = navigator.mozL10n.get;
     initContainers();
 
@@ -197,7 +200,12 @@ contacts.Form = (function() {
 
     // Add listeners
     utils.listeners.add({
-      '#cancel-edit': Contacts.cancel, // Cancel edition
+      '#contact-form-header': [
+        {
+          event: 'action',
+          handler: Contacts.cancel // Cancel edition
+        }
+      ],
       '#save-button': saveContact,
       '#contact-form button[data-field-type]': newField
     });
@@ -267,7 +275,6 @@ contacts.Form = (function() {
 
     if (nonEditableValues[company.value]) {
       var nodeClass = company.parentNode.classList;
-      nodeClass.add(REMOVED_CLASS);
       nodeClass.add(FB_CLASS);
     }
 
@@ -278,7 +285,6 @@ contacts.Form = (function() {
       if (!(deviceContact.photo && deviceContact.photo.length > 0)) {
         button.classList.add('hide');
         // Avoid saving the image to the Contacts DB
-        thumbAction.classList.add(REMOVED_CLASS);
         thumbAction.classList.add(FB_CLASS);
       }
     }
@@ -316,7 +322,7 @@ contacts.Form = (function() {
           deleteContact(currentContact);
           ConfirmDialog.hide();
           if (ActivityHandler.currentlyHandling) {
-            cancelButton.click();
+            formHeader.triggerAction();
           }
         }
       };
@@ -377,10 +383,9 @@ contacts.Form = (function() {
   }
 
   function getActiveFormDates() {
-    var removedDates = dom.querySelectorAll('.date-template' +
-                                            '.' + REMOVED_CLASS);
+    var fbDates = dom.querySelectorAll('.date-template' + '.' + FB_CLASS);
 
-    return counters.date - removedDates.length;
+    return counters.date - fbDates.length;
   }
 
   var onNewFieldClicked = function onNewFieldClicked(evt) {
@@ -450,7 +455,7 @@ contacts.Form = (function() {
       if (currentElem === 'type') {
         currField.type_value = value;
 
-        // Do localizatiion for built-in types
+        // Do localization for built-in types
         if (isBuiltInType(value, tags)) {
           currField.type_l10n_id = value;
           value = _(value) || value;
@@ -504,14 +509,12 @@ contacts.Form = (function() {
 
     if (infoFromFB) {
       var nodeClass = rendered.classList;
-      nodeClass.add(REMOVED_CLASS);
       nodeClass.add(FB_CLASS);
     }
 
-    // The undo button should not appear on FB disabled fields
-    if (!rendered.classList.contains(REMOVED_CLASS) &&
-        !rendered.classList.contains(FB_CLASS)) {
-      rendered.appendChild(removeFieldIcon(rendered.id));
+    // The remove button should not appear on FB disabled fields
+    if (!rendered.classList.contains(FB_CLASS)) {
+      rendered.appendChild(removeFieldIcon(rendered.id, type));
     }
 
     // Add event listeners
@@ -568,8 +571,8 @@ contacts.Form = (function() {
 
   var getCurrentPhoto = function cf_getCurrentPhoto() {
     var photo;
-    var isRemoved = thumbAction.classList.contains(REMOVED_CLASS);
-    if (!isRemoved) {
+    var isFacebook = thumbAction.classList.contains(FB_CLASS);
+    if (!isFacebook) {
       photo = currentPhoto;
     }
     return photo; // we return undefined on purpose here
@@ -635,17 +638,20 @@ contacts.Form = (function() {
     var inputs = {
       'givenName': givenName,
       'familyName': familyName,
-      'org': company
     };
 
     for (var field in inputs) {
       var value = inputs[field].value;
-      if (!inputs[field].parentNode.classList.contains(REMOVED_CLASS) &&
-                                          value && value.length > 0) {
+      if (value && value.length > 0) {
         myContact[field] = [value];
       } else {
         myContact[field] = null;
       }
+    }
+
+    if (!company.parentNode.classList.contains(FB_CLASS) &&
+     company.value && company.value.length > 0) {
+      myContact.org = [company.value];
     }
 
     if (currentContact.category) {
@@ -699,7 +705,7 @@ contacts.Form = (function() {
 
       var callbacks = cookMatchingCallbacks(contact);
       cancelHandler = doCancel.bind(callbacks);
-      cancelButton.addEventListener('click', cancelHandler);
+      formHeader.addEventListener('action', cancelHandler);
       doMatch(contact, callbacks);
     });
   };
@@ -762,7 +768,7 @@ contacts.Form = (function() {
 
             case 'ready':
               // The list of duplicate contacts has been loaded
-              cancelButton.removeEventListener('click', cancelHandler);
+              formHeader.removeEventListener('action', cancelHandler);
               hideThrobber();
               window.setTimeout(Contacts.goBack, 300);
 
@@ -782,7 +788,7 @@ contacts.Form = (function() {
       onmismatch: function() {
         // Saving because there aren't duplicate contacts
         doSave(contact);
-        cancelButton.removeEventListener('click', cancelHandler);
+        formHeader.removeEventListener('action', cancelHandler);
       }
     };
   };
@@ -847,7 +853,7 @@ contacts.Form = (function() {
   };
 
   var doCancel = function doCancel() {
-    cancelButton.removeEventListener('click', cancelHandler);
+    formHeader.removeEventListener('action', cancelHandler);
     window.removeEventListener('message', mergeHandler);
     this.onmatch = this.onmismatch = null;
     window.postMessage({
@@ -869,6 +875,9 @@ contacts.Form = (function() {
     // Deleting auxiliary objects created for dates
     delete contact.date;
 
+    // When we add new contact, it has no id at the beginning. We have one, if
+    // we edit current contact. We will use this information below.
+    var isNew = contact.id !== 'undefined';
     var request = navigator.mozContacts.save(utils.misc.toMozContact(contact));
 
     request.onsuccess = function onsuccess() {
@@ -880,7 +889,14 @@ contacts.Form = (function() {
       if (!noTransition) {
         Contacts.cancel();
       }
-      Contacts.setCurrent(contact);
+
+      // Since editing current contact returns to the details view, and adding
+      // the new one to the contacts list, we call setCurrent() only in the
+      // first case, so NFC listeners are not set on the Contact List
+      // (Bug 1041455).
+      if (isNew) {
+        Contacts.setCurrent(contact);
+      }
     };
 
     request.onerror = function onerror() {
@@ -936,7 +952,7 @@ contacts.Form = (function() {
   }
 
   var getPhones = function getPhones(contact) {
-    var selector = '#view-contact-form form div.phone-template:not(.removed)';
+    var selector = '#view-contact-form form div.phone-template:not(.facebook)';
     var phones = dom.querySelectorAll(selector);
     for (var i = 0; i < phones.length; i++) {
       var currentPhone = phones[i];
@@ -961,7 +977,7 @@ contacts.Form = (function() {
   };
 
   var getEmails = function getEmails(contact) {
-    var selector = '#view-contact-form form div.email-template:not(.removed)';
+    var selector = '#view-contact-form form div.email-template:not(.facebook)';
     var emails = dom.querySelectorAll(selector);
     for (var i = 0; i < emails.length; i++) {
       var currentEmail = emails[i];
@@ -989,7 +1005,8 @@ contacts.Form = (function() {
 
     for (var i = 0; i < dates.length; i++) {
       var currentDate = dates[i];
-      if (dates[i].classList.contains(REMOVED_CLASS)) {
+
+      if (dates[i].classList.contains(FB_CLASS)) {
         continue;
       }
 
@@ -1021,7 +1038,8 @@ contacts.Form = (function() {
   };
 
   var getAddresses = function getAddresses(contact) {
-    var selector = '#view-contact-form form div.address-template:not(.removed)';
+    var selector =
+                '#view-contact-form form div.address-template:not(.facebook)';
     var addresses = dom.querySelectorAll(selector);
     for (var i = 0; i < addresses.length; i++) {
       var currentAddress = addresses[i];
@@ -1060,7 +1078,7 @@ contacts.Form = (function() {
   };
 
   var getNotes = function getNotes(contact) {
-    var selector = '#view-contact-form form div.note-template:not(.removed)';
+    var selector = '#view-contact-form form div.note-template';
     var notes = dom.querySelectorAll(selector);
     for (var i = 0; i < notes.length; i++) {
       var currentNote = notes[i];
@@ -1116,9 +1134,8 @@ contacts.Form = (function() {
   };
 
   var resetRemoved = function cf_resetRemoved() {
-    var removedFields = dom.querySelectorAll('.removed');
+    var removedFields = dom.querySelectorAll('.facebook');
     for (var i = 0; i < removedFields.length; i++) {
-      removedFields[i].classList.remove(REMOVED_CLASS);
       removedFields[i].classList.remove(FB_CLASS);
     }
     thumbAction.classList.remove('with-photo');
@@ -1148,48 +1165,19 @@ contacts.Form = (function() {
     return true;
   };
 
-  function indexOf(tags, searchedType) {
-    for (var j = 0; j < tags.length; j++) {
-      if (tags[j].type === searchedType) {
-        return j;
-      }
-    }
-    return -1;
-  }
-
-  // Refills the date types to ensure there are no two equal types
-  function refillDateTypes(elem) {
-    // The selected value has to be coherent
-    var values = elem.parentNode.querySelectorAll(
-                  '.date-template:not(' + '.' + REMOVED_CLASS + ') ' +
-                  'span[data-taglist]');
-
-    var tags = TAG_OPTIONS['date-type'].slice(0);
-
-    for (var j = 0; j < values.length; j++) {
-      var item = values[j];
-      var itemValue = item.dataset.value;
-      var index = indexOf(tags, itemValue);
-      // In this case there was previously one with the same type
-      if (index === -1) {
-        item.dataset.value = tags[0].type;
-        item.textContent = tags[0].value;
-      }
-      else {
-        // We remove this one as it has been already consumed
-        tags.splice(index, 1);
-      }
-    }
-  }
-
-  var removeFieldIcon = function removeFieldIcon(selector) {
+  var removeFieldIcon = function removeFieldIcon(selector, type) {
     var delButton = document.createElement('button');
+    var _ = navigator.mozL10n.get;
     delButton.id = IMG_DELETE_ID;
     delButton.className = 'fillflow-row-action';
+    delButton.setAttribute('aria-label', _('removeField.ariaLabel'));
+    delButton.setAttribute('data-l10n-id', 'removeField');
+    delButton.setAttribute('data-type',type);
+
     var delIcon = document.createElement('span');
-    delIcon.setAttribute('role', 'button');
-    delIcon.className = 'icon-delete';
+    delIcon.className = 'icon icon-delete';
     delButton.appendChild(delIcon);
+
     delButton.onclick = function removeElement(event) {
       // Workaround until 809452 is fixed.
       // What we are avoiding with this condition is removing / restoring
@@ -1199,26 +1187,24 @@ contacts.Form = (function() {
       }
       event.preventDefault();
       var elem = document.getElementById(selector);
+      var type = event.target.dataset.type;
 
-      // Check whether we can re-enable or not
-      var isDate = elem.id.indexOf('date') !== -1;
-      if (isDate) {
-        var numDatesActive = getActiveFormDates();
-        // Only two non-removed instances are allowed
-        if (elem.classList.contains(REMOVED_CLASS) && numDatesActive + 1 > 2) {
-          return false;
-        }
+      if (type !== 'photo') {
+        elem.parentNode.removeChild(elem);
       }
-      elem.classList.toggle(REMOVED_CLASS);
-
-      // As the user can add and remove fields he can end up having two date
-      // types with the same value and we want to avoid that erroneous case
-      if (!elem.classList.contains(REMOVED_CLASS) && isDate) {
-        refillDateTypes(elem);
+      else {
+        // TODO: Implement the new delete image flow
+        console.warn('Delete image');
       }
 
+      // Update the aria label for acessibility
+      var delButton = event.target;
+      delButton.setAttribute('aria-label', _('removeField.ariaLabel'));
+      delButton.setAttribute('data-l10n-id', 'removeField');
+
+      counters[type]--;
       // In this version only two dates are allowed
-      if (isDate) {
+      if (type === 'date') {
         checkAddDateButton();
       }
 
@@ -1232,12 +1218,11 @@ contacts.Form = (function() {
 
   var addRemoveIconToPhoto = function cf_addRemIconPhoto() {
     // Ensure the removed and FB class names are conveniently reseted
-    thumbAction.classList.remove(REMOVED_CLASS);
     thumbAction.classList.remove(FB_CLASS);
 
     var out = thumbAction.querySelector('button#' + IMG_DELETE_ID);
     if (!out) {
-      out = removeFieldIcon(thumbAction.id);
+      out = removeFieldIcon(thumbAction.id, 'photo');
       thumbAction.appendChild(out);
     }
     else {
@@ -1253,7 +1238,8 @@ contacts.Form = (function() {
     var activity = new MozActivity({
       name: 'pick',
       data: {
-        type: 'image/jpeg'
+        type: 'image/jpeg',
+        maxFileSizeBytes: MAX_PHOTO_SIZE
       }
     });
 

@@ -17,10 +17,9 @@
       this.containerElement = configs.rearWindow.element;
     }
     configs.chrome = {
-      rocketbar: true,
-      navigation: false
+      bar: true
     };
-      
+
     AppWindow.call(this, configs);
   };
 
@@ -39,6 +38,7 @@
   PopupWindow.SUB_COMPONENTS = {
     'transitionController': window.AppTransitionController,
     'modalDialog': window.AppModalDialog,
+    'valueSelector': window.ValueSelector,
     'authDialog': window.AppAuthenticationDialog,
     'contextmenu': window.BrowserContextMenu,
     'childWindowFactory': window.ChildWindowFactory

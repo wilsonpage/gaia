@@ -6,10 +6,10 @@
 'use strict';
 define(function(require, exports) {
 
-var Cards, Toaster,
+var Cards,
+    Toaster = require('./toaster'),
     evt = require('evt'),
     mozL10n = require('l10n!'),
-    toasterNode = require('tmpl!./cards/toaster.html'),
     confirmDialogTemplateNode = require('tmpl!./cards/confirm_dialog.html'),
     ValueSelector = require('value_selector');
 
@@ -209,7 +209,9 @@ Cards = {
     this._containerNode = document.getElementById('cardContainer');
     this._cardsNode = document.getElementById('cards');
 
-    this._containerNode.appendChild(toasterNode);
+    this._statusColorMeta = document.querySelector('meta[name="theme-color"]');
+
+    Toaster.init(this._containerNode);
 
     this._containerNode.addEventListener('click',
                                          this._onMaybeIntercept.bind(this),
@@ -220,6 +222,16 @@ Cards = {
     this._cardsNode.addEventListener('transitionend',
                                      this._onTransitionEnd.bind(this),
                                      false);
+
+    // Listen for visibility changes to let current card know of them too.
+    // Do this here instead of each card needing to listen, and needing to know
+    // if it is also the current card.
+    document.addEventListener('visibilitychange', function(evt) {
+      var card = this._cardStack[this.activeCardIndex];
+      if (card && card.cardImpl.onCurrentCardDocumentVisibilityChange) {
+        card.cardImpl.onCurrentCardDocumentVisibilityChange(document.hidden);
+      }
+    }.bind(this));
   },
 
   /**
@@ -229,17 +241,19 @@ Cards = {
   _onMaybeIntercept: function(event) {
     if (this._eatingEventsUntilNextCard) {
       event.stopPropagation();
+      event.preventDefault();
       return;
     }
     if (this._popupActive) {
       event.stopPropagation();
+      event.preventDefault();
       this._popupActive.close();
       return;
     }
 
     // Find the card containing the event target.
     var cardNode = event.target;
-    for (cardNode = event.target; cardNode; cardNode = cardNode.parentNode) {
+    for (cardNode = event.target; cardNode; cardNode = cardNode.parentElement) {
       if (cardNode.classList.contains('card'))
         break;
     }
@@ -249,6 +263,7 @@ Cards = {
     // that card.
     if (this._trayActive && cardNode && cardNode.classList.contains('after')) {
       event.stopPropagation();
+      event.preventDefault();
 
       // Look for a card with a data-tray-target attribute
       var targetIndex = -1;
@@ -420,12 +435,17 @@ Cards = {
     // See input_areas.js and shared/style/input_areas.css.
     hookupInputAreaResetButtons(domNode);
 
-    // We're appending new elements to DOM so to make sure headers are
-    // properly resized and centered, we emmit a lazyload event.
-    // This will be removed when the gaia-header web component lands.
-    window.dispatchEvent(new CustomEvent('lazyload', {
-      detail: domNode
-    }));
+    // Only do auto font size watching for cards that do not have more
+    // complicated needs, like message_list, which modifies children contents
+    // that are not caught by the font_size_util.
+    if (!cardImpl.callHeaderFontSize) {
+      // We're appending new elements to DOM so to make sure headers are
+      // properly resized and centered, we emit a lazyload event.
+      // This will be removed when the gaia-header web component lands.
+      window.dispatchEvent(new CustomEvent('lazyload', {
+        detail: domNode
+      }));
+    }
 
     if ('postInsert' in cardImpl)
       cardImpl.postInsert();
@@ -457,6 +477,70 @@ Cards = {
     } else {
       this.pushCard.apply(this, Array.slice(arguments));
       return true;
+    }
+  },
+
+  /**
+   * Sets the status bar color. The element, or any of its children, can specify
+   * the color by setting data-statuscolor to one of the following values:
+   * - default: uses the default data-statuscolor set on the meta theme-color
+   * tag is used.
+   * - background: the CSS background color, via getComputedStyle, is used. This
+   * is useful if the background that is desired is not the one from the element
+   * itself, but from one of its children.
+   * - a specific color value.
+   *
+   * If no data-statuscolor attribute is found, then the background color for
+   * the element, via getComputedStyle, is used. If that value is not a valid
+   * color value, then the default statuscolor on the meta tag is used.
+   *
+   * Note that this method uses getComputedStyle. This could be expensive
+   * depending on when it is called. For the card infrastructure, since it is
+   * done as part of a card transition, and done before the card transition code
+   * applies transition styles, the target element should not be visible at the
+   * time of the query. In practice no negligble end user effect has been seen,
+   * and that query is much more desirable than hardcoding colors in JS or HTML.
+   *
+   * @param {Element} [element] the card element of interest. If no element is
+   * passed, the the current card is used.
+   */
+  setStatusColor: function(element) {
+    var color;
+    // Some use cases, like dialogs, are outside the card stack, so they may
+    // not know what element to use for a baseline. In those cases, Cards
+    // decides the target element.
+    if (!element) {
+      element = this._cardStack[this.activeCardIndex].domNode;
+    }
+
+    // Try first for specific color override. Do a node query, since for custom
+    // elements, the custom elment tag may not set its color, but the template
+    // used inside the tag may.
+    var statusElement = element.dataset.statuscolor ? element :
+                        element.querySelector('[data-statuscolor]');
+
+    if (statusElement) {
+      color = statusElement.dataset.statuscolor;
+      // Allow cards to just indicate they want the default.
+      if (color === 'default') {
+        color = null;
+      } else if (color === 'background') {
+        color = getComputedStyle(statusElement).backgroundColor;
+      }
+    } else {
+      // Just use the background color of the original element.
+      color = getComputedStyle(element).backgroundColor;
+    }
+
+    // Only use specific color values, not values like 'transparent'.
+    if (color && color.indexOf('rgb') !== 0 && color.indexOf('#') !== 0) {
+      color = null;
+    }
+
+    color = color || this._statusColorMeta.dataset.statuscolor;
+    var existingColor = this._statusColorMeta.getAttribute('content');
+    if (color !== existingColor) {
+      this._statusColorMeta.setAttribute('content', color);
     }
   },
 
@@ -530,7 +614,9 @@ Cards = {
     return result;
   },
 
-  folderSelector: function(callback) {
+  // Filter is an optional paramater. It is a function that returns
+  // true if the folder passed to it should be included in the selector
+  folderSelector: function(callback, filter) {
     var self = this;
 
     require(['model'], function(model) {
@@ -545,15 +631,18 @@ Cards = {
         var folders = foldersSlice.items;
         for (var i = 0; i < folders.length; i++) {
           var folder = folders[i];
-          self.folderPrompt.addToList(folder.name, folder.depth,
-            folder.selectable,
-            function(folder) {
-              return function() {
-                self.folderPrompt.hide();
-                callback(folder);
-              };
-            }(folder));
 
+          var isMatch = !filter || filter(folder);
+          if (folder.neededForHierarchy || isMatch) {
+            self.folderPrompt.addToList(folder.name, folder.depth,
+              isMatch,
+              function(folder) {
+                return function() {
+                  self.folderPrompt.hide();
+                  callback(folder);
+                };
+              }(folder));
+          }
         }
         self.folderPrompt.show();
       });
@@ -792,6 +881,7 @@ Cards = {
           }
         }
       } else {
+        this.setStatusColor(endNode);
         endNode = null;
         this._zIndex -= 10;
       }
@@ -804,6 +894,12 @@ Cards = {
     }
 
     var cardsNode = this._cardsNode;
+
+    // Do the status bar color work before triggering transitions, otherwise
+    // we lose some animation frames on the card transitions.
+    if (endNode) {
+      this.setStatusColor(endNode);
+    }
 
     if (showMethod === 'immediate') {
       addClass(beginNode, 'no-anim');
@@ -906,13 +1002,6 @@ Cards = {
         addClass(endNode, 'anim-fade');
       }
 
-      // Popup toaster that pended for previous card view.
-      var pendingToaster = Toaster.pendingStack.slice(-1)[0];
-      if (pendingToaster) {
-        pendingToaster();
-        Toaster.pendingStack.pop();
-      }
-
       // If any action to do at the end of transition trigger now.
       if (this._afterTransitionAction) {
         var afterTransitionAction = this._afterTransitionAction;
@@ -1011,166 +1100,6 @@ Cards = {
     if (this._cardStack.length)
       throw new Error('There are ' + this._cardStack.length + ' cards but' +
                       ' there should be ZERO');
-  }
-};
-
-/**
- * Central tracker of poptart messages; specifically, ongoing message sends,
- * failed sends, and recently performed undoable mutations.
- */
-Toaster = {
-  get body() {
-    delete this.body;
-    return this.body =
-           document.querySelector('section[role="status"]');
-  },
-  get text() {
-    delete this.text;
-    return this.text =
-           document.querySelector('section[role="status"] p');
-  },
-  get undoBtn() {
-    delete this.undoBtn;
-    return this.undoBtn =
-           document.querySelector('.toaster-banner-undo');
-  },
-  get retryBtn() {
-    delete this.retryBtn;
-    return this.retryBtn =
-           document.querySelector('.toaster-banner-retry');
-  },
-
-  undoableOp: null,
-  retryCallback: null,
-
-  /**
-   * Toaster timeout setting.
-   */
-  _timeout: 5000,
-  /**
-   * Toaster fadeout animation event handling.
-   */
-  _animationHandler: function() {
-    this.body.addEventListener('transitionend', this, false);
-    this.body.classList.add('fadeout');
-  },
-  /**
-   * The list of cards that want to hear about what's up with the toaster.  For
-   * now this will just be the message-list, but it might also be the
-   * message-search card as well.  If it ends up being more, then we probably
-   * want to rejigger things so we can just overlay stuff on most cards...
-   */
-  _listeners: [],
-
-  pendingStack: [],
-
-  /**
-   * Tell toaster listeners about a mutation we just made.
-   *
-   * @param {Object} undoableOp undoable operation.
-   * @param {Boolean} pending
-   *   If true, indicates that we should wait to display this banner until we
-   *   transition to the next card.  This is appropriate for things like
-   *   deleting the message that is displayed on the current card (and which
-   *   will be imminently closed).
-   */
-  logMutation: function(undoableOp, pending) {
-    if (pending) {
-      this.pendingStack.push(this.show.bind(this, 'undo', undoableOp));
-    } else {
-      this.show('undo', undoableOp);
-    }
-  },
-
-  /**
-   * Something failed that it makes sense to let the user explicitly trigger
-   * a retry of!  For example, failure to synchronize.
-   */
-  logRetryable: function(retryStringId, retryCallback) {
-    this.show('retry', retryStringId, retryCallback);
-  },
-
-  handleEvent: function(evt) {
-    switch (evt.type) {
-      case 'click' :
-        var classList = evt.target.classList;
-        if (classList.contains('toaster-banner-undo')) {
-          this.undoableOp.undo();
-          this.hide();
-        } else if (classList.contains('toaster-banner-retry')) {
-          if (this.retryCallback)
-            this.retryCallback();
-          this.hide();
-        } else if (classList.contains('toaster-cancel-btn')) {
-          this.hide();
-        }
-        break;
-      case 'transitionend' :
-        this.hide();
-        break;
-    }
-  },
-
-  show: function(type, operation, callback) {
-    // Close previous toaster before showing the new one.
-    if (!this.body.classList.contains('collapsed')) {
-      this.hide();
-    }
-
-    var text, textId, showUndo = false;
-    if (type === 'undo') {
-      this.undoableOp = operation;
-      // There is no need to show toaster if affected message count < 1
-      if (!this.undoableOp || this.undoableOp.affectedCount < 1) {
-        return;
-      }
-      textId = 'toaster-message-' + this.undoableOp.operation;
-      text = mozL10n.get(textId, { n: this.undoableOp.affectedCount });
-      // https://bugzilla.mozilla.org/show_bug.cgi?id=804916
-      // Remove undo email move/delete UI for V1.
-      showUndo = (this.undoableOp.operation !== 'move' &&
-                  this.undoableOp.operation !== 'delete');
-    } else if (type === 'retry') {
-      textId = 'toaster-retryable-' + operation;
-      text = mozL10n.get(textId);
-      this.retryCallback = callback;
-    // XXX I assume this is for debug purposes?
-    } else if (type === 'text') {
-      text = operation;
-    }
-
-    if (type === 'undo' && showUndo)
-      this.undoBtn.classList.remove('collapsed');
-    else
-      this.undoBtn.classList.add('collapsed');
-    if (type === 'retry')
-      this.retryBtn.classList.remove('collapsed');
-    else
-      this.retryBtn.classList.add('collapsed');
-
-    this.body.title = type;
-    this.text.textContent = text;
-    this.body.addEventListener('click', this, false);
-    this.body.classList.remove('collapsed');
-    this.fadeTimeout = window.setTimeout(this._animationHandler.bind(this),
-                                         this._timeout);
-  },
-
-  isShowing: function() {
-    return !this.body.classList.contains('collapsed');
-  },
-
-  hide: function() {
-    this.body.classList.add('collapsed');
-    this.body.classList.remove('fadeout');
-    window.clearTimeout(this.fadeTimeout);
-    this.fadeTimeout = null;
-    this.body.removeEventListener('click', this);
-    this.body.removeEventListener('transitionend', this);
-
-    // Clear operations:
-    this.undoableOp = null;
-    this.retryCallback = null;
   }
 };
 
@@ -1430,7 +1359,7 @@ function displaySubject(subjectNode, message) {
     subjectNode.classList.remove('msg-no-subject');
   }
   else {
-    subjectNode.textContent = mozL10n.get('message-no-subject');
+    mozL10n.setAttributes(subjectNode, 'message-no-subject');
     subjectNode.classList.add('msg-no-subject');
   }
 }
@@ -1447,7 +1376,6 @@ function mimeToClass(mimeType) {
 }
 
 exports.Cards = Cards;
-exports.Toaster = Toaster;
 exports.ConfirmDialog = ConfirmDialog;
 exports.FormNavigation = FormNavigation;
 exports.prettyDate = prettyDate;

@@ -8,8 +8,8 @@
 /* global LazyLoader */
 /* global monitorTagVisibility */
 /* global Normalizer */
-/* global PerformanceTestingHelper */
 /* global utils */
+/* global ICEStore */
 
 var contacts = window.contacts || {};
 contacts.List = (function() {
@@ -54,7 +54,11 @@ contacts.List = (function() {
       rowsOnScreen = {},
       selectedContacts = {},
       _notifyRowOnScreenCallback = null,
-      _notifyRowOnScreenUUID = null;
+      _notifyRowOnScreenUUID = null,
+      // Will keep an array of contacts ids, not higger than
+      // 2 contacts with current implementation
+      iceContacts = [],
+      iceGroup = null;
 
   // Possible values for the configuration field 'defaultContactsOrder'
   // config.json file (see bug 841693)
@@ -208,9 +212,10 @@ contacts.List = (function() {
   // the search module to access the app's contacts without knowing anything
   // about our DOM structure.
   //
-  // Only provide access to non-favorite nodes.  If we include favorites then
-  // search may see out-of-order and duplicate values.
-  var NODE_SELECTOR = 'section:not(#section-group-favorites) > ol > li';
+  // Sections marked as 'non searchable' will not display the fields, in this
+  // case the favourites sections and the ICE section, since will provide
+  // duplicate results.
+  var NODE_SELECTOR = 'section:not([data-nonsearchable="true"]) > ol > li';
   var searchSource = {
     getNodes: function() {
       var domNodes = contactsListView.querySelectorAll(NODE_SELECTOR);
@@ -285,6 +290,11 @@ contacts.List = (function() {
     };
 
     utils.alphaScroll.init(params);
+    if (iceContacts.length > 0) {
+      utils.alphaScroll.showGroup('ice');
+    } else {
+      utils.alphaScroll.hideGroup('ice');
+    }
   };
 
   var scrollToCb = function scrollCb(domTarget, group) {
@@ -360,6 +370,9 @@ contacts.List = (function() {
     var title = document.createElement('header');
     title.id = 'group-' + group;
     title.className = 'hide';
+    if (group === 'favorites') {
+      letteredSection.dataset.nonsearchable = true;
+    }
 
     var letterAbbr = document.createElement('abbr');
     letterAbbr.setAttribute('title', 'Contacts listed ' + group);
@@ -648,7 +661,8 @@ contacts.List = (function() {
     }
 
     notifiedAboveTheFold = true;
-    PerformanceTestingHelper.dispatch('above-the-fold-ready');
+    // Replacing the old 'above-the-fold-ready' message
+    utils.PerformanceHelper.contentInteractive();
 
     // Don't bother loading the monitor until we have rendered our
     // first screen of contacts.  This avoids the overhead of
@@ -767,7 +781,8 @@ contacts.List = (function() {
     // if the notification has already happened.
     notifyAboveTheFold();
 
-    PerformanceTestingHelper.dispatch('startup-path-done');
+    // Replacing old message 'startup-path-done'
+    utils.PerformanceHelper.loadEnd();
     fb.init(function contacts_init() {
       if (fb.isEnabled) {
         Contacts.loadFacebook(NOP_FUNCTION);
@@ -775,7 +790,71 @@ contacts.List = (function() {
       lazyLoadImages();
       loaded = true;
     });
+
+    loadICE();
   };
+
+  /**
+   * Check if we have ICE contacts information
+   */
+  function loadICE() {
+    LazyLoader.load(['/shared/js/contacts/utilities/ice_store.js'],
+     function() {
+      ICEStore.getContacts().then(displayICEIndicator);
+      ICEStore.onChange(function() {
+        ICEStore.getContacts().then(displayICEIndicator);
+      });
+    });
+  }
+
+  function displayICEIndicator(ids) {
+    if (!ids || ids.length === 0) {
+      if (utils.alphaScroll) {
+        utils.alphaScroll.hideGroup('ice');
+      }
+      hideICEIndicator();
+      return;
+    }
+
+    iceContacts = ids;
+    if (iceGroup === null) {
+      buildICEGroup();
+    } else {
+      iceGroup.classList.remove('hide');
+    }
+
+    utils.alphaScroll.showGroup('ice');
+  }
+
+  function hideICEIndicator() {
+    if (iceGroup) {
+      iceGroup.classList.add('hide');
+    }
+  }
+
+  function buildICEGroup() {
+    iceGroup = document.createElement('section');
+    iceGroup.classList.add('group-section');
+    iceGroup.id = 'section-group-ice';
+    iceGroup.dataset.nonsearchable = true;
+    var list = document.createElement('ol');
+    list.dataset.group = 'ice';
+    list.id = 'contact-list-ice';
+    list.role = 'listbox';
+    var elem = document.createElement('li');
+    elem.classList.add('contact-item');
+    elem.dataset.group = 'ice';
+    var icon = document.createElement('span');
+    icon.src = '/contacts/style/images/icon_ice.png';
+    var p = document.createElement('p');
+    p.classList.add('contact-text');
+    p.textContent = 'ICE contacts';
+
+    groupsList.insertBefore(iceGroup,
+     groupsList.firstChild).appendChild(list).appendChild(elem);
+    elem.appendChild(icon);
+    elem.appendChild(p);
+  }
 
   var isFavorite = function isFavorite(contact) {
     return contact.category && contact.category.indexOf('favorite') != -1;
@@ -941,6 +1020,8 @@ contacts.List = (function() {
     if (show) {
       if (!ActivityHandler.currentlyHandling) {
         noContacts.classList.remove('hide');
+        fastScroll.classList.add('hide');
+        scrollable.classList.add('hide');
         return;
       }
 
@@ -950,6 +1031,8 @@ contacts.List = (function() {
       }
     }
     noContacts.classList.add('hide');
+    fastScroll.classList.remove('hide');
+    scrollable.classList.remove('hide');
   };
 
   var showNoContactsAlert = function showNoContactsAlert() {
@@ -1604,8 +1687,8 @@ contacts.List = (function() {
       deselectAll = document.getElementById('deselect-all');
       deselectAll.addEventListener('click', handleSelection);
 
-      selectForm.querySelector('.icon.icon-close').parentNode.
-                    addEventListener('click', exitSelectMode.bind(null, true));
+      selectForm.querySelector('#selectable-form-header').
+                    addEventListener('action', exitSelectMode.bind(null, true));
     }
 
     isDangerSelectList = options && options.isDanger;
@@ -1675,6 +1758,12 @@ contacts.List = (function() {
       navigationController, options) {
     inSelectMode = true;
     selectNavigationController = navigationController;
+
+    // As the transition duration is long, we must avoid clicking on settings
+    // buttons (bug 1050843)
+    document.getElementById('settings-button').classList.add('hide');
+    document.getElementById('settings-close').disabled = true;
+    document.getElementById('add-contact-button').classList.add('hide');
 
     if (options && options.transitionLevel === EXPORT_TRANSITION_LEVEL) {
       selectNavigationController.back(function() {
@@ -1788,6 +1877,10 @@ contacts.List = (function() {
   */
   var exitSelectMode = function exitSelectMode(canceling) {
     isDangerSelectList = false;
+
+    document.getElementById('settings-button').classList.remove('hide');
+    document.getElementById('add-contact-button').classList.remove('hide');
+    document.getElementById('settings-close').disabled = false;
 
     selectForm.addEventListener('transitionend', function handler() {
       selectForm.removeEventListener('transitionend', handler);

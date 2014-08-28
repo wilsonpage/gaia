@@ -12,10 +12,10 @@ from gaiatest import GaiaEnduranceTestCase
 class TestEnduranceSettings(GaiaEnduranceTestCase):
 
     settings_list = [
-                     {"menu_locator": ('id', 'menuItem-wifi'), "screen_locator": ('css selector', '#wifi-enabled input')},
+                     {"menu_locator": ('id', 'menuItem-wifi'), "screen_locator": ('css selector', '.wifi-enabled input')},
                      {"menu_locator": ('id', 'menuItem-callSettings'), "screen_locator": ('id', 'menuItem-callWaiting')},
                      {"menu_locator": ('id', 'menuItem-cellularAndData'), "screen_locator": ('id', 'dataConnection-desc')},
-                     {"menu_locator": ('id', 'menuItem-bluetooth'), "screen_locator": ('css selector', '#bluetooth-status input')},
+                     {"menu_locator": ('css selector', 'menuItem-bluetooth'), "screen_locator": ('css selector', '#bluetooth-status input')},
                      {"menu_locator": ('id', 'menuItem-internetSharing'), "screen_locator": ('xpath', '//button[@data-l10n-id="hotspotSettings"]')},
                      {"menu_locator": ('id', 'menuItem-sound'), "screen_locator": ('xpath', '//button[@data-l10n-id="change"]')},
                      {"menu_locator": ('id', 'menuItem-display'), "screen_locator": ('css selector', '#display.current')},
@@ -28,8 +28,8 @@ class TestEnduranceSettings(GaiaEnduranceTestCase):
                      {"menu_locator": ('id', 'menuItem-simSecurity'), "screen_locator": ('id', 'simpin-enabled')},
                      {"menu_locator": ('id', 'menuItem-appPermissions'), "screen_locator": ('xpath', '//a[@href="#appPermissions"]')},
                      {"menu_locator": ('id', 'menuItem-doNotTrack'), "screen_locator": ('css selector', '#doNotTrack label')},
-                     {"menu_locator": ('id', 'menuItem-applicationStorage'), "screen_locator": ('xpath', '//a[@data-l10n-id="appStorage"]')},
-                     {"menu_locator": ('id', 'menuItem-mediaStorage'), "screen_locator": ('id', 'mediaStorage')},
+                     {"menu_locator": ('css selector', 'menuItem-applicationStorage'), "screen_locator": ('xpath', '//a[@data-l10n-id="appStorage"]')},
+                     {"menu_locator": ('css selector', 'menuItem-mediaStorage'), "screen_locator": ('id', 'mediaStorage')},
                      {"menu_locator": ('id', 'menuItem-deviceInfo'), "screen_locator": ('css selector', '#about-moreInfo button')},
                      {"menu_locator": ('css selector', 'menuItem-battery'), "screen_locator": ('id', 'model-name')},
                      {"menu_locator": ('id', 'menuItem-improveBrowserOS'), "screen_locator": ('id', 'improveBrowserOS')},

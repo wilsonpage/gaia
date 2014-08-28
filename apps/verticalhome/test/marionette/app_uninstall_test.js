@@ -36,30 +36,34 @@ marionette('Vertical - App Uninstall', function() {
     system = new System(client);
     system.waitForStartup();
 
-    // install an app
-    appInstall.install(server.manifestURL);
     client.apps.launch(Home2.URL);
     home.waitForLaunch();
+
+    // install an app
+    client.switchToFrame();
+    appInstall.install(server.manifestURL);
+
+    client.switchToFrame(system.getHomescreenIframe());
     home.enterEditMode();
   });
 
   test('use edit mode to uninstall the app', function() {
     var icon = home.getIcon(server.manifestURL);
     var iconId = getIconId(icon);
+    // helps marionette finding the icon: Bug 1046706
+    home.moveIconToIndex(icon, 0);
+
     var remove = icon.findElement('.remove');
 
-    // XXX: work around issues where the icon is hidden by other
-    //      status messages on the system app.
-    icon.scriptWith(function(el) {
-      // effectively scroll to the bottom of the screen.
-      el.scrollIntoView(false);
-    });
+    home.waitForSystemBanner();
 
     // remove the icon
-    remove.click();
+    remove.tap();
     // confirm the dialog to ensure it was removed.
+    client.switchToFrame();
     home.confirmDialog('remove');
     // ensure the icon disappears
+    client.switchToFrame(system.getHomescreenIframe());
     client.helper.waitForElementToDisappear(icon);
 
     home.restart();

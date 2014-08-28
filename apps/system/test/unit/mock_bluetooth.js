@@ -3,8 +3,18 @@
 /* global MockDOMRequest */
 
 var MockBluetooth = {
+  get Profiles() {
+    return {
+      HFP: 'hfp',   // Hands-Free Profile
+      OPP: 'opp',   // Object Push Profile
+      A2DP: 'a2dp', // A2DP status
+      SCO: 'sco'    // Synchronous Connection-Oriented
+    };
+  },
   defaultAdapter: null,
+  connected: false,
   enabled: true,
+  mExpectedProfile: null,
   init: function mbt_init() {
     var mockAdapater = {
       address: '01:23:45:67:89:AB',
@@ -12,7 +22,8 @@ var MockBluetooth = {
       getPairedDevices: function mbt_getPairedDevices() {
         // fake object with two paired devices
         var tmpObj = {
-          result: [{}, {}]
+          result: [{ address: '01:01:01:02:02:02' },
+                   { address: '03:03:03:04:04:04' }]
         };
         // run asynchronous onsuccess callback
         setTimeout(function() {
@@ -33,7 +44,7 @@ var MockBluetooth = {
         return new MockDOMRequest();
       },
       pair: function() {
-        return {};
+        return new MockDOMRequest();
       }
     };
     this.defaultAdapter = mockAdapater;
@@ -45,6 +56,10 @@ var MockBluetooth = {
 
   getDefaultAdapter: function mbt_getDefaultAdapter() {
     return new MockDOMRequest();
+  },
+
+  isProfileConnected: function mbt_isProfileConnected(profile) {
+    return this.mExpectedProfile === profile;
   }
 };
 

@@ -5,7 +5,7 @@
 requireApp('system/test/unit/mock_app_window.js');
 requireApp('system/shared/test/unit/mocks/mock_settings_listener.js');
 requireApp('system/test/unit/mock_layout_manager.js');
-requireApp('system/test/unit/mock_system.js');
+require('/shared/test/unit/mocks/mock_system.js');
 requireApp('system/shared/test/unit/mocks/mock_settings_listener.js');
 requireApp('system/test/unit/mock_sim_pin_dialog.js');
 requireApp('system/test/unit/mock_rocketbar.js');
@@ -19,6 +19,7 @@ suite('system/AppTransitionController', function() {
   mocksForAppTransitionController.attachTestHelpers();
   setup(function(done) {
     window.SimPinDialog = new MockSimPinDialog();
+    window.rocketbar = new MockRocketbar();
     window.rocketbar = new MockRocketbar();
     stubById = this.sinon.stub(document, 'getElementById');
     stubById.returns(document.createElement('div'));
@@ -88,10 +89,10 @@ suite('system/AppTransitionController', function() {
   test('Opened notification', function() {
     var app1 = new MockAppWindow(fakeAppConfig1);
     var acn1 = new AppTransitionController(app1);
-    var stubSetVisible = this.sinon.stub(app1, 'setVisible');
+    var stubRequestForeground = this.sinon.stub(app1, 'requestForeground');
     acn1._transitionState = 'opening';
     acn1.handleEvent({ type: '_opened' });
-    assert.isTrue(stubSetVisible.calledWith(true));
+    assert.isTrue(stubRequestForeground.calledOnce);
   });
 
   test('Animation start event', function() {
@@ -171,9 +172,9 @@ suite('system/AppTransitionController', function() {
     var app1 = new MockAppWindow(fakeAppConfig1);
     var acn1 = new AppTransitionController(app1);
     var stubReviveBrowser = this.sinon.stub(app1, 'reviveBrowser');
-    var stubSetVisible = this.sinon.stub(app1, 'setVisible');
+    var stubRequestForeground = this.sinon.stub(app1, 'requestForeground');
     acn1.handle_opening();
-    assert.isTrue(stubSetVisible.calledWith(true));
+    assert.isTrue(stubRequestForeground.calledOnce);
     assert.isTrue(stubReviveBrowser.called);
   });
 
@@ -230,14 +231,27 @@ suite('system/AppTransitionController', function() {
     assert.isTrue(stubFocus.called);
   });
 
+  test('Do not focus if rocketbar is active', function() {
+    var app1 = new MockAppWindow(fakeAppConfig1);
+    var acn1 = new AppTransitionController(app1);
+    var stubFocus = this.sinon.stub(app1, 'focus');
+    app1.loaded = true;
+    MockSimPinDialog.visible = false;
+    rocketbar.active = true;
+    acn1._transitionState = 'opened';
+
+    acn1.handle_opened();
+    assert.isTrue(stubFocus.notCalled);
+  });
+
   suite('Opened', function() {
     test('Handle opened', function() {
       var app1 = new MockAppWindow(fakeAppConfig1);
       var acn1 = new AppTransitionController(app1);
-      var stubSetVisible = this.sinon.stub(app1, 'setVisible');
+      var stubRequestForeground = this.sinon.stub(app1, 'requestForeground');
       var stubSetOrientation = this.sinon.stub(app1, 'setOrientation');
       acn1.handle_opened();
-      assert.isTrue(stubSetVisible.calledWith(true));
+      assert.isTrue(stubRequestForeground.calledOnce);
       assert.isTrue(stubSetOrientation.called);
     });
   });

@@ -3,6 +3,14 @@
 
 (function(exports) {
 
+  var appMgr = navigator.mozApps.mgmt;
+  var apps = null;
+
+  appMgr.getAll().onsuccess = function onsuccess(event) {
+    apps = event.target.result;
+    window.dispatchEvent(new CustomEvent('navigator-mozapps-ready'));
+  };
+
   /**
    * ApplicationSource is responsible for populating the iniial application
    * results as well as mapping indexedDB records to app objects for launching.
@@ -25,15 +33,28 @@
       });
     }
 
+    function addMozAppListener() {
+      window.addEventListener('downloadapplied', function onDownloadApplied(e) {
+        appManager.sendEventToCollectionApp('install', {
+          id: e.detail.id
+        });
+      });
+    }
+
     addSVEventListener();
+    addMozAppListener();
 
-    var appMgr = navigator.mozApps.mgmt;
-
-    appMgr.getAll().onsuccess = function onsuccess(event) {
-      for (var i = 0, iLen = event.target.result.length; i < iLen; i++) {
-        this.makeIcons(event.target.result[i]);
+    var self = this;
+    function addIcons() {
+      window.removeEventListener('navigator-mozapps-ready', addIcons);
+      for (var i = 0, iLen = apps.length; i < iLen; i++) {
+        self.makeIcons(apps[i]);
       }
-    }.bind(this);
+      apps = null;
+    }
+
+    apps ? addIcons() : window.addEventListener('navigator-mozapps-ready',
+                                                 addIcons);
 
     /**
      * Adds a new application to the layout when the user installed it
@@ -71,8 +92,13 @@
       app.grid.render();
       app.itemStore.save(app.grid.getItems());
 
-      appManager.sendEventToCollectionApp('install',
-        { id: application.manifestURL });
+      // for packaged apps ignore the 'install' event and wait for
+      // 'downloadapplied'
+      if (application.installState === 'installed') {
+        appManager.sendEventToCollectionApp('install', {
+          id: application.manifestURL
+        });
+      }
     }
 
     /**
@@ -110,8 +136,15 @@
 
     appMgr.onuninstall = function onuninstall(event) {
       var application = event.application;
+      var manifest = application.updateManifest || application.manifest;
+
       this.removeIconFromGrid(application.manifestURL);
       app.itemStore.save(app.grid.getItems());
+
+      if (app.HIDDEN_ROLES.indexOf(manifest.role) !== -1) {
+        return;
+      }
+
       appManager.sendEventToCollectionApp('uninstall',
         { id: application.manifestURL });
     }.bind(this);
@@ -138,8 +171,10 @@
 
       for (i = 0, iLen = this.entries.length; i < iLen; i++) {
         var entry = this.entries[i];
+        var manifest = entry.app.updateManifest || entry.app.manifest;
+
         if (!appIconsByManifestUrl[entry.detail.manifestURL] &&
-            !entry.app.manifest.entry_points) {
+            !manifest.entry_points) {
           toAdd.push(entry);
         } else {
           delete appIconsByManifestUrl[entry.detail.manifestURL];
@@ -166,7 +201,9 @@
       var appObject = this.mapToApp({
         manifestURL: application.manifestURL
       });
+      var lastDivider = app.grid.removeUntilDivider();
       app.grid.add(appObject);
+      app.grid.add(lastDivider);
       app.grid.render();
     },
 
@@ -238,8 +275,8 @@
       };
 
       return new GaiaGrid.Mozapp(app, entry.entryPoint, {
-        // cached icon blob in case of network failures
-        defaultIconBlob: entry.defaultIconBlob
+        // cached decorated icon blob to load faster
+        decoratedIconBlob: entry.decoratedIconBlob
       });
     },
 

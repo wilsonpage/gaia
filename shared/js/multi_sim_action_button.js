@@ -67,6 +67,11 @@ MultiSimActionButton.prototype._click = function(event) {
     return;
   }
 
+  if (event) {
+    // Prevent the KeypadManager handler from triggering.
+    event.stopImmediatePropagation();
+  }
+
   if (navigator.mozIccManager.iccIds.length === 0) {
     // We don't care what slot to call on, as emergency calls for example will
     // go through on any slot.
@@ -103,10 +108,11 @@ MultiSimActionButton.prototype._updateUI = function() {
       navigator.mozIccManager.iccIds.length > 1) {
     if (this._simIndication) {
       var self = this;
+      var l10nId = this._simIndication.dataset.l10nId || 'sim-picker-button';
       navigator.mozL10n.ready(function() {
-        navigator.mozL10n.localize(self._simIndication,
-                                   'sim-picker-button',
-                                   {n: cardIndex+1});
+        navigator.mozL10n.setAttributes(self._simIndication,
+                                        l10nId,
+                                        {n: cardIndex+1});
       });
     }
 

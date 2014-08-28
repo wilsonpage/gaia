@@ -10,165 +10,126 @@
   pointer-events: none;
 }
 
-#statusbar-background {
-  width: 100%;
-  height: 2.4rem;
-  background-color: #000;
-  opacity: 1;
-  padding: 0;
-  transform: scaleY(1);
-  transition: transform 0.1s, opacity 0.5s;
-  transform-origin: left top;
-}
-
 #statusbar {
   position: fixed;
   width: 100%;
-  height: 2.4rem;
-  top: 0;
+  height: 3rem;
+  top: -3rem;
   left: 0;
 }
 
-body:not(.rb-enabled) #statusbar {
-  transition: transform 0.2s linear;
+@media (orientation: landscape) {
+  #screen.software-button-enabled #statusbar-background,
+  #screen.software-button-enabled #statusbar {
+    width: calc(100% - 5rem);
+  }
 }
 
-#screen.on-homescreen:not(.utility-tray):not(.attention) #statusbar-background:not(.opaque) {
-  /* We want to show both the statusbar and homesearch bar at 15% opacity.
-     The homescreen has a 5% wallpaper overlay, so 0.1 is needed to match. */
-  opacity: 0.1;
+#screen.utility-tray #statusbar,
+#screen.attention #statusbar {
+  top: 0;
+  background-color: black;
+}
+
+/* When the utility tray is displayed, the title bar is hidden, so we only show
+ the maximised status bar. */
+#screen.utility-tray #statusbar-minimized {
+  display: none;
+}
+
+body #statusbar {
+  transition: transform 0.2s linear;
 }
 
 /* Hiding the black background while the homescreen is in foreground but not
  * utility tray or attention screen */
-#screen.lockscreen-camera > #statusbar,
-#statusbar.invisible {
+#screen.lockscreen-camera > #statusbar {
   transform: scaleY(0);
   transform-origin: left top;
 }
 
-#statusbar-background.hidden {
-  display: none;
-}
-
-#screen.lockscreen-camera > #statusbar-background {
-  display: none;
-}
-
-#screen.locked:not(.attention) #statusbar,
-#screen.locked:not(.attention) #statusbar-background {
+#screen.locked:not(.attention) #statusbar {
   background-color: transparent;
   display: block;
   transform: scaleY(1);
-}
-
-#screen.locked:not(.attention) #statusbar-background:before {
-  background-color: transparent;
-}
-
-#screen:not(.locked) #statusbar.invisible.dragged {
-  background-color: black;
 }
 
 #screen.attention.locked #statusbar-time {
   display: block;
 }
 
-#statusbar-icons > * {
-  float: right;
-  margin: 0 0.2rem 0 0.3rem;
-}
-
-#statusbar-icons {
+.statusbar {
   position: absolute;
-  width: calc(50% - 0.8rem);
-  height: 2rem;
+  width: 100%;
+  height: 3rem;
   margin: 0;
   top: 0;
   right: 0;
-  padding: 0.4rem 0.8rem;
+  padding: 0 0.8rem;
   transition: opacity 0.3s;
   overflow: hidden;
   white-space: nowrap;
-}
-
-#screen.rocketbar-expanded:not(.on-homescreen):not(.locked) #statusbar-icons,
-#screen.on-homescreen.rocketbar-focused:not(.locked) #statusbar-icons,
-#screen.rocketbar-expanded.cards-view #statusbar-icons,
-#screen.fullscreen-app #statusbar:not(.dragged) #statusbar-icons {
-  visibility: hidden;
-  opacity: 0;
-}
-
-#screen.rocketbar-focused #statusbar-background {
-  visibility: hidden;
-  opacity: 0;
-}
-
-body:not(.rb-enabled) #statusbar-icons,
-body.rb-enabled #statusbar.on-homescreen #statusbar-icons {
-  width: 100%;
   box-sizing: border-box;
 }
 
-#statusbar-title,
-body:not(.rb-enabled) #statusbar-icons > .sb-start {
-  float: left;
-  margin: 0 0.2rem 0 0;
-  -moz-transition: visibility 0.5s ease, -moz-transform 0.5s ease;
+#statusbar-minimized {
+  width: calc(100% - 100% * 0.6521 + 8rem * 0.6521 - 0.5rem);
+  padding: 0 0.8rem 0 0;
 }
 
-*[dir=rtl] #statusbar-icons {
+.statusbar > * {
+  float: right;
+  margin: 0.6rem 0.2rem 0.6rem 0.3rem;
+}
+
+#screen.rocketbar-focused:not(.locked) .statusbar {
+  visibility: hidden;
+  opacity: 0;
+}
+
+*[dir=rtl] .statusbar {
   right: auto;
   left: 0;
 }
 
-*[dir=rtl] #statusbar-icons > * {
+*[dir=rtl] .statusbar > * {
   float: left;
 }
 
-*[dir=rtl] #statusbar-icons > .sb-start {
+*[dir=rtl] body .statusbar > .sb-start {
   float: right;
 }
 
-#statusbar-icons > .sb-start-upper {
+.statusbar > .sb-start-upper {
   visibility: hidden;
   position: absolute;
-  top: -2.4rem;
   left: 0;
-
-  -moz-transition: visibility 0.5s ease, -moz-transform 0.5s ease;
+  top: -3rem;
 }
 
-*[dir=rtl] #statusbar-icons > .sb-start-upper {
+*[dir=rtl] .statusbar > .sb-start-upper {
   left: auto;
   right: 0;
 }
 
-body:not(.rb-enabled) .utility-tray #statusbar-icons > .sb-start-upper,
+body .utility-tray .statusbar > .sb-start-upper,
 .utility-tray #statusbar > #statusbar-title,
 #statusbar-title.hidden {
   visibility: visible;
-  -moz-transform: translateY(2.4rem);
+  transform: translateY(3rem);
 }
 
-body:not(.rb-enabled) .utility-tray #statusbar-icons > .sb-start {
+body .utility-tray .statusbar > .sb-start {
   visibility: hidden;
-  -moz-transform: translateY(2.4rem);
+  transform: translateY(3rem);
 }
 
 #statusbar-label {
-  position: relative;
   margin-left: 0.8rem;
-  padding-top: 0.4rem;
   color: #ffffff;
   font-size: 1.5rem;
   font-weight: 400;
   line-height: 1.6rem;
-}
-
-body.rb-enabled #statusbar-label {
-  display: none;
 }
 
 #statusbar-time, #statusbar-data:not(.sb-icon-data-circle) {
@@ -193,7 +154,7 @@ body.rb-enabled #statusbar-label {
 #statusbar-connections > * {
   float: right;
   pointer-events: none;
-  margin: 0 0.2rem;
+  margin: 0.6rem 0.2rem;
 }
 
 #statusbar-connections .statusbar-data:not(.sb-icon-data-circle) {
@@ -235,7 +196,7 @@ body.rb-enabled #statusbar-label {
 #statusbar-connections[data-multiple="true"] .statusbar-data {
   position: relative;
   width: 1.3rem;
-  margin: 0;
+  margin: 0.3rem 0 0 0;
   font-size: 0.8rem;
   text-align: right;
 }
@@ -263,7 +224,7 @@ body.rb-enabled #statusbar-label {
 #statusbar-call-forwardings > * {
   float: right;
   pointer-events: none;
-  margin: 0 0.6rem;
+  margin: 0.4rem 0.6rem;
 }
 
 #statusbar-call-forwardings .sb-icon-call-forwarding {
@@ -297,7 +258,7 @@ body.rb-enabled #statusbar-label {
   background-size: 34rem 9.6rem;
 }
 
-#statusbar-icons .sb-icon-battery {
+.sb-icon-battery {
   width: 2.5rem;
 }
 .sb-icon-battery[data-level="0"] {
@@ -531,7 +492,8 @@ body.rb-enabled #statusbar-label {
 .sb-icon-notification {
   background: none;
   width: 3.2rem;
-  position: relative;
+  position: absolute;
+  left: 0;
 }
 
 .sb-icon-notification::before {
@@ -578,7 +540,7 @@ body.rb-enabled #statusbar-label {
   left: 0;
 }
 
-.sb-emergency-cb-icon-notification {
+.sb-icon-emergency-cb-notification {
   background-position: -24rem -8rem;
 }
 
@@ -621,4 +583,32 @@ body.rb-enabled #statusbar-label {
 
 .sb-icon-nfc {
   background-position: -26rem -8rem;
+}
+
+/* Hide icons applying a class to the status bar */
+.sb-hide-time .sb-icon-time,
+.sb-hide-battery .sb-icon-battery,
+.sb-hide-flight-mode .sb-icon-flight-mode,
+.sb-hide-wifi .sb-icon-wifi,
+.sb-hide-connections .sb-icon-connections,
+.sb-hide-network-activity .sb-icon-network-activity,
+.sb-hide-tethering .sb-icon-tethering,
+.sb-hide-bluetooth .sb-icon-bluetooth,
+.sb-hide-nfc .sb-icon-nfc,
+.sb-hide-emergency-cb-notification .sb-icon-emergency-cb-notification,
+.sb-hide-system-downloads .sb-icon-system-downloads,
+.sb-hide-usb .sb-icon-usb,
+.sb-hide-mute .sb-icon-mute,
+.sb-hide-recording .sb-icon-recording,
+.sb-hide-geolocation .sb-icon-geolocation,
+.sb-hide-call-forwardings .sb-icon-call-forwardings,
+.sb-hide-bluetooth-headphones .sb-icon-bluetooth-headphones,
+.sb-hide-headphones .sb-icon-headphones,
+.sb-hide-playing .sb-icon-playing,
+.sb-hide-notification .sb-icon-notification,
+.sb-hide-bluetooth-transferring .sb-icon-bluetooth-transferring,
+.sb-hide-alarm .sb-icon-alarm,
+.sb-hide-sms .sb-icon-sms,
+.sb-hide-label .sb-icon-label {
+  display: none;
 }

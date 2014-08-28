@@ -1,17 +1,21 @@
-/*global MocksHelper, MockL10n, AppWindow, BrowserContextMenu */
+/*global MocksHelper, MockL10n, AppWindow, BrowserContextMenu,
+  MockMozActivity, MozActivity*/
 
 'use strict';
 
-requireApp('system/test/unit/mock_l10n.js');
+require('/shared/test/unit/mocks/mock_l10n.js');
+require('/shared/test/unit/mocks/mock_lazy_loader.js');
+require('/shared/test/unit/mocks/mock_icons_helper.js');
 requireApp('system/test/unit/mock_orientation_manager.js');
 requireApp('system/test/unit/mock_app_window.js');
+require('/shared/test/unit/mocks/mock_moz_activity.js');
 
 var mocksForAppModalDialog = new MocksHelper([
-  'AppWindow'
+  'AppWindow', 'MozActivity', 'LazyLoader', 'IconsHelper'
 ]).init();
 
 suite('system/BrowserContextMenu', function() {
-  var stubById, realL10n, stubQuerySelector;
+  var stubById, realL10n, stubQuerySelector, realMozActivity;
   mocksForAppModalDialog.attachTestHelpers();
   setup(function(done) {
     realL10n = navigator.mozL10n;
@@ -25,12 +29,17 @@ suite('system/BrowserContextMenu', function() {
     requireApp('system/js/system.js');
     requireApp('system/js/base_ui.js');
     requireApp('system/js/browser_context_menu.js', done);
+    realMozActivity = window.MozActivity;
+    window.MozActivity = MockMozActivity;
+    MozActivity.mSetup();
   });
 
   teardown(function() {
     navigator.mozL10n = realL10n;
     stubById.restore();
     stubQuerySelector.restore();
+    MozActivity.mTeardown();
+    window.MozActivity = realMozActivity;
   });
 
   var fakeAppConfig1 = {
@@ -57,6 +66,7 @@ suite('system/BrowserContextMenu', function() {
   };
 
   var SYSTEM_TARGET_TYPES = [
+    'a',
     'A',
     'IMG',
     'VIDEO',
@@ -191,6 +201,16 @@ suite('system/BrowserContextMenu', function() {
       md1.handleEvent(event);
       assert.isFalse(event.defaultPrevented);
     }
+  });
+
+  test('openUrl()', function() {
+    var app1 = new AppWindow(fakeAppConfig1);
+    var md1 = new BrowserContextMenu(app1);
+    md1.openUrl('http://example.com');
+    assert.equal(MozActivity.calls.length, 1);
+    assert.equal(MozActivity.calls[0].name, 'view');
+    assert.equal(MozActivity.calls[0].data.type, 'url');
+    assert.equal(MozActivity.calls[0].data.url, 'http://example.com');
   });
 
 });

@@ -73,6 +73,7 @@ function NetSocket(port, host, crypto) {
     onopen: this._onconnect.bind(this),
     onerror: this._onerror.bind(this),
     ondata: this._ondata.bind(this),
+    onprogress: this._onprogress.bind(this),
     onclose: this._onclose.bind(this)
   };
   var routerInfo = routerMaker.register(function(data) {
@@ -141,7 +142,7 @@ NetSocket.prototype.upgradeToSecure = function() {
 NetSocket.prototype.end = function() {
   if (this.destroyed)
     return;
-  this._sendMessage('end');
+  this._sendMessage('close');
   this.destroyed = true;
   this._unregisterWithRouter();
 };
@@ -155,6 +156,9 @@ NetSocket.prototype._onerror = function(err) {
 NetSocket.prototype._ondata = function(data) {
   var buffer = Buffer(data);
   this.emit('data', buffer);
+};
+NetSocket.prototype._onprogress = function() {
+  this.emit('progress');
 };
 NetSocket.prototype._onclose = function() {
   this.emit('close');
@@ -674,7 +678,10 @@ function chewStructure(msg) {
       // If it exists, keep it the same, except in the case of inline
       // disposition without a content id.
       if (partInfo.disposition.type.toLowerCase() == 'inline') {
-        if (partInfo.id) {
+      // Displaying text-parts inline is not a problem for us, but we need a
+      // content id for other embedded content.  (Currently only images are
+      // supported, but that is enforced in a subsequent check.)
+        if (partInfo.type === 'text' || partInfo.id) {
           disposition = 'inline';
         } else {
           disposition = 'attachment';

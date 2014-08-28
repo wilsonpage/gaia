@@ -24,7 +24,7 @@
     <script defer src="shared/elements/gaia_grid/js/grid_view.js"></script>
     <script defer src="shared/elements/gaia_grid/js/grid_icon_renderer.js"></script>
     <script defer src="shared/elements/gaia_grid/js/grid_layout.js"></script>
-    <script defer src="shared/elements/gaia_grid/js/grid_dragdrop.js"></script>
+    <!-- <script defer src="shared/elements/gaia_grid/js/grid_dragdrop.js"></script> -->
     <script defer src="shared/elements/gaia_grid/script.js"></script>
     <script defer src="shared/elements/gaia_grid/js/items/grid_item.js"></script>
     <script defer src="shared/elements/gaia_grid/js/items/bookmark.js"></script>
@@ -33,13 +33,20 @@
     <script defer src="shared/elements/gaia_grid/js/items/placeholder.js"></script>
     <!-- /gaia grid -->
 
+    <!-- Gaia Components -->
+    <script defer src="shared/elements/config.js"></script>
+    <script defer src="shared/elements/gaia-header/dist/script.js"></script>
+    <link rel="stylesheet" href="shared/elements/gaia-theme/style.css">
+    <!-- <link rel="stylesheet" href="shared/elements/gaia-icons/style.css"> -->
+
     <script defer src="shared/js/everythingme/eme.js"></script>
     <script defer src="shared/js/everythingme/cache.js"></script>
     <script defer src="shared/js/everythingme/device.js"></script>
     <script defer src="shared/js/everythingme/api.js"></script>
 
-    <script defer src="js/collection_icon.js"></script>
+    <script defer src="js/common.js"></script>
     <script defer src="js/objects.js"></script>
+    <script defer src="js/collection_icon.js"></script>
     <script defer src="js/home_icons.js"></script>
     <script defer src="js/native_info.js"></script>
     <script defer src="js/contextmenu.js"></script>
@@ -53,46 +60,43 @@
     <link rel="stylesheet" href="style/css/view.css">
     <link rel="stylesheet" href="shared/elements/gaia_grid/style/external.css">
     <link rel="resource" type="application/l10n" href="locales/locales.ini">
-    <link rel="resource" type="application/l10n" href="/shared/locales/gaia_grid.ini">
+    <link rel="resource" type="application/l10n" href="/shared/elements/gaia_grid/locales/locales.ini">
     <link rel="resource" type="application/l10n" href="/shared/locales/collection_categories.ini">
     <link rel="stylesheet" type="text/css" href="shared/style/progress_activity.css">
 
   </head>
-  <body>
+  <body class="theme-media">
     <section role="region">
-        <header id="header">
-            <a id="close" href="#">
-                <span class="icon icon-close">close</span>
-            </a>
+        <gaia-header id="header" action="close">
             <h1 id="name"></h1>
-        </header>
+        </gaia-header>
 
         <section id="edit-header" class="skin-dark" role="region">
-          <header>
-            <menu type="toolbar"><a href="#" data-l10n-id="edit-done" id="exit-edit-mode">Done</a></menu>
+          <gaia-header>
             <h1 data-l10n-id="edit-mode">Edit</h1>
-          </header>
+            <a href="#" data-l10n-id="edit-done" id="exit-edit-mode">Done</a>
+          </gaia-header>
         </section>
 
+        <div id="edit-curtain"></div>
+
         <div id="content-background-image">
-          <div id="content-background-overlay">
-            <div id="content">
-              <gaia-grid cols="4" id="grid" dragdrop></gaia-grid>
+          <div id="content">
+            <gaia-grid cols="4" id="grid" dragdrop></gaia-grid>
 
-              <section role="notification" id="offline">
-                <span id="offline-message"></span>
-              </section>
+            <section role="notification" id="offline">
+              <span id="offline-message"></span>
+            </section>
 
-              <section role="notification" id="loading">
-                <progress></progress>
-              </section>
-            </div>
+            <section role="notification" id="loading">
+              <progress></progress>
+            </section>
           </div>
         </div>
 
         <gaia-menu id="cloud-menu" hidden>
             <button data-l10n-id="add-to-top-of-collection" id="pin-cloudapp">Add to top of collection</button>
-            <button data-l10n-id="save-to-homescreen" id="bookmark-cloudapp">Save to Homescreen</button>
+            <button data-l10n-id="add-to-home-screen" id="bookmark-cloudapp">Add to Home Screen</button>
         </gaia-menu>
     </section>
   </body>

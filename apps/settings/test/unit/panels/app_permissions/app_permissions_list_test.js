@@ -1,10 +1,5 @@
 'use strict';
-/* global MockLock, MockMozApps, MockPermissionSettings */
-
-// workaround because a "require" in mock_settings_listener doesn't work
-// properly in a alameda world. If we don't require it here we sometimes hit a,
-// issue in MockLock.set where MockNavigatorSettings is not defined yet.
-require('/shared/test/unit/mocks/mock_navigator_moz_settings.js');
+/* global MockMozApps, MockPermissionSettings */
 
 suite('app permission list > ', function() {
   var PermissionList;
@@ -123,21 +118,6 @@ suite('app permission list > ', function() {
           'should show default icon if it is not defined in its manifest');
 
         assert.equal(permissionList._permissionTableHaveProcessed, true);
-    });
-
-    test('confirmGoClicked', function() {
-      permissionList.confirmGoClicked();
-      assert.equal(permissionList._elements.dialog.hidden, true,
-        'should hide the dialog if user click confirm button');
-      assert.deepEqual(MockLock.locks[0], {
-        'clear.remote-windows.data': true
-      }, 'should set the clear.remote-windows.data as true in settingsLock');
-    });
-
-    test('confirmCancelClicked', function() {
-      permissionList.confirmCancelClicked();
-      assert.equal(permissionList._elements.dialog.hidden, true,
-        'should hide the dialog if user click cancel button');
     });
 
     test('onApplicationInstall', function() {

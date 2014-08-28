@@ -27,8 +27,8 @@ function StorageController(app) {
   this.camera = app.camera;
   this.settings = app.settings;
   this.storage = app.storage || new Storage();
-  this.configure();
   this.bindEvents();
+  this.configure();
   debug('initialized');
 }
 
@@ -44,6 +44,7 @@ function StorageController(app) {
  * @private
  */
 StorageController.prototype.configure = function() {
+  this.storage.configure();
   this.camera.createVideoFilepath = this.storage.createVideoFilepath;
   this.updateMaxFileSize();
 };
@@ -66,6 +67,7 @@ StorageController.prototype.bindEvents = function() {
   this.app.on('visible', this.storage.check);
 
   // Storage
+  this.storage.on('volumechanged', this.app.firer('storage:volumechanged'));
   this.storage.on('itemdeleted', this.app.firer('storage:itemdeleted'));
   this.storage.on('changed', this.onChanged);
   this.storage.on('checked', this.onChecked);
@@ -118,11 +120,13 @@ StorageController.prototype.storePicture = function(picture) {
   var memoryBlob = picture.blob;
   var self = this;
 
-  this.storage.addPicture(memoryBlob, function(filepath, abspath, fileBlob) {
-    picture.blob = fileBlob;
-    picture.filepath = filepath;
-    debug('stored picture', picture);
-    self.app.emit('newmedia', picture);
+  this.storage.addPicture(
+    memoryBlob,
+    function(error, filepath, abspath, fileBlob) {
+      picture.blob = fileBlob;
+      picture.filepath = filepath;
+      debug('stored picture', picture);
+      self.app.emit('newmedia', picture);
   });
 };
 
@@ -151,15 +155,16 @@ StorageController.prototype.storeVideo = function(video) {
   video.isVideo = true;
 
   this.storage.addPicture(
-    poster.blob, { filepath: poster.filepath },
-    function(path, absolutePath, fileBlob) {
+    poster.blob,
+    { filepath: poster.filepath },
+    function(error, path, absolutePath, fileBlob) {
       // Replace the memory-backed Blob with the DeviceStorage file-backed File.
       // Note that "video" references "poster", so video previews will use this
       // File.
       poster.blob = fileBlob;
       debug('new video', video);
       self.app.emit('newmedia', video);
-    });
+  });
 };
 
 /**

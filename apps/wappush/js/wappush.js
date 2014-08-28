@@ -1,8 +1,8 @@
 /* -*- Mode: js; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- /
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
 
-/* global CpScreenHelper, Notification, NotificationHelper, ParsedMessage,
-          Promise, SiSlScreenHelper, WhiteList */
+/* global CpScreenHelper, DUMP, Notification, NotificationHelper,
+          ParsedMessage, Promise, SiSlScreenHelper, WhiteList */
 
 /* exported WapPushManager */
 
@@ -18,7 +18,9 @@
     close: wpm_close,
     displayWapPushMessage: wpm_displayWapPushMessage,
     onVisibilityChange: wpm_onVisibilityChange,
-    setOnCloseCallback: wpm_setOnCloseCallback
+    setOnCloseCallback: wpm_setOnCloseCallback,
+    clearNotifications: wpm_clearNotifications,
+    enableAcceptButton: wpm_enableAcceptButton
   };
 
   /** Settings key for enabling/disabling WAP Push messages */
@@ -30,8 +32,11 @@
   /** A reference to the app's object */
   var app = null;
 
-  /** Close button node */
-  var closeButton = null;
+  /** Accept button node */
+  var acceptButton = null;
+
+  /** Header node - which has the close button */
+  var header = null;
 
   /** Callback function to be invoqued when closing the app from either mode
     * CP or SI/SL */
@@ -94,7 +99,8 @@
     navigator.mozSettings.addObserver(wapPushEnableKey, wpm_onSettingsChange);
 
     // Retrieve the various page elements
-    closeButton = document.getElementById('close');
+    acceptButton = document.getElementById('accept');
+    header = document.getElementById('header');
 
     // Get the app object and configuration
     var promise = Promise.all([wpm_getApp(), wpm_getConfig()]);
@@ -108,7 +114,7 @@
       CpScreenHelper.init();
 
       // Register event and message handlers only after initialization is done
-      closeButton.addEventListener('click', wpm_onClose);
+      header.addEventListener('action', wpm_onClose);
       document.addEventListener('visibilitychange', wpm_onVisibilityChange);
       window.navigator.mozSetMessageHandler('notification', wpm_onNotification);
       window.navigator.mozSetMessageHandler('wappush-received',
@@ -142,6 +148,16 @@
       window.clearTimeout(closeTimeout);
       closeTimeout = null;
     }
+  }
+
+  /**
+   * Show/hide the accept button.
+   *
+   * @param {Boolean} enabled Shows the accept button when true, hides it
+   *        otherwise.
+   */
+  function wpm_enableAcceptButton(enabled) {
+    acceptButton.classList.toggle('hidden', !enabled);
   }
 
   /**
@@ -230,11 +246,13 @@
    * @param {Object} wapMessage The WAP Push message as provided by the system.
    */
   function wpm_onWapPushReceived(wapMessage) {
+    DUMP('Received a message: ', wapMessage);
     pendingMessages++;
 
     var message = ParsedMessage.from(wapMessage, Date.now());
 
     if (!wpm_shouldDisplayMessage(message)) {
+      DUMP('The message will not be displayed');
       wpm_finish();
       return;
     }
@@ -242,10 +260,12 @@
     message.save(
       function wpm_saveSuccess(status) {
         if (status === 'discarded') {
+          DUMP('The message was discarded');
           wpm_finish();
           return;
         }
 
+        DUMP('The message was successfully saved to the DB');
         wpm_sendNotification(message);
         wpm_finish();
       },
@@ -281,25 +301,16 @@
    * @param {String} timestamp The message timestamp as a string.
    */
   function wpm_displayWapPushMessage(timestamp) {
+    DUMP('Displaying message ' + timestamp);
+
     ParsedMessage.load(timestamp,
       function wpm_loadSuccess(message) {
-        // Retrieve pending notifications and close the matching ones
-        Notification.get({tag: timestamp}).then(
-          function onSuccess(notifications) {
-            for (var i = 0; i < notifications.length; i++) {
-              notifications[i].close();
-            }
-          },
-          function onError(reason) {
-            console.error('Notification.get() promise error: ' + reason);
-          }
-        );
-
         if (message) {
           switch (message.type) {
             case 'text/vnd.wap.si':
             case 'text/vnd.wap.sl':
               SiSlScreenHelper.populateScreen(message);
+              wpm_clearNotifications(timestamp);
               break;
             case 'text/vnd.wap.connectivity-xml':
               CpScreenHelper.populateScreen(message);
@@ -308,10 +319,27 @@
         } else {
           // Notify the user that the message has expired
           SiSlScreenHelper.populateScreen();
+          wpm_clearNotifications(timestamp);
         }
       },
       function wpm_loadError(error) {
         console.log('Could not retrieve the message:' + error + '\n');
+      }
+    );
+  }
+
+  /**
+   * Remove notifications for a given tag
+   */
+  function wpm_clearNotifications(tag) {
+    Notification.get({tag: tag}).then(
+      function onSuccess(notifications) {
+        for (var i = 0; i < notifications.length; i++) {
+          notifications[i].close();
+        }
+      },
+      function onError(reason) {
+        console.error('Notification.get() promise error: ' + reason);
       }
     );
   }
@@ -354,6 +382,7 @@
 
       /* There's no more pending messages and the application is in the
        * background, close for real */
+      DUMP('Automatically closing the application');
       closeTimeout = null;
       window.close();
     }, 100);

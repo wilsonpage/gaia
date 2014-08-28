@@ -1,11 +1,13 @@
 'use strict';
 
 /* global MockNavigatormozSetMessageHandler, CollectionsDatabase, migrator,
-          BookmarksDatabase, HomeState, GridItemsFactory, MockasyncStorage */
+          BookmarksDatabase, HomeState, GridItemsFactory, MockasyncStorage,
+          verticalPreferences */
 
 require('/shared/js/bookmarks_database.js');
 require('/shared/js/collections_database.js');
 require('/shared/test/unit/mocks/mock_navigator_moz_set_message_handler.js');
+require('/shared/js/homescreens/vertical_preferences.js');
 
 requireApp('homescreen/test/unit/mock_asyncStorage.js');
 requireApp('homescreen/js/grid_components.js');
@@ -22,8 +24,11 @@ suite('migrator.js >', function() {
       url = 'http://www.test.com/',
       bdAddStub = null,
       cdAddStub = null,
+      vpPutStub = null,
+      vpGetStub = null,
       bookmarks = [],
       collections = [],
+      layout = null,
       port = {
         start: function() {
           this.cb();
@@ -41,15 +46,33 @@ suite('migrator.js >', function() {
     navigator.mozSetMessageHandler = MockNavigatormozSetMessageHandler;
     MockNavigatormozSetMessageHandler.mSetup();
     requireApp('homescreen/js/migrator.js', done);
+    vpGetStub = sinon.stub(verticalPreferences, 'get', function(id) {
+      return {
+        then: function(resolve) {
+          resolve();
+        }
+      };
+    });
   });
 
   suiteTeardown(function() {
     window.asyncStorage = realAsyncStorage;
     MockNavigatormozSetMessageHandler.mTeardown();
     navigator.mozSetMessageHandler = realSetMessageHandler;
+    vpGetStub.restore();
   });
 
   setup(function() {
+    var mockStoredCollection = {
+      value: {
+        apps: []
+      }
+    };
+    window.asyncStorage.keys['evme-collectionsettings_idcollection'] =
+      mockStoredCollection;
+    window.asyncStorage.keys['evme-collectionsettings_idcollection2'] =
+      mockStoredCollection;
+
     bdAddStub = sinon.stub(BookmarksDatabase, 'add', function(bookmark) {
       bookmarks.push(bookmark);
 
@@ -69,12 +92,23 @@ suite('migrator.js >', function() {
         }
       };
     });
+
+    vpPutStub = sinon.stub(verticalPreferences, 'put', function(id, data) {
+      layout = data;
+
+      return {
+        then: function(resolve) {
+          resolve();
+        }
+      };
+    });
   });
 
   teardown(function() {
     delete port.postMessage;
     bdAddStub.restore();
     cdAddStub.restore();
+    vpPutStub.restore();
     bookmarks = [];
     collections = [];
   });
@@ -154,6 +188,12 @@ suite('migrator.js >', function() {
 
       assert.isFalse(cdAddStub.called);
       assert.equal(collections.length, 0);
+
+      assert.isTrue(vpPutStub.called);
+      var firstPage = layout.grid[0];
+      assert.equal(firstPage.length, 2);
+      assert.equal(firstPage[0].id, url + 'bookmark');
+      assert.equal(firstPage[1].name, 'app');
       done();
     };
 
@@ -184,6 +224,13 @@ suite('migrator.js >', function() {
 
       assert.isFalse(cdAddStub.called);
       assert.equal(collections.length, 0);
+
+      assert.isTrue(vpPutStub.called);
+      var firstPage = layout.grid[0];
+      assert.equal(firstPage.length, 2);
+      assert.equal(firstPage[0].id, url + 'bookmark');
+      assert.equal(firstPage[0].role, GridItemsFactory.TYPE.BOOKMARK);
+      assert.equal(firstPage[1].name, 'app');
       done();
     };
 
@@ -217,6 +264,15 @@ suite('migrator.js >', function() {
 
       assert.isFalse(cdAddStub.called);
       assert.equal(collections.length, 0);
+
+      assert.isTrue(vpPutStub.called);
+      var firstPage = layout.grid[0];
+      assert.equal(firstPage.length, 3);
+      assert.equal(firstPage[0].id, url + 'bookmark');
+      assert.equal(firstPage[0].role, GridItemsFactory.TYPE.BOOKMARK);
+      assert.equal(firstPage[1].name, 'app');
+      assert.equal(firstPage[2].id, url + 'bookmark2');
+      assert.equal(firstPage[2].role, GridItemsFactory.TYPE.BOOKMARK);
       done();
     };
 
@@ -252,6 +308,17 @@ suite('migrator.js >', function() {
 
       assert.isFalse(cdAddStub.called);
       assert.equal(collections.length, 0);
+
+      assert.isTrue(vpPutStub.called);
+      var firstPage = layout.grid[0];
+      assert.equal(firstPage.length, 1);
+      assert.equal(firstPage[0].id, url + 'bookmark');
+      assert.equal(firstPage[0].role, GridItemsFactory.TYPE.BOOKMARK);
+
+      var secondPage = layout.grid[1];
+      assert.equal(secondPage.length, 1);
+      assert.equal(secondPage[0].id, url + 'bookmark2');
+      assert.equal(secondPage[0].role, GridItemsFactory.TYPE.BOOKMARK);
       done();
     };
 
@@ -269,7 +336,8 @@ suite('migrator.js >', function() {
     var page = {
       'index': 0,
       'icons': [ createIcon('collection', {
-                   type: GridItemsFactory.TYPE.COLLECTION
+                   type: GridItemsFactory.TYPE.COLLECTION,
+                   provider_id: 234
                  }),
                  createIcon('app')
                ]
@@ -283,6 +351,13 @@ suite('migrator.js >', function() {
 
       assert.isTrue(cdAddStub.called);
       assert.equal(collections.length, 1);
+
+      assert.isTrue(vpPutStub.called);
+      var firstPage = layout.grid[0];
+      assert.equal(firstPage.length, 2);
+      assert.equal(firstPage[0].id, 234);
+      assert.equal(firstPage[0].role, GridItemsFactory.TYPE.COLLECTION);
+      assert.equal(firstPage[1].name, 'app');
       done();
     };
 
@@ -299,10 +374,12 @@ suite('migrator.js >', function() {
     var page = {
       'index': 0,
       'icons': [ createIcon('collection', {
-                   type: GridItemsFactory.TYPE.COLLECTION
+                   type: GridItemsFactory.TYPE.COLLECTION,
+                   provider_id: 234
                  }),
                  createIcon('collection2', {
-                   type: GridItemsFactory.TYPE.COLLECTION
+                   type: GridItemsFactory.TYPE.COLLECTION,
+                   provider_id: 129
                  }),
                  createIcon('app')
                ]
@@ -316,6 +393,15 @@ suite('migrator.js >', function() {
 
       assert.isTrue(cdAddStub.called);
       assert.equal(collections.length, 2);
+
+      assert.isTrue(vpPutStub.called);
+      var firstPage = layout.grid[0];
+      assert.equal(firstPage.length, 3);
+      assert.equal(firstPage[0].id, 234);
+      assert.equal(firstPage[0].role, GridItemsFactory.TYPE.COLLECTION);
+      assert.equal(firstPage[1].id, 129);
+      assert.equal(firstPage[1].role, GridItemsFactory.TYPE.COLLECTION);
+      assert.equal(firstPage[2].name, 'app');
       done();
     };
 
@@ -332,14 +418,16 @@ suite('migrator.js >', function() {
     var page0 = {
       'index': 0,
       'icons': [ createIcon('collection', {
-                   type: GridItemsFactory.TYPE.COLLECTION
+                   type: GridItemsFactory.TYPE.COLLECTION,
+                   provider_id: 234
                  })]
     };
 
     var page1 = {
       'index': 1,
       'icons': [ createIcon('collection2', {
-                   type: GridItemsFactory.TYPE.COLLECTION
+                   type: GridItemsFactory.TYPE.COLLECTION,
+                   provider_id: 129
                  })]
     };
 
@@ -351,6 +439,17 @@ suite('migrator.js >', function() {
 
       assert.isTrue(cdAddStub.called);
       assert.equal(collections.length, 2);
+
+      assert.isTrue(vpPutStub.called);
+      var firstPage = layout.grid[0];
+      assert.equal(firstPage.length, 1);
+      assert.equal(firstPage[0].id, 234);
+      assert.equal(firstPage[0].role, GridItemsFactory.TYPE.COLLECTION);
+      
+      var secondPage = layout.grid[1];
+      assert.equal(secondPage.length, 1);
+      assert.equal(secondPage[0].id, 129);
+      assert.equal(secondPage[0].role, GridItemsFactory.TYPE.COLLECTION);
       done();
     };
 
@@ -373,14 +472,16 @@ suite('migrator.js >', function() {
                  createIcon('app'),
                  createIcon('app'),
                  createIcon('collection2', {
-                   type: GridItemsFactory.TYPE.COLLECTION
+                   type: GridItemsFactory.TYPE.COLLECTION,
+                   provider_id: 234
                  })]
     };
 
     var page1 = {
       'index': 1,
       'icons': [ createIcon('collection', {
-                   type: GridItemsFactory.TYPE.COLLECTION
+                   type: GridItemsFactory.TYPE.COLLECTION,
+                   provider_id: 129
                  }),
                  createIcon('app'),
                  createIcon('bookmark2', {
@@ -396,6 +497,24 @@ suite('migrator.js >', function() {
 
       assert.isTrue(cdAddStub.called);
       assert.equal(collections.length, 2);
+
+      assert.isTrue(vpPutStub.called);
+      var firstPage = layout.grid[0];
+      assert.equal(firstPage.length, 4);
+      assert.equal(firstPage[0].id, url + 'bookmark');
+      assert.equal(firstPage[0].role, GridItemsFactory.TYPE.BOOKMARK);
+      assert.equal(firstPage[1].name, 'app');
+      assert.equal(firstPage[2].name, 'app');
+      assert.equal(firstPage[3].id, 234);
+      assert.equal(firstPage[3].role, GridItemsFactory.TYPE.COLLECTION);
+
+      var secondPage = layout.grid[1];
+      assert.equal(secondPage.length, 3);
+      assert.equal(secondPage[0].id, 129);
+      assert.equal(secondPage[0].role, GridItemsFactory.TYPE.COLLECTION);
+      assert.equal(secondPage[1].name, 'app');
+      assert.equal(secondPage[2].id, url + 'bookmark2');
+      assert.equal(secondPage[2].role, GridItemsFactory.TYPE.BOOKMARK);
       done();
     };
 
@@ -405,6 +524,47 @@ suite('migrator.js >', function() {
       iterator(page1);
       success();
     });
+
+    startMigration();
+  });
+
+  test('Skip CollectionsDatabase when E.me has not been initialzed',
+    function(done) {
+    var page = {
+      'index': 0,
+      'icons': [ createIcon('collection', {
+                   type: GridItemsFactory.TYPE.COLLECTION,
+                   provider_id: 234
+                 }),
+                 createIcon('app')
+               ]
+    };
+
+    port.postMessage = function(msg) {
+      assert.equal(msg, 'Done');
+      
+      assert.isFalse(bdAddStub.called);
+      assert.equal(bookmarks.length, 0);
+
+      assert.isFalse(cdAddStub.called);
+      assert.equal(collections.length, 0);
+
+      assert.isTrue(vpPutStub.called);
+      var firstPage = layout.grid[0];
+      assert.equal(firstPage.length, 2);
+      assert.equal(firstPage[0].id, 234);
+      assert.equal(firstPage[0].role, GridItemsFactory.TYPE.COLLECTION);
+      assert.equal(firstPage[1].name, 'app');
+      done();
+    };
+
+    var stub = sinon.stub(HomeState, 'getGrid', function(iterator, success) {
+      stub.restore();
+      iterator(page);
+      success();
+    });
+
+    window.asyncStorage.keys['evme-collectionsettings_idcollection'] = {};
 
     startMigration();
   });

@@ -139,7 +139,7 @@ WebappShared.prototype.copyPage = function(path) {
   if (extension === 'html') {
     this.filterSharedUsage(file);
   }
-}
+};
 
 WebappShared.prototype.pushResource = function(path) {
   let file = this.gaia.sharedFolder.clone();
@@ -149,6 +149,9 @@ WebappShared.prototype.pushResource = function(path) {
     file.append(segment);
     if (utils.isSubjectToBranding(file.path)) {
       file.append((this.config.OFFICIAL === '1') ? 'official' : 'unofficial');
+    }
+    if (utils.isSubjectToDeviceType(file.path)) {
+      file.append(this.config.GAIA_DEVICE_TYPE);
     }
   }.bind(this));
 
@@ -240,13 +243,13 @@ WebappShared.prototype.pushElements = function(path) {
 
   var elementName = String(paths.shift());
 
-  // Only handle web components for now (start with gaia_)
-  if (elementName.indexOf('gaia_') !== 0) {
+  // Only handle web components for now (start with gaia)
+  if (elementName.indexOf('gaia') !== 0) {
     return;
   }
 
   // Copy possible resources from components.
-  var resources = ['style.css', 'css', 'js', 'images'];
+  var resources = ['style.css', 'css', 'js', 'images', 'locales', 'fonts'];
   resources.forEach(function(resource) {
     var eachFile = this.gaia.sharedFolder.clone();
     eachFile.append('elements');
@@ -317,7 +320,7 @@ WebappShared.prototype.pushFileByType = function(kind, path) {
 
 WebappShared.prototype.filterSharedUsage = function(file) {
   var SHARED_USAGE =
-      /<(?:script|link).+=['"]\.?\.?\/?shared\/([^\/]+)\/([^''\s]+)("|')/g;
+      /<(?:script|link).+=['"]\.?\.?\/?shared\/([^\/]+)\/([^'"\s]+)("|')/g;
   var content = utils.getFileContent(file);
   var matches = null;
   while((matches = SHARED_USAGE.exec(content)) !== null) {

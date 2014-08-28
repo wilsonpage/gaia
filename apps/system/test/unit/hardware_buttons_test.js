@@ -1,16 +1,24 @@
 'use strict';
 
-/* global HardwareButtons, MocksHelper, ScreenManager */
+/* global HardwareButtons, MocksHelper, ScreenManager, MockSettingsListener */
 
-requireApp('system/js/hardware_buttons.js');
-requireApp('system/test/unit/mock_screen_manager.js');
+require('/test/unit/mock_screen_manager.js');
+require('/shared/test/unit/mocks/mock_settings_listener.js');
 
-var mocksForHardwareButtons = new MocksHelper(['ScreenManager']).init();
+var mocksForHardwareButtons = new MocksHelper([
+  'SettingsListener',
+  'ScreenManager'
+]).init();
 
 suite('system/HardwareButtons', function() {
   mocksForHardwareButtons.attachTestHelpers();
 
   var hardwareButtons;
+
+  var stubDispatchEvent;
+  var stubSetTimeout;
+  var stubClearTimeout;
+  var i = 0;
 
   //var realDispatchEvent = window.dispatchEvent;
   var CustomEvent = window.CustomEvent;
@@ -31,22 +39,32 @@ suite('system/HardwareButtons', function() {
     hardwareButtons.handleEvent(evt);
   };
 
-  setup(function() {
+  suiteSetup(function(done) {
     /**
-     * Since the script still initialize itself, we should not allow
-     * the "global" instance from being responsive in our tests here.
+     * Since the script initializes itself, mocks needs to be in it's right
+     * places before we could load the script. We also want to stop() the
+     * "global" instance so it will not be responsive in our tests here.
      */
-    if (window.hardwareButtons) {
+    require('/js/hardware_buttons.js', function() {
       window.hardwareButtons.stop();
       window.hardwareButtons = null;
-    }
 
+      done();
+    });
+  });
+
+  setup(function() {
     hardwareButtons = new HardwareButtons();
     hardwareButtons.start();
 
     window.CustomEvent = function MockCustomEvent(type, dict) {
       return { type: type, bubbles: dict.bubbles };
     };
+
+    stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
+    stubSetTimeout = this.sinon.stub(window, 'setTimeout');
+    stubSetTimeout.returns(++i);
+    stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
   });
 
   teardown(function() {
@@ -57,11 +75,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and release home (screen enabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     fireChromeEvent('home-button-press');
     fireChromeEvent('home-button-release');
 
@@ -78,11 +91,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and release home (screen disabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     ScreenManager.screenEnabled = false;
     fireChromeEvent('home-button-press');
     fireChromeEvent('home-button-release');
@@ -99,12 +107,16 @@ suite('system/HardwareButtons', function() {
       stubSetTimeout.getCall(0).returnValue);
   });
 
-  test('press and release sleep (screen enabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
+  test('press and release home (soft home enabled)', function() {
+    MockSettingsListener.mCallbacks['software-button.enabled'](true);
 
+    fireChromeEvent('home-button-press');
+    fireChromeEvent('home-button-release');
+
+    assert.isTrue(stubDispatchEvent.notCalled);
+  });
+
+  test('press and release sleep (screen enabled)', function() {
     fireChromeEvent('sleep-button-press');
     fireChromeEvent('sleep-button-release');
 
@@ -121,11 +133,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and release sleep (screen disabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     ScreenManager.screenEnabled = false;
     fireChromeEvent('sleep-button-press');
     fireChromeEvent('sleep-button-release');
@@ -143,8 +150,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('hold volume-down and press sleep (screen enabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-
     fireChromeEvent('sleep-button-press');
     fireChromeEvent('volume-down-button-press');
     fireChromeEvent('sleep-button-release');
@@ -156,11 +161,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('hold volume-down and press sleep (screen disabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     ScreenManager.screenEnabled = false;
     fireChromeEvent('sleep-button-press');
     fireChromeEvent('volume-down-button-press');
@@ -184,11 +184,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('hold sleep and press volume-down (screen enabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     fireChromeEvent('volume-down-button-press');
     fireChromeEvent('sleep-button-press');
     fireChromeEvent('sleep-button-release');
@@ -207,11 +202,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('hold sleep and press volume-down (screen disabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     ScreenManager.screenEnabled = false;
     fireChromeEvent('sleep-button-press');
     fireChromeEvent('volume-down-button-press');
@@ -235,11 +225,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and hold home (screen enabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     fireChromeEvent('home-button-press');
 
     assert.isTrue(stubSetTimeout.calledOnce);
@@ -258,11 +243,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and hold home (screen disabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     ScreenManager.screenEnabled = false;
     fireChromeEvent('home-button-press');
 
@@ -286,11 +266,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and hold sleep (screen enabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     fireChromeEvent('sleep-button-press');
 
     assert.isTrue(stubSetTimeout.calledOnce);
@@ -309,11 +284,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and hold sleep (screen disabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     ScreenManager.screenEnabled = false;
     fireChromeEvent('sleep-button-press');
 
@@ -337,11 +307,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and release volume up (screen enabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     fireChromeEvent('volume-up-button-press');
     fireChromeEvent('volume-up-button-release');
 
@@ -357,11 +322,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and release volume up (screen disabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     ScreenManager.screenEnabled = false;
     fireChromeEvent('volume-up-button-press');
     fireChromeEvent('volume-up-button-release');
@@ -378,11 +338,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and hold volume up (screen enabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     fireChromeEvent('volume-up-button-press');
 
     assert.isTrue(stubSetTimeout.calledOnce);
@@ -412,11 +367,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and hold volume up (screen disabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     ScreenManager.screenEnabled = false;
     fireChromeEvent('volume-up-button-press');
 
@@ -447,11 +397,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and release volume down (screen enabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     fireChromeEvent('volume-down-button-press');
     fireChromeEvent('volume-down-button-release');
 
@@ -467,11 +412,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and release volume down (screen disabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     ScreenManager.screenEnabled = false;
     fireChromeEvent('volume-down-button-press');
     fireChromeEvent('volume-down-button-release');
@@ -488,11 +428,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and hold volume down (screen enabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     fireChromeEvent('volume-down-button-press');
 
     assert.isTrue(stubSetTimeout.calledOnce);
@@ -522,11 +457,6 @@ suite('system/HardwareButtons', function() {
   });
 
   test('press and hold volume down (screen disabled)', function() {
-    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
-    var stubSetTimeout = this.sinon.stub(window, 'setTimeout');
-    stubSetTimeout.returns(Math.floor(Math.random() * 10000));
-    var stubClearTimeout = this.sinon.stub(window, 'clearTimeout');
-
     ScreenManager.screenEnabled = false;
     fireChromeEvent('volume-down-button-press');
 

@@ -24,6 +24,9 @@ var UpdateManager = {
   _settings: null,
   NOTIFICATION_BUFFERING_TIMEOUT: 30 * 1000,
   TOASTER_TIMEOUT: 1200,
+  UPDATE_2G_SETT: 'update.2g.enabled',
+  ROAMING_SETTING_KEY: 'ril.data.roaming_enabled',
+  DATA_TYPES_NO_ALLOWED: ['edge', 'gprs', '1xrtt', 'is95a', 'is95b'],
 
   container: null,
   message: null,
@@ -34,7 +37,9 @@ var UpdateManager = {
   downloadButton: null,
   downloadViaDataConnectionButton: null,
   downloadDialog: null,
+  downloadViaDataConnectionTitle: null,
   downloadViaDataConnectionDialog: null,
+  downloadViaDataConnectionMessage: null,
   downloadDialogTitle: null,
   downloadDialogList: null,
   lastUpdatesAvailable: 0,
@@ -78,6 +83,10 @@ var UpdateManager = {
     this.downloadDialogList = this.downloadDialog.querySelector('ul');
     this.downloadViaDataConnectionDialog =
       document.getElementById('updates-viaDataConnection-dialog');
+    this.downloadViaDataConnectionMessage =
+      this.downloadViaDataConnectionDialog.querySelector('p');
+    this.downloadViaDataConnectionTitle =
+      this.downloadViaDataConnectionDialog.querySelector('h1');
 
     this.container.onclick = this.containerClicked.bind(this);
     this.laterButton.onclick = this.cancelPrompt.bind(this);
@@ -117,7 +126,7 @@ var UpdateManager = {
     } else {
       if (this._dataConnectionWarningEnabled &&
           this.downloadDialog.dataset.nowifi === 'true') {
-        this.downloadViaDataConnectionDialog.classList.add('visible');
+        this._openDownloadViaDataDialog();
       } else {
         this._startedDownloadUsingDataConnection = false;
         this.startDownloads();
@@ -176,6 +185,54 @@ var UpdateManager = {
     }, this.NOTIFICATION_BUFFERING_TIMEOUT);
   },
 
+  launchDownload: function um_launchDownload() {
+    var self = this;
+    // If it's not connected to a wifi we need to verify what kind of
+    // connection it has
+    if (self._isNotWifiConnected()) {
+      var reqUpdate = self._settings.createLock().get(self.UPDATE_2G_SETT);
+      reqUpdate.onsuccess = reqUpdate.onerror = (function() {
+        // If setting doesn't exist, we can't update over slow connections
+        var update2G =
+             reqUpdate.result && reqUpdate.result[self.UPDATE_2G_SETT] || false;
+
+        // If update 2G is available we don't need to know what kind
+        // of connection the phone has
+        if (update2G) {
+          self.showDownloadPrompt();
+        } else {
+          // We can download the update only if the current connection
+          // is not forbidden for download
+          var conns = window.navigator.mozMobileConnections;
+          if (!conns) {
+            console.error('mozMobileConnections is not available we can ' +
+                          'not update the phone.');
+            self.showForbiddenDownload();
+          } else {
+            var dataType;
+            // In DualSim only one of them will have data active
+            for (var i = 0, iLen = conns.length; i < iLen && !dataType; i++) {
+              dataType = conns[i].data.type;
+            }
+            if (!dataType) {
+              console.error('There are not wifi connection nor data ' +
+                            'connection. We can not download update');
+              self.showForbiddenDownload();
+            } else {
+              if (self.DATA_TYPES_NO_ALLOWED.indexOf(dataType) >= 0) {
+                self.showForbiddenDownload();
+              } else {
+                self.showDownloadPrompt();
+              }
+            }
+          }
+        }
+      });
+    } else {
+      self.showDownloadPrompt();
+    }
+  },
+
   containerClicked: function um_containerClicker() {
     var _ = navigator.mozL10n.get;
 
@@ -193,14 +250,28 @@ var UpdateManager = {
       CustomDialog.show(_('cancelAllDownloads'), _('wantToCancelAll'),
                         cancel, confirm);
     } else {
-      this.showDownloadPrompt();
+      this.launchDownload();
     }
 
     UtilityTray.hide();
   },
 
+  showForbiddenDownload: function um_showForbiddenDownload() {
+    var _ = navigator.mozL10n.get;
+
+    var ok = {
+      title: _('ok'),
+      callback: this.cancelPrompt.bind(this)
+    };
+
+    CustomDialog.show(
+    _('systemUpdate'),
+    _('downloadUpdatesVia2GForbidden2'),
+    ok);
+  },
+
   showDownloadPrompt: function um_showDownloadPrompt() {
-    var _localize = navigator.mozL10n.localize;
+    var _localize = navigator.mozL10n.setAttributes;
 
     this._systemUpdateDisplayed = false;
     _localize(this.downloadDialogTitle, 'numberOfUpdates', {
@@ -323,7 +394,7 @@ var UpdateManager = {
   },
 
   render: function um_render() {
-    var _localize = navigator.mozL10n.localize;
+    var _localize = navigator.mozL10n.setAttributes;
 
     _localize(this.toasterMessage, 'updateAvailableInfo', {
       n: this.updatesQueue.length - this.lastUpdatesAvailable
@@ -562,13 +633,16 @@ var UpdateManager = {
     }
   },
 
-  updateWifiStatus: function su_updateWifiStatus() {
+  _isNotWifiConnected: function su_isNotWifiConnected() {
     var wifiManager = window.navigator.mozWifiManager;
-    if (!wifiManager)
+    if (!wifiManager) {
       return;
+    }
+    return wifiManager.connection.status != 'connected';
+  },
 
-    this.downloadDialog.dataset.nowifi =
-      (wifiManager.connection.status != 'connected');
+  updateWifiStatus: function su_updateWifiStatus() {
+    this.downloadDialog.dataset.nowifi = this._isNotWifiConnected();
   },
 
   checkForUpdates: function su_checkForUpdates(shouldCheck) {
@@ -586,6 +660,64 @@ var UpdateManager = {
     lock.set({
       'gaia.system.checkForUpdates': false
     });
+  },
+
+  _openDownloadViaDataDialog: function um_downloadViaDataDialog() {
+    var _ = navigator.mozL10n.setAttributes;
+    var connections = window.navigator.mozMobileConnections;
+    var dataType;
+    var sim;
+
+    if (!connections) {
+      this.showForbiddenDownload();
+      return;
+    }
+    // In DualSim only one of them will have data active
+    for (var i = 0; i < connections.length && !dataType; i++) {
+      dataType = connections[i].data.type;
+      sim = connections[i];
+    }
+
+    if (!dataType) {
+      //No connection available
+      self.showForbiddenDownload();
+      return;
+    }
+    var dataRoamingSettingPromise = this._getDataRoamingSetting();
+    dataRoamingSettingPromise.then(function(roaming) {
+      if (roaming && sim.data.roaming) {
+        _(this.downloadViaDataConnectionTitle,
+          'downloadUpdatesViaDataRoamingConnection');
+        _(this.downloadViaDataConnectionMessage,
+          'downloadUpdatesViaDataRoamingConnectionMessage');
+      } else {
+        _(this.downloadViaDataConnectionTitle,
+          'downloadUpdatesViaDataConnection');
+        _(this.downloadViaDataConnectionMessage,
+          'downloadUpdatesViaDataConnectionMessage2');
+      }
+
+      this.downloadViaDataConnectionDialog.classList.add('visible');
+    }.bind(this));
+  },
+
+  _getDataRoamingSetting: function um_getDataRoamingSetting() {
+    var lock = this._settings.createLock();
+    var reqDataRoaming = lock.get(this.ROAMING_SETTING_KEY);
+    var dataRoamingSettingPromise;
+    var self = this;
+
+    dataRoamingSettingPromise = new Promise(function(resolve, reject) {
+      reqDataRoaming.onsuccess = function() {
+        resolve(reqDataRoaming.result[self.ROAMING_SETTING_KEY]);
+      };
+
+      reqDataRoaming.onerror = function() {
+        resolve(false);
+      };
+    });
+
+    return dataRoamingSettingPromise;
   },
 
   _dispatchEvent: function um_dispatchEvent(type, result) {

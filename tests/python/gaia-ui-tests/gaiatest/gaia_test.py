@@ -90,8 +90,15 @@ class GaiaApps(object):
         assert result, "Failed to kill app with name '%s'" % app.name
 
     def kill_all(self):
+        # First we attempt to kill the FTU, we treat it as a user app
+        for app in self.running_apps(include_system_apps=True):
+            if app.origin == 'app://ftu.gaiamobile.org':
+                self.kill(app)
+                break
+
+        # Now kill the user apps
         self.marionette.switch_to_frame()
-        self.marionette.execute_async_script("GaiaApps.killAll()")
+        self.marionette.execute_async_script("GaiaApps.killAll();")
 
     @property
     def installed_apps(self):
@@ -111,11 +118,17 @@ class GaiaApps(object):
                     name=app['manifest']['name']))
         return result
 
-    @property
-    def running_apps(self):
+    def running_apps(self, include_system_apps=False):
+        '''  Returns a list of running apps
+        Args:
+            include_system_apps: Includes otherwise hidden System apps in the list
+        Returns:
+            A list of GaiaApp objects representing the running apps.
+        '''
+        include_system_apps = json.dumps(include_system_apps)
         self.marionette.switch_to_frame()
         apps = self.marionette.execute_script(
-            'return GaiaApps.getRunningApps();')
+            "return GaiaApps.getRunningApps(%s);" % include_system_apps)
         result = []
         for app in [a[1] for a in apps.items()]:
             result.append(GaiaApp(origin=app['origin'], name=app['name']))
@@ -131,6 +144,12 @@ class GaiaData(object):
         js = os.path.abspath(os.path.join(__file__, os.path.pardir, 'atoms', "gaia_data_layer.js"))
         self.marionette.import_script(js)
 
+        # TODO Bugs 1043562/1049489 To perform ContactsAPI scripts from the chrome context, we need
+        # to import the js file into chrome context too
+        self.marionette.set_context(self.marionette.CONTEXT_CHROME)
+        self.marionette.import_script(js)
+        self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
+
     def set_time(self, date_number):
         self.marionette.set_context(self.marionette.CONTEXT_CHROME)
         self.marionette.execute_script("window.navigator.mozTime.set(%s);" % date_number)
@@ -138,28 +157,45 @@ class GaiaData(object):
 
     @property
     def all_contacts(self):
-        self.marionette.switch_to_frame()
-        return self.marionette.execute_async_script('return GaiaDataLayer.getAllContacts();', special_powers=True)
+        # TODO Bug 1049489 - In future, simplify executing scripts from the chrome context
+        self.marionette.set_context(self.marionette.CONTEXT_CHROME)
+        result = self.marionette.execute_async_script('return GaiaDataLayer.getAllContacts();', special_powers=True)
+        self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
+        return result
 
     @property
     def sim_contacts(self):
-        self.marionette.switch_to_frame()
+        # TODO Bug 1049489 - In future, simplify executing scripts from the chrome context
+        self.marionette.set_context(self.marionette.CONTEXT_CHROME)
         adn_contacts = self.marionette.execute_async_script('return GaiaDataLayer.getSIMContacts("adn");', special_powers=True)
         sdn_contacts = self.marionette.execute_async_script('return GaiaDataLayer.getSIMContacts("sdn");', special_powers=True)
-
+        self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
         return adn_contacts + sdn_contacts
 
     def insert_contact(self, contact):
-        self.marionette.switch_to_frame()
+        # TODO Bug 1049489 - In future, simplify executing scripts from the chrome context
+        self.marionette.set_context(self.marionette.CONTEXT_CHROME)
         mozcontact = contact.create_mozcontact()
         result = self.marionette.execute_async_script('return GaiaDataLayer.insertContact(%s);' % json.dumps(mozcontact), special_powers=True)
         assert result, 'Unable to insert contact %s' % contact
+        self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
+
+    def insert_sim_contact(self, contact, contact_type='adn'):
+        # TODO Bug 1049489 - In future, simplify executing scripts from the chrome context
+        self.marionette.set_context(self.marionette.CONTEXT_CHROME)
+        mozcontact = contact.create_mozcontact()
+        result = self.marionette.execute_async_script('return GaiaDataLayer.insertSIMContact("%s", %s);'
+                                                      % (contact_type, json.dumps(mozcontact)), special_powers=True)
+        assert result, 'Unable to insert SIM contact %s' % contact
+        self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
 
     def remove_all_contacts(self):
-        self.marionette.switch_to_frame()
+        # TODO Bug 1049489 - In future, simplify executing scripts from the chrome context
+        self.marionette.set_context(self.marionette.CONTEXT_CHROME)
         timeout = max(self.marionette.timeout or 60000, 1000 * len(self.all_contacts))
         result = self.marionette.execute_async_script('return GaiaDataLayer.removeAllContacts();', special_powers=True, script_timeout=timeout)
         assert result, 'Unable to remove all contacts'
+        self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
 
     def get_setting(self, name):
         return self.marionette.execute_async_script('return GaiaDataLayer.getSetting("%s")' % name, special_powers=True)
@@ -241,12 +277,8 @@ class GaiaData(object):
 
     @property
     def is_cell_data_connected(self):
-        # XXX: check bug-926169
-        # this is used to keep all tests passing while introducing multi-sim APIs
-        return self.marionette.execute_script('var mobileConnection = window.navigator.mozMobileConnection || ' +
-                                              'window.navigator.mozMobileConnections && ' +
-                                              'window.navigator.mozMobileConnections[0]; ' +
-                                              'return mobileConnection.data.connected;')
+        return self.marionette.execute_script('return window.navigator.mozMobileConnections && ' +
+                                              'window.navigator.mozMobileConnections[0].data.connected;')
 
     def enable_cell_roaming(self):
         self.set_setting('ril.data.roaming_enabled', True)
@@ -357,6 +389,7 @@ class GaiaData(object):
         return files
 
     def send_sms(self, number, message):
+        self.marionette.switch_to_frame()
         import json
         number = json.dumps(number)
         message = json.dumps(message)
@@ -387,38 +420,44 @@ class Accessibility(object):
         self.marionette.import_script(js)
 
     def is_hidden(self, element):
-        return self.marionette.execute_async_script(
-            'return Accessibility.isHidden.apply(Accessibility, arguments)',
-            [element], special_powers=True)
+        return self._run_async_script('isHidden', [element])
 
     def is_visible(self, element):
-        return self.marionette.execute_async_script(
-            'return Accessibility.isVisible.apply(Accessibility, arguments)',
-            [element], special_powers=True)
+        return self._run_async_script('isVisible', [element])
 
     def is_disabled(self, element):
-        return self.marionette.execute_async_script(
-            'return Accessibility.isDisabled.apply(Accessibility, arguments)',
-            [element], special_powers=True)
+        return self._run_async_script('isDisabled', [element])
 
     def click(self, element):
-        self.marionette.execute_async_script(
-            'Accessibility.click.apply(Accessibility, arguments)',
-            [element], special_powers=True)
+        self._run_async_script('click', [element])
 
     def wheel(self, element, direction):
         self.marionette.execute_script('Accessibility.wheel.apply(Accessibility, arguments)', [
             element, direction])
 
     def get_name(self, element):
-        return self.marionette.execute_async_script(
-            'return Accessibility.getName.apply(Accessibility, arguments)',
-            [element], special_powers=True)
+        return self._run_async_script('getName', [element])
 
     def get_role(self, element):
-        return self.marionette.execute_async_script(
-            'return Accessibility.getRole.apply(Accessibility, arguments)',
-            [element], special_powers=True)
+        return self._run_async_script('getRole', [element])
+
+    def dispatchEvent(self):
+        self.marionette.execute_script("window.wrappedJSObject.dispatchEvent(new CustomEvent(" +
+                                       "'accessibility-action'));")
+
+    def _run_async_script(self, func, args):
+        result = self.marionette.execute_async_script(
+            'return Accessibility.%s.apply(Accessibility, arguments)' % func,
+            args, special_powers=True)
+
+        if not result:
+            return
+
+        if result.has_key('error'):
+            message = 'accessibility.js error: %s' % result['error']
+            raise Exception(message)
+
+        return result.get('result', None)
 
 class FakeUpdateChecker(object):
 
@@ -486,12 +525,8 @@ class GaiaDevice(object):
 
     @property
     def has_mobile_connection(self):
-        # XXX: check bug-926169
-        # this is used to keep all tests passing while introducing multi-sim APIs
-        return self.marionette.execute_script('var mobileConnection = window.navigator.mozMobileConnection || ' +
-                                              'window.navigator.mozMobileConnections && ' +
-                                              'window.navigator.mozMobileConnections[0]; ' +
-                                              'return mobileConnection !== undefined')
+        return self.marionette.execute_script('return window.navigator.mozMobileConnections && ' +
+                                              'window.navigator.mozMobileConnections[0].voice.network !== null')
 
     @property
     def has_wifi(self):
@@ -515,12 +550,15 @@ class GaiaDevice(object):
         self.marionette.wait_for_port()
         self.marionette.start_session()
 
-        # Wait for the homescreen to finish loading
-        Wait(self.marionette, timeout).until(expected.element_present(
-            By.CSS_SELECTOR, '#homescreen[loading-state=false]'))
+        self.wait_for_b2g_ready(timeout)
 
         # Reset the storage path for desktop B2G
         self._set_storage_path()
+
+    def wait_for_b2g_ready(self, timeout):
+        # Wait for the homescreen to finish loading
+        Wait(self.marionette, timeout).until(expected.element_present(
+            By.CSS_SELECTOR, '#homescreen[loading-state=false]'))
 
     @property
     def is_b2g_running(self):
@@ -568,6 +606,9 @@ class GaiaDevice(object):
     def turn_screen_off(self):
         self.marionette.execute_script("window.wrappedJSObject.ScreenManager.turnScreenOff(true)")
 
+    def turn_screen_on(self):
+        self.marionette.execute_script("window.wrappedJSObject.ScreenManager.turnScreenOn(true)")
+
     @property
     def is_screen_enabled(self):
         return self.marionette.execute_script('return window.wrappedJSObject.ScreenManager.screenEnabled')
@@ -609,7 +650,7 @@ class GaiaDevice(object):
     @property
     def is_locked(self):
         self.marionette.switch_to_frame()
-        return self.marionette.execute_script('return window.wrappedJSObject.lockScreen.locked')
+        return self.marionette.execute_script('return window.wrappedJSObject.System.locked')
 
     def lock(self):
         self.marionette.import_script(self.lockscreen_atom)
@@ -624,6 +665,39 @@ class GaiaDevice(object):
         result = self.marionette.execute_async_script('GaiaLockScreen.unlock()')
         assert result, 'Unable to unlock screen'
 
+    def change_orientation(self, orientation):
+        """  There are 4 orientation states which the phone can be passed in:
+        portrait-primary(which is the default orientation), landscape-primary, portrait-secondary and landscape-secondary
+        """
+        self.marionette.execute_async_script("""
+            if (arguments[0] === arguments[1]) {
+              marionetteScriptFinished();
+            }
+            else {
+              var expected = arguments[1];
+              window.screen.onmozorientationchange = function(e) {
+                console.log("Received 'onmozorientationchange' event.");
+                waitFor(
+                  function() {
+                    window.screen.onmozorientationchange = null;
+                    marionetteScriptFinished();
+                  },
+                  function() {
+                    return window.screen.mozOrientation === expected;
+                  }
+                );
+              };
+              console.log("Changing orientation to '" + arguments[1] + "'.");
+              window.screen.mozLockOrientation(arguments[1]);
+            };""", script_args=[self.screen_orientation, orientation])
+
+    @property
+    def screen_width(self):
+        return self.marionette.execute_script('return window.screen.width')
+
+    @property
+    def screen_orientation(self):
+        return self.marionette.execute_script('return window.screen.mozOrientation')
 
 class GaiaTestCase(MarionetteTestCase, B2GTestCaseMixin):
     def __init__(self, *args, **kwargs):
@@ -634,17 +708,12 @@ class GaiaTestCase(MarionetteTestCase, B2GTestCaseMixin):
     def setUp(self):
         try:
             MarionetteTestCase.setUp(self)
-        except InvalidResponseException:
+        except (InvalidResponseException, IOError):
             if self.restart:
                 pass
 
-        # TODO: Once bug 1019043 is fixed we will be able to just use
-        # self.device_manager instead of guarding for desktop B2G
-        device_manager = None
-        if not self.marionette.session_capabilities['device'] == 'desktop':
-            device_manager = self.device_manager
         self.device = GaiaDevice(self.marionette,
-                                 manager=device_manager,
+                                 manager=self.device_manager,
                                  testvars=self.testvars)
 
         if self.restart and (self.device.is_android_build or self.marionette.instance):
@@ -716,6 +785,7 @@ class GaiaTestCase(MarionetteTestCase, B2GTestCaseMixin):
             # TODO: Remove hard-coded paths once bug 1018079 is resolved
             storage_paths.extend(['/mnt/sdcard',
                                   '/mnt/extsdcard',
+                                  '/storage/sdcard',
                                   '/storage/sdcard0',
                                   '/storage/sdcard1'])
         for path in storage_paths:
@@ -737,9 +807,10 @@ class GaiaTestCase(MarionetteTestCase, B2GTestCaseMixin):
                 self.data_layer.set_char_pref(name, value)
 
         # unlock
-        self.device.unlock()
+        if self.data_layer.get_setting('lockscreen.enabled'):
+            self.device.unlock()
 
-        # kill any open apps
+        # kill the FTU and any open, user-killable apps
         self.apps.kill_all()
 
         if full_reset:
@@ -817,87 +888,8 @@ class GaiaTestCase(MarionetteTestCase, B2GTestCaseMixin):
     def resource(self, filename):
         return os.path.abspath(os.path.join(os.path.dirname(__file__), 'resources', filename))
 
-    def change_orientation(self, orientation):
-        """  There are 4 orientation states which the phone can be passed in:
-        portrait-primary(which is the default orientation), landscape-primary, portrait-secondary and landscape-secondary
-        """
-        self.marionette.execute_async_script("""
-            if (arguments[0] === arguments[1]) {
-              marionetteScriptFinished();
-            }
-            else {
-              var expected = arguments[1];
-              window.screen.onmozorientationchange = function(e) {
-                console.log("Received 'onmozorientationchange' event.");
-                waitFor(
-                  function() {
-                    window.screen.onmozorientationchange = null;
-                    marionetteScriptFinished();
-                  },
-                  function() {
-                    return window.screen.mozOrientation === expected;
-                  }
-                );
-              };
-              console.log("Changing orientation to '" + arguments[1] + "'.");
-              window.screen.mozLockOrientation(arguments[1]);
-            };""", script_args=[self.screen_orientation, orientation])
-
-    @property
-    def screen_width(self):
-        return self.marionette.execute_script('return window.screen.width')
-
-    @property
-    def screen_orientation(self):
-        return self.marionette.execute_script('return window.screen.mozOrientation')
-
-    def wait_for_element_present(self, by, locator, timeout=None):
-        return Wait(self.marionette, timeout, ignored_exceptions=NoSuchElementException).until(
-            lambda m: m.find_element(by, locator))
-
-    def wait_for_element_not_present(self, by, locator, timeout=None):
-        self.marionette.set_search_timeout(0)
-        try:
-            return Wait(self.marionette, timeout).until(
-                lambda m: not m.find_element(by, locator))
-        except NoSuchElementException:
-            pass
-        self.marionette.set_search_timeout(self.marionette.timeout or 10000)
-
-    def wait_for_element_displayed(self, by, locator, timeout=None):
-        Wait(self.marionette, timeout, ignored_exceptions=[NoSuchElementException, StaleElementException]).until(
-            lambda m: m.find_element(by, locator).is_displayed())
-
-    def wait_for_element_not_displayed(self, by, locator, timeout=None):
-        self.marionette.set_search_timeout(0)
-        try:
-            Wait(self.marionette, timeout, ignored_exceptions=StaleElementException).until(
-                lambda m: not m.find_element(by, locator).is_displayed())
-        except NoSuchElementException:
-            pass
-        self.marionette.set_search_timeout(self.marionette.timeout or 10000)
-
     def wait_for_condition(self, method, timeout=None, message=None):
         Wait(self.marionette, timeout).until(method, message=message)
-
-    def is_element_present(self, by, locator):
-        self.marionette.set_search_timeout(0)
-        try:
-            self.marionette.find_element(by, locator)
-            return True
-        except NoSuchElementException:
-            return False
-        finally:
-            self.marionette.set_search_timeout(self.marionette.timeout or 10000)
-
-    def is_element_displayed(self, by, locator):
-        self.marionette.set_search_timeout(0)
-        try:
-            return self.marionette.find_element(by, locator).is_displayed()
-        except NoSuchElementException:
-            return False
-        finally:
-            self.marionette.set_search_timeout(self.marionette.timeout or 10000)
 
     def tearDown(self):
         if self.device.is_desktop_b2g and self.device.storage_path:
@@ -933,3 +925,11 @@ class GaiaEnduranceTestCase(GaiaTestCase, EnduranceTestCaseMixin, MemoryEnduranc
         _close_button_locator = ('css selector', locator_part_two)
         close_card_app_button = self.marionette.find_element(*_close_button_locator)
         close_card_app_button.tap()
+
+    def wait_for_element_present(self, by, locator, timeout=None):
+        return Wait(self.marionette, timeout, ignored_exceptions=NoSuchElementException).until(
+            lambda m: m.find_element(by, locator))
+
+    def wait_for_element_displayed(self, by, locator, timeout=None):
+        Wait(self.marionette, timeout, ignored_exceptions=[NoSuchElementException, StaleElementException]).until(
+            lambda m: m.find_element(by, locator).is_displayed())

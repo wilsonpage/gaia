@@ -144,6 +144,10 @@
       }.bind(this),
       System.slowTransition ? this.SLOW_TRANSITION_TIMEOUT :
                               this.CLOSING_TRANSITION_TIMEOUT);
+
+      if (!this.app || !this.app.element) {
+        return;
+      }
       this.app.element.classList.add('transition-closing');
       this.app.element.classList.add(this.getAnimationName('close'));
     };
@@ -228,7 +232,7 @@
       this.app.reviveBrowser();
       this.app.launchTime = Date.now();
       this.app.fadeIn();
-      this.app.setVisible(true);
+      this.app.requestForeground();
 
       // TODO:
       // May have orientation manager to deal with lock orientation request.
@@ -246,7 +250,7 @@
       this.resetTransition();
       this.app.element.removeAttribute('aria-hidden');
       this.app.element.classList.add('active');
-      this.app.setVisible(true);
+      this.app.requestForeground();
 
       // TODO:
       // May have orientation manager to deal with lock orientation request.
@@ -259,15 +263,19 @@
       return;
     }
 
+    if (this._shouldFocusApp()) {
+      this.app.debug('focusing this app.');
+      this.app.focus();
+    }
+  };
+
+  AppTransitionController.prototype._shouldFocusApp = function() {
     // XXX: Remove this after SIMPIN Dialog is refactored.
     // See https://bugzilla.mozilla.org/show_bug.cgi?id=938979
     // XXX: Rocketbar losing input focus
     // See: https://bugzilla.mozilla.org/show_bug.cgi?id=961557
-    if (this._transitionState == 'opened' &&
-        !SimPinDialog.visible && !rocketbar.active) {
-      this.app.debug('focusing this app.');
-      this.app.focus();
-    }
+    return (this._transitionState == 'opened' &&
+            !SimPinDialog.visible && !rocketbar.active);
   };
 
   AppTransitionController.prototype.requireOpen = function(animation) {
@@ -306,7 +314,7 @@
 
   AppTransitionController.prototype.clearTransitionClasses =
     function atc_removeTransitionClasses() {
-      if (!this.app) {
+      if (!this.app || !this.app.element) {
         return;
       }
 

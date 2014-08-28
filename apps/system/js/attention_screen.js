@@ -27,6 +27,14 @@ var AttentionScreen = {
             !this.mainScreen.classList.contains('active-statusbar'));
   },
 
+  get statusHeight() {
+    if (this.isVisible() && !this.isFullyVisible()) {
+      return this.attentionScreen.getBoundingClientRect().height;
+    }
+
+    return 0;
+  },
+
   init: function as_init() {
     window.addEventListener('mozbrowseropenwindow', this.open.bind(this), true);
 
@@ -40,7 +48,7 @@ var AttentionScreen = {
 
     window.addEventListener('home', this.hide.bind(this));
     window.addEventListener('holdhome', this.hide.bind(this));
-    window.addEventListener('appwillopen', this.appOpenHandler.bind(this));
+    window.addEventListener('global-search-request', this.hide.bind(this));
     window.addEventListener('launchapp', this.appLaunchHandler.bind(this));
     window.addEventListener('emergencyalert', this.hide.bind(this));
 
@@ -73,14 +81,6 @@ var AttentionScreen = {
       this.hide();
     } else {
       this.show(frame);
-    }
-  },
-
-  appOpenHandler: function as_appHandler(evt) {
-    // If the user presses the home button we will still hide the attention
-    // screen. But in the case of an app crash we'll keep it fully open
-    if (!evt.detail.isHomescreen) {
-      this.hide();
     }
   },
 
@@ -171,7 +171,8 @@ var AttentionScreen = {
 
   // Make sure visibililty state of all attention screens are set correctly
   _updateFrameVisibility: function as_updateFrameVisibility(activeFrame) {
-    var frames = this.attentionScreen.querySelectorAll('iframe');
+    var selector = 'iframe:not([data-hidden])';
+    var frames = this.attentionScreen.querySelectorAll(selector);
     var i = frames.length - 1;
 
     // In case someone call this function w/o checking for frame first
@@ -242,6 +243,7 @@ var AttentionScreen = {
       });
 
       iframe.dataset.hidden = 'hidden';
+      iframe.classList.remove('active');
       iframe.blur();
     } else {
       this.attentionScreen.removeChild(iframe);
@@ -383,24 +385,19 @@ var AttentionScreen = {
     this.mainScreen.classList.add('active-statusbar');
 
     var attentionScreen = this.attentionScreen;
-    attentionScreen.addEventListener('transitionend', function trWait() {
-      attentionScreen.removeEventListener('transitionend', trWait);
+    var safetyTimeout = null;
+    var finish = (function() {
+      clearTimeout(safetyTimeout);
+      attentionScreen.removeEventListener('transitionend', finish);
 
-      // transition completed, entering "status-mode" (40px height iframe)
+      // transition completed, entering "status-mode" and informing
+      // the rest of the system
       attentionScreen.classList.add('status-mode');
-    });
+      this.dispatchEvent('status-active');
+    }).bind(this);
 
-    // The only way to hide attention screen is the home/holdhome event.
-    // So we don't fire any origin information here.
-    // The expected behavior is restore homescreen visibility to 'true'
-    // in the Window Manager.
-    // Make sure the status-active event is sent after the 'home' event has
-    // dispatched. Otherwise we can end up in a race where the 'foreground'
-    // application perceived by the screen manager is not the homescreen, but
-    // the last visible app since events dispatching are synchronous.
-    setTimeout(function(self) {
-      self.dispatchEvent('status-active');
-    }, 0, this);
+    attentionScreen.addEventListener('transitionend', finish);
+    safetyTimeout = setTimeout(finish, 500);
   },
 
   // If the lock request fails, request again later.
@@ -458,6 +455,10 @@ var AttentionScreen = {
   appForegroundHandler: function as_appForegroundHandler(evt) {
     // If the app behind the soon-to-be-unlocked lockscreen has an
     // attention screen we should display it
+    if (window.rocketbar.active) {
+      return;
+    }
+
     var app = evt.detail;
     this.showForOrigin(app.origin);
   },

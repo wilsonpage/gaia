@@ -90,7 +90,7 @@ suite('settings.js', function() {
     test('setMediatone', function () {
       var mediatoneLink =
         'shared/resources/media/notifications/' +
-        'notifier_bop.opus';
+        'notifier_firefox.opus';
       app.setMediatone(settings, config);
       assert.equal(settings['media.ringtone'], config.GAIA_DIR + '/' +
         mediatoneLink);
@@ -99,7 +99,7 @@ suite('settings.js', function() {
     test('setAlarmtone', function () {
       var alarmtoneLink =
         'shared/resources/media/alarms/' +
-        'ac_classic_clock_alarm.opus';
+        'ac_awake.opus';
       app.setAlarmtone(settings, config);
       assert.equal(settings['alarm.ringtone'], config.GAIA_DIR + '/' +
         alarmtoneLink);
@@ -108,22 +108,22 @@ suite('settings.js', function() {
     test('setRingtone', function () {
       var ringtoneLink =
         'shared/resources/media/ringtones/' +
-        'ringer_classic_courier.opus';
+        'ringer_firefox.opus';
       app.setRingtone(settings, config);
       assert.equal(settings['dialer.ringtone'], config.GAIA_DIR + '/' +
         ringtoneLink);
       assert.deepEqual(settings['dialer.ringtone.name'],
-                       {l10nID: 'ringer_classic_courier'});
+                       {l10nID: 'ringer_firefox'});
       assert.equal(settings['dialer.ringtone.id'],
-                   'builtin:ringer_classic_courier');
+                   'builtin:ringer_firefox');
       assert.equal(settings['dialer.ringtone.default.id'],
-                   'builtin:ringer_classic_courier');
+                   'builtin:ringer_firefox');
     });
 
     test('setNotification', function () {
       var notificationLink =
         'shared/resources/media/notifications/' +
-        'notifier_bell.opus';
+        'notifier_firefox.opus';
       mockUtils.resolve = function(file, baseLink) {
         return {
           path: baseLink + '/' + file
@@ -133,11 +133,11 @@ suite('settings.js', function() {
       assert.equal(settings['notification.ringtone'],
         config.GAIA_DIR + '/' + notificationLink);
       assert.deepEqual(settings['notification.ringtone.name'],
-                       {l10nID: 'notifier_bell'});
+                       {l10nID: 'notifier_firefox'});
       assert.equal(settings['notification.ringtone.id'],
-                   'builtin:notifier_bell');
+                   'builtin:notifier_firefox');
       assert.equal(settings['notification.ringtone.default.id'],
-                   'builtin:notifier_bell');
+                   'builtin:notifier_firefox');
     });
 
     test('overrideSettings', function () {
@@ -258,13 +258,14 @@ suite('settings.js', function() {
     test('TARGET_BUILD_VARIANT != user', function(done) {
       config.TARGET_BUILD_VARIANT = 'notuser';
       var queue = app.execute(config);
-      queue.done(function(result) {
-        assert.deepEqual({
+      var expected = {
           'debug.console.enabled': true,
           'developer.menu.enabled': true,
           'homescreen.manifestURL': config.GAIA_SCHEME +
             'verticalhome.' + config.GAIA_DOMAIN + config.GAIA_PORT +
             '/manifest.webapp',
+          'rocketbar.newTabAppURL': config.GAIA_SCHEME + 'search.' +
+                      config.GAIA_DOMAIN + config.GAIA_PORT + '/index.html',
           'rocketbar.searchAppURL': config.GAIA_SCHEME + 'search.' +
             config.GAIA_DOMAIN + config.GAIA_PORT + '/index.html',
           'debugger.remote-mode': 'adb-only',
@@ -272,16 +273,21 @@ suite('settings.js', function() {
           'wallpaper.image': undefined,
           'media.ringtone': undefined,
           'alarm.ringtone': undefined,
-          'dialer.ringtone.name': {l10nID: 'ringer_classic_courier'},
-          'dialer.ringtone.id': 'builtin:ringer_classic_courier',
-          'dialer.ringtone.default.id': 'builtin:ringer_classic_courier',
+          'dialer.ringtone.name': {l10nID: 'ringer_firefox'},
+          'dialer.ringtone.id': 'builtin:ringer_firefox',
+          'dialer.ringtone.default.id': 'builtin:ringer_firefox',
           'dialer.ringtone': undefined,
-          'notification.ringtone.name': {l10nID: 'notifier_bell'},
-          'notification.ringtone.id': 'builtin:notifier_bell',
-          'notification.ringtone.default.id': 'builtin:notifier_bell',
+          'notification.ringtone.name': {l10nID: 'notifier_firefox'},
+          'notification.ringtone.id': 'builtin:notifier_firefox',
+          'notification.ringtone.default.id': 'builtin:notifier_firefox',
           'notification.ringtone': undefined,
-          'ftu.pingURL': config.FTU_PING_URL },
-          result);
+          'ftu.pingURL': config.FTU_PING_URL
+      };
+      queue.done(function(result) {
+        assert.deepEqual(expected, result,
+          'these two objects should be the same: \n' +
+          'expected: \n' + JSON.stringify(expected, null, 2)  + '\n' +
+          'actually: \n' + JSON.stringify(result, null, 2) + '\n');
         done();
       });
     });
@@ -295,6 +301,8 @@ suite('settings.js', function() {
           'homescreen.manifestURL': config.GAIA_SCHEME +
             'verticalhome.' + config.GAIA_DOMAIN + config.GAIA_PORT +
             '/manifest.webapp',
+          'rocketbar.newTabAppURL': config.GAIA_SCHEME + 'search.' +
+                      config.GAIA_DOMAIN + config.GAIA_PORT + '/index.html',
           'rocketbar.searchAppURL': config.GAIA_SCHEME + 'search.' +
             config.GAIA_DOMAIN + config.GAIA_PORT + '/index.html',
           'language.current': config.GAIA_DEFAULT_LOCALE,
@@ -305,13 +313,13 @@ suite('settings.js', function() {
           'wallpaper.image': undefined,
           'media.ringtone': undefined,
           'alarm.ringtone': undefined,
-          'dialer.ringtone.name': {l10nID: 'ringer_classic_courier'},
-          'dialer.ringtone.id': 'builtin:ringer_classic_courier',
-          'dialer.ringtone.default.id': 'builtin:ringer_classic_courier',
+          'dialer.ringtone.name': {l10nID: 'ringer_firefox'},
+          'dialer.ringtone.id': 'builtin:ringer_firefox',
+          'dialer.ringtone.default.id': 'builtin:ringer_firefox',
           'dialer.ringtone': undefined,
-          'notification.ringtone.name': {l10nID: 'notifier_bell'},
-          'notification.ringtone.id': 'builtin:notifier_bell',
-          'notification.ringtone.default.id': 'builtin:notifier_bell',
+          'notification.ringtone.name': {l10nID: 'notifier_firefox'},
+          'notification.ringtone.id': 'builtin:notifier_firefox',
+          'notification.ringtone.default.id': 'builtin:notifier_firefox',
           'notification.ringtone': undefined,
           'ftu.pingURL': config.FTU_PING_URL },
           result);
@@ -328,6 +336,8 @@ suite('settings.js', function() {
           'homescreen.manifestURL': config.GAIA_SCHEME +
             'verticalhome.' + config.GAIA_DOMAIN + config.GAIA_PORT +
             '/manifest.webapp',
+          'rocketbar.newTabAppURL': config.GAIA_SCHEME + 'search.' +
+                      config.GAIA_DOMAIN + config.GAIA_PORT + '/index.html',
           'rocketbar.searchAppURL': config.GAIA_SCHEME + 'search.' +
             config.GAIA_DOMAIN + config.GAIA_PORT + '/index.html',
           'feedback.url': 'https://input.mozilla.org/api/v1/feedback/',
@@ -336,13 +346,13 @@ suite('settings.js', function() {
           'wallpaper.image': undefined,
           'media.ringtone': undefined,
           'alarm.ringtone': undefined,
-          'dialer.ringtone.name': {l10nID: 'ringer_classic_courier'},
-          'dialer.ringtone.id': 'builtin:ringer_classic_courier',
-          'dialer.ringtone.default.id': 'builtin:ringer_classic_courier',
+          'dialer.ringtone.name': {l10nID: 'ringer_firefox'},
+          'dialer.ringtone.id': 'builtin:ringer_firefox',
+          'dialer.ringtone.default.id': 'builtin:ringer_firefox',
           'dialer.ringtone': undefined,
-          'notification.ringtone.name': {l10nID: 'notifier_bell'},
-          'notification.ringtone.id': 'builtin:notifier_bell',
-          'notification.ringtone.default.id': 'builtin:notifier_bell',
+          'notification.ringtone.name': {l10nID: 'notifier_firefox'},
+          'notification.ringtone.id': 'builtin:notifier_firefox',
+          'notification.ringtone.default.id': 'builtin:notifier_firefox',
           'notification.ringtone': undefined,
           'ftu.pingURL': config.FTU_PING_URL },
           result);
@@ -360,6 +370,8 @@ suite('settings.js', function() {
           'homescreen.manifestURL': config.GAIA_SCHEME +
             'verticalhome.' + config.GAIA_DOMAIN + config.GAIA_PORT +
             '/manifest.webapp',
+          'rocketbar.newTabAppURL': config.GAIA_SCHEME + 'search.' +
+                      config.GAIA_DOMAIN + config.GAIA_PORT + '/index.html',
           'rocketbar.searchAppURL': config.GAIA_SCHEME + 'search.' +
             config.GAIA_DOMAIN + config.GAIA_PORT + '/index.html',
           'language.current': config.GAIA_DEFAULT_LOCALE,
@@ -370,13 +382,13 @@ suite('settings.js', function() {
           'wallpaper.image': undefined,
           'media.ringtone': undefined,
           'alarm.ringtone': undefined,
-          'dialer.ringtone.name': {l10nID: 'ringer_classic_courier'},
-          'dialer.ringtone.id': 'builtin:ringer_classic_courier',
-          'dialer.ringtone.default.id': 'builtin:ringer_classic_courier',
+          'dialer.ringtone.name': {l10nID: 'ringer_firefox'},
+          'dialer.ringtone.id': 'builtin:ringer_firefox',
+          'dialer.ringtone.default.id': 'builtin:ringer_firefox',
           'dialer.ringtone': undefined,
-          'notification.ringtone.name': {l10nID: 'notifier_bell'},
-          'notification.ringtone.id': 'builtin:notifier_bell',
-          'notification.ringtone.default.id': 'builtin:notifier_bell',
+          'notification.ringtone.name': {l10nID: 'notifier_firefox'},
+          'notification.ringtone.id': 'builtin:notifier_firefox',
+          'notification.ringtone.default.id': 'builtin:notifier_firefox',
           'notification.ringtone': undefined,
           'ftu.pingURL': config.FTU_PING_URL },
           result);

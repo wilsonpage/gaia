@@ -1,6 +1,6 @@
 'use strict';
 
-/* global Utils */
+/* global Utils, Promise */
 /* exported MockUtils */
 
 var MockUtils = {
@@ -30,8 +30,10 @@ var MockUtils = {
   getDisplayObject: Utils.getDisplayObject,
   basicContact: Utils.basicContact,
   asyncLoadRevokeURL: Utils.asyncLoadRevokeURL,
-  closeNotificationsForThread: Utils.closeNotificationsForThread,
+  isEmailAddress: Utils.isEmailAddress,
+  closeNotificationsForThread: () => Promise.resolve(),
   imageToDataUrl: Utils.imageToDataUrl,
   imageUrlToDataUrl: Utils.imageUrlToDataUrl,
+  debounce: Utils.debounce,
   Promise: Utils.Promise
 };

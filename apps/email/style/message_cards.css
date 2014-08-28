@@ -28,8 +28,46 @@
   height: 4rem;
 }
 
+/* Override some styles set by header.css to allow flexbox content */
+section[role="region"] > header:first-child h1.msg-list-header-folder-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.msg-list-header-folder-name {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Display unread messages number */
+.msg-list-header-folder-unread {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0 1rem;
+  border-radius: 1.3rem;
+  background-color: #E06F14;
+  line-height: 2.1rem;
+  font-size: smaller;
+  font-weight: 200;
+  font-style: italic;
+}
+
 [data-mode="search"] .msg-search-tease-bar {
   display: none;
+}
+
+/* For search filters, make sure the contents do not line break and overflow
+outside their given areas. This is particularly important for some locales.
+Do not want to set styles on the inner a tags to force ellipsis since it ends
+up with ellipsis in some ways for most languages, even English, where just using
+an overflow hide is enough to allow seeing the whole word in some cases. See
+bug 1033628 for more details. */
+.msg-search-filter {
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 /* When card is slightly shown when folder card is center,
@@ -89,6 +127,38 @@ reflows. Foreground/background colors should be safe.
 
 .msg-header-item.unread .msg-header-unread-section {
   background-color: #2fc9ec;
+}
+
+.msg-header-syncing-section {
+  position: absolute;
+  top: 50%;
+  display: inline-block;
+  height: 3rem;
+  width: 3rem;
+  margin-top: -1.5rem;
+  border-radius: 50%;
+  visibility: hidden;
+}
+
+@keyframes syncing-rotation {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.msg-header-syncing-section-syncing {
+  animation: syncing-rotation 1s linear infinite;
+  visibility: visible;
+  background: url("images/icons/icon_outbox_sending.png") no-repeat center / contain;
+}
+
+/* The syncing status supercedes the unread icon. */
+.unread .msg-header-syncing-section-error + .msg-header-unread-section,
+.unread .msg-header-syncing-section-syncing + .msg-header-unread-section {
+  display: none;
+}
+
+.msg-header-syncing-section-error {
+  visibility: visible;
+  background: url("images/icons/icon_outbox_pending.png") no-repeat center / contain;
 }
 
 .msg-header-details-section {
@@ -374,14 +444,14 @@ reflows. Foreground/background colors should be safe.
 }
 .msg-attachment-view {
   display: none;
-  width: 4.5rem;
+  width: 3.5rem;
   margin-bottom: 0;
   position: absolute;
   top: 0;
-  right: 0;
-  background: none;
+  right: -0.3rem;
   border: 0;
-  color: #00aacc;
+  background: transparent;
+  overflow: hidden;
 }
 
 .msg-attachment-too-large { display: none; }
@@ -454,18 +524,37 @@ reflows. Foreground/background colors should be safe.
 }
 
 .msg-reader-load-infobar {
-  position: absolute;
-  -moz-box-sizing: border-box;
-  color: white;
-  font-size: 1.2rem;
-  left: 0;
-  bottom: 4.8rem;
-  width: 100%;
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  margin: 1rem 1.5rem;
+  padding: .2rem 0 1rem 0;
+  border-bottom: 0.1rem solid #f2f2f1;
+
+  font-size: 1.4rem;
+  font-style: italic;
   /* we do not specify a height because text may be more than 1 line high */
-  line-height: 2.2rem;
-  padding: 0.8rem 1.6rem;
-  background-color: #424242;;
+  line-height: 1.8rem;
+  color: #008eab;
 }
+
+
+.msg-reader-load-infobar-text {
+  flex: 1;
+  margin: 0 1.5rem 0 0;
+}
+
+.msg-reader-load-infobar-button {
+  display: inline-block;
+  width: 3rem;
+  height: 3rem;
+  margin: 0;
+  font-size: 0;
+  background: url("images/icons/icon_show_external_image.png") no-repeat center / 3rem auto;
+}
+
 
 /* For WVGA (800 x 480) */
 .msg-list-action-toolbar .msg-refresh-btn:after {
@@ -538,7 +627,11 @@ reflows. Foreground/background colors should be safe.
 }
 
 .bb-tablist .msg-mark-read-btn {
-  background-image: url("images/icons/mark.png");
+  background-image: url("images/icons/mark_read.png");
+}
+
+.bb-tablist .msg-mark-read-btn.unread {
+  background-image: url("images/icons/mark_unread.png");
 }
 
 /* Scrollable Area has to have a solid
@@ -579,6 +672,9 @@ reflows. Foreground/background colors should be safe.
 
 .msg-messages-container.show-edit .msg-header-unread-section {
   left: 3.9rem;
+}
+.msg-messages-container.show-edit .msg-header-syncing-section {
+  left: 3.5rem;
 }
 .msg-messages-container.show-edit .msg-header-details-section {
   padding-left: 4.5rem;
@@ -623,36 +719,64 @@ reflows. Foreground/background colors should be safe.
 
 .msg-messages-sync-container > .msg-messages-syncing,
 .msg-messages-sync-container > .msg-messages-sync-more {
-  width: calc(100% - 3rem);
-  margin: 0 auto;
+  width: 100%;
+  color: #5f5f5f;
+  background-color: #f2f2f2;
   text-align: center;
 }
 
-.msg-messages-sync-more {
-  height: 8rem;
-  padding: 0;
-  margin: 0;
-  font-weight: 500;
-  font-size: 1.5rem;
-  line-height: 8rem;
-}
-.msg-messages-sync-more > span {
-  margin: 0 3rem;
+.msg-messages-sync-container span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  margin: 0 auto;
+  font-weight: normal;
 }
 
-.msg-list-topbar {
-  -moz-box-sizing: border-box;
+.msg-messages-sync-more > span {
+  margin: 0 auto;
+  padding-left: 3rem;
+  background: url("images/icons/download_trimmed.png") no-repeat center left / 2rem;
+}
+
+.message-list-topbar {
   position: absolute;
-  top: 5rem;
-  left: 0;
-  width: 100%;
-  padding: 0.6rem 3rem;
-  color: #fff;
+  display: inline-block;
+  margin: 1.5rem 1.5rem 0 0;
+  opacity: .8;
+  transform: translateY(-6.5rem);
+  transition-property: transform;
+  transition-duration: .6s;
+  transition-timing-function: ease;
+  transition-delay: 0s;
+}
+
+.message-list-topbar[data-state="top"] {
+  transform: translateY(0);
+  right: 0;
+  width: 5rem;
+  height: 5rem;
+  border-radius: 5rem;
+  background: url('../../shared/style/headers/images/icons/up.png') no-repeat scroll center center / 3rem auto #a6a6a6;
+  font-size: 0;
+}
+
+.message-list-topbar[data-state="message"] {
+  transform: translateY(0);
+  margin: 1.5rem auto;
+  padding: 0 1.3rem;
+  height: 4rem;
+  line-height: 4rem;
   font-size: 1.4rem;
-  font-weight: 500;
-  line-height: 2.4rem;
-  background-color: #00aacc;
-  z-index: 10;
+  border-radius: 4rem;
+  color: white;
+  background-color: #a6a6a6;
+  opacity: .95;
+}
+
+.message-list-topbar.closing[data-state="message"],
+.message-list-topbar.closing[data-state="top"] {
+  transform: translateY(-6.5rem);
 }
 
 .msg-reply-menu button:before {

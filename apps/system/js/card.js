@@ -116,7 +116,7 @@
    */
   Card.prototype._populateViewData = function() {
     var app = this.app;
-    this.title = app.name,
+    this.title = (app.isBrowser() && app.title) ? app.title : app.name;
     this.subTitle = '';
     this.iconValue = 'none';
     this.closeButtonVisibility = 'visible';
@@ -161,10 +161,11 @@
     this.publish('willrender');
 
     var elem = this.element || (this.element = document.createElement('li'));
-    // we maintaine position value on the instance and on the element.dataset
+    // we maintain position value on the instance and on the element.dataset
     elem.dataset.position = this.position;
-
-    // we maintaine origin value on the instance and on the element.dataset
+    // we maintain instanceId on the card for unambiguous lookup
+    elem.dataset.appInstanceId = this.app.instanceID;
+    // keeping origin simplifies ui testing
     elem.dataset.origin = this.app.origin;
 
     this._populateViewData();
@@ -181,6 +182,8 @@
 
     this._fetchElements();
     this._registerEvents();
+
+    this.app.enterTaskManager();
     this.publish('rendered');
     return elem;
   };
@@ -220,6 +223,9 @@
     var element = this.element;
     if (element && element.parentNode) {
       element.parentNode.removeChild(element);
+    }
+    if (this.app) {
+      this.app.leaveTaskManager();
     }
     this.element = this.manager = this.app = null;
     this.publish('destroyed');
@@ -337,6 +343,7 @@
 
   Card.prototype._fetchElements = function c__fetchElements() {
     this.screenshotView = this.element.querySelector('.screenshotView');
+    this.titleNode = this.element.querySelector('h1.title');
   };
 
 

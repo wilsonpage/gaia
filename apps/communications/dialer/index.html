@@ -3,6 +3,7 @@
   <head>
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1">
     <meta charset="utf-8">
+    <meta name="theme-color" content="#00b7b7">
     <title>Dialer</title>
 
     <!-- Localization -->
@@ -11,6 +12,8 @@
     <link rel="resource" type="application/l10n" href="/shared/locales/date.ini">
     <link rel="resource" type="application/l10n" href="/shared/locales/sim_picker.ini">
     <link rel="resource" type="application/l10n" href="/shared/locales/voicemail.ini">
+    <link rel="resource" type="application/l10n" href="/shared/locales/keypad.ini">
+    <link rel="resource" type="application/l10n" href="/shared/locales/phone_types.ini">
 
     <!-- CSS -->
     <link rel="stylesheet" type="text/css" href="/shared/style/animations.css">
@@ -50,6 +53,7 @@
     <link rel="stylesheet" type="text/css" href="/shared/style/switches.css">
     <link rel="stylesheet" type="text/css" href="/shared/style/lists.css">
     <link rel="stylesheet" type="text/css" href="/shared/style/progress_activity.css">
+    <link rel="stylesheet" type="text/css" href="/shared/style/input_areas.css">
     <link rel="stylesheet" type="text/css" href="/dialer/style/mmi.css">
     <script defer src="/shared/js/accessibility_helper.js"></script>
     <script defer src="/shared/js/async_storage.js"></script>
@@ -141,12 +145,11 @@
           <div id="phone-number-view-container">
             <div class="phone-number-view-wrapper-input">
               <input id="phone-number-view" type="text" class="phone-number-font font-light" readonly="readonly" data-l10n-id="phoneNumberInput">
-              <div id="fake-phone-number-view" class="phone-number-font font-light"></div>
             </div>
             <button id="keypad-delete" class="reset-button" data-value="delete" data-l10n-id="keypadDelete">
             </button>
           </div>
-          <section id="suggestion-bar" class="suggestion-bar" hidden>
+          <section id="suggestion-bar" class="suggestion-bar" aria-hidden="true" hidden>
             <div role="button" is="suggestion-item" class="js-suggestion-item suggestion-item"></div>
             <div role="button" id="suggestion-count" class="suggestion-count more"></div>
           </section>
@@ -247,7 +250,7 @@
       </section>
       <form id="response" role="region">
         <p>
-          <input id="response-text" type="text" data-l10n-id="type-your-response" placeholder="Type your selection..." required disabled>
+          <input id="response-text" type="text" data-l10n-id="type-your-response" placeholder="Type your selection..." dir="auto" required disabled>
           <button id="response-text-reset" type="reset" data-l10n-id="clear-all-text"> Clear-all-text </button>
         </p>
       </form>

@@ -2,17 +2,19 @@
 /* global Event */
 /* global ScreenLayout */
 /* global SettingsListener */
+/* global OrientationManager */
 
 (function(exports) {
 
   /**
    * SoftwareButtonManager manages a home button for devides without
    * physical home buttons. The software home button will display at the bottom
-   * of the screen and is meant to function in the same way as a hardware 
-   * home button.
+   * of the screen in portrait, and on the right in landscape and is meant to
+   * function in the same way as a hardware home button.
    * @class SoftwareButtonManager
    * @requires ScreenLayout
    * @requires SettingsListener
+   * @requires OrientationManager
    */
   function SoftwareButtonManager() {
     this.isMobile = ScreenLayout.getCurrentLayout('tiny');
@@ -52,19 +54,50 @@
     overrideFlag: false,
 
     /**
-     * Whether or not the SoftwareButtonManager is enabled.
+     * Returns the height of the software buttons if device
+     * is in portrait, 0 otherwise.
      * @memberof SoftwareButtonManager.prototype
-     * @return The height of the software home button element.
+     * @return The height of the software buttons element.
      */
+    _cacheHeight: null,
     get height() {
-      if (!this.enabled) {
+      if (!this.enabled || !this._currentOrientation.contains('portrait')) {
         return 0;
       }
 
       return this._cacheHeight ||
-            (this._cacheHeight = this.element.getBoundingClientRect().height);
+          (this._cacheHeight = this.element.getBoundingClientRect().height);
     },
 
+    /**
+     * Returns the width of the software buttons if device
+     * is in landscape, 0 otherwise.
+     * @memberof SoftwareButtonManager.prototype
+     * @return The width of the software buttons element.
+     */
+    _cacheWidth: null,
+    get width() {
+      if (!this.enabled || !this._currentOrientation.contains('landscape')) {
+        return 0;
+      }
+
+      return this._cacheWidth ||
+          (this._cacheWidth = this.element.getBoundingClientRect().width);
+    },
+
+    _buttonRect: null,
+    _updateButtonRect: function() {
+      var fullscreen = !!document.mozFullScreenElement;
+      var button = fullscreen ? this.fullscreenHomeButton : this.homeButton;
+      this._buttonRect = button.getBoundingClientRect();
+    },
+
+    /**
+     * The current device orientation.
+     * @memberof SoftwareButtonManager.prototype
+     * @type {String}
+     */
+    _currentOrientation: null,
 
     /**
      * Starts the SoftwareButtonManager instance.
@@ -94,37 +127,51 @@
             }
             this.enabled = value;
             this.toggle();
-            this.dispatchResizeEvent(value);
+            this.resizeAndDispatchEvent();
           }.bind(this));
       } else {
         this.enabled = false;
         this.toggle();
       }
 
-      this.homeButton.addEventListener('touchstart', this);
-      this.homeButton.addEventListener('touchend', this);
-      this.fullscreenHomeButton.addEventListener('touchstart', this);
-      this.fullscreenHomeButton.addEventListener('touchend', this);
+      this._currentOrientation = OrientationManager.fetchCurrentOrientation();
+      window.screen.addEventListener('mozorientationchange', this);
+      window.addEventListener('orientationchange', this);
+
       window.addEventListener('mozfullscreenchange', this);
       window.addEventListener('homegesture-enabled', this);
       window.addEventListener('homegesture-disabled', this);
 
-      return this;
+      window.addEventListener('system-resize',
+                              this._updateButtonRect.bind(this));
+      window.addEventListener('edge-touch-redispatch', this);
     },
 
-    /**
-     * Dispatches an event so screens can resize themselves after a change
-     * in the state of the software home button.
+   /**
+     * Resizes software buttons panel and dispatches events so screens
+     * can resize themselves after a change in the state of
+     * the software home button.
      * @memberof SoftwareButtonManager.prototype
-     * @param {String} type The type of softwareButtonEvent.
      */
-    dispatchResizeEvent: function(evtName) {
-      if (this.enabled) {
-        window.dispatchEvent(new Event('software-button-enabled'));
-      } else {
-        window.dispatchEvent(new Event('software-button-disabled'));
-      }
-    },
+     resizeAndDispatchEvent: function() {
+       if (this.enabled === this.element.classList.contains('visible')) {
+         return;
+       }
+
+       var element = this.element;
+       if (this.enabled) {
+         element.addEventListener('transitionend', function trWait() {
+           element.removeEventListener('transitionend', trWait);
+           // Delay posting the event until the transition is done, otherwise
+           // the screen will resize and the background will be visible.
+           window.dispatchEvent(new Event('software-button-enabled'));
+         });
+         element.classList.add('visible');
+       } else {
+         element.classList.remove('visible');
+         window.dispatchEvent(new Event('software-button-disabled'));
+       }
+     },
 
     /**
      * Shortcut to publish a custom software button event.
@@ -146,14 +193,26 @@
      */
     toggle: function() {
       delete this._cacheHeight;
+      delete this._cacheWidth;
+
       if (this.enabled) {
-        this.element.classList.add('visible');
         this.screenElement.classList.add('software-button-enabled');
         this.screenElement.classList.remove('software-button-disabled');
+
+        this.homeButton.addEventListener('touchstart', this);
+        this.homeButton.addEventListener('touchend', this);
+        this.fullscreenHomeButton.addEventListener('touchstart', this);
+        this.fullscreenHomeButton.addEventListener('touchend', this);
+        window.addEventListener('mozfullscreenchange', this);
       } else {
-        this.element.classList.remove('visible');
         this.screenElement.classList.remove('software-button-enabled');
         this.screenElement.classList.add('software-button-disabled');
+
+        this.homeButton.removeEventListener('touchstart', this);
+        this.homeButton.removeEventListener('touchend', this);
+        this.fullscreenHomeButton.removeEventListener('touchstart', this);
+        this.fullscreenHomeButton.removeEventListener('touchend', this);
+        window.removeEventListener('mozfullscreenchange', this);
       }
     },
 
@@ -165,10 +224,13 @@
     handleEvent: function(evt) {
       switch (evt.type) {
         case 'touchstart':
-          this.publish('home-button-press');
+          this.press();
           break;
         case 'touchend':
-          this.publish('home-button-release');
+          this.release();
+          break;
+        case 'edge-touch-redispatch':
+          this.handleRedispatchedTouch(evt);
           break;
         case 'homegesture-disabled':
           // at least one of software home button or gesture is enabled
@@ -194,8 +256,90 @@
           } else {
             this.fullscreenHomeButton.classList.remove('visible');
           }
+
+          this._updateButtonRect();
+          break;
+        case 'mozorientationchange':
+          // mozorientationchange is fired before 'system-resize'
+          // so we can adjust width/height before that happens.
+          var isPortrait = this._currentOrientation.contains('portrait');
+          var newOrientation = OrientationManager.fetchCurrentOrientation();
+          if (isPortrait && newOrientation.contains('landscape')) {
+            this.element.style.right = this.element.style.bottom;
+            this.element.style.bottom = null;
+          } else if (!isPortrait && newOrientation.contains('portrait')) {
+            this.element.style.bottom = this.element.style.right;
+            this.element.style.right = null;
+          }
+          this._currentOrientation = newOrientation;
+
+          // The mozorientationchange happens before redraw and orientation
+          // change after, so this is done to avoid animation of the soft button
+          this.element.classList.add('no-transition');
+          break;
+        case 'orientationchange':
+          this.element.classList.remove('no-transition');
           break;
       }
+    },
+
+    press: function() {
+      this.homeButton.classList.add('active');
+      this.fullscreenHomeButton.classList.add('active');
+
+      this.publish('home-button-press');
+    },
+
+    release: function() {
+      this.homeButton.classList.remove('active');
+      this.fullscreenHomeButton.classList.remove('active');
+
+      this.publish('home-button-release');
+    },
+
+    _pressedByRedispatch: false,
+    handleRedispatchedTouch: function(evt) {
+      var type = evt.detail.type;
+
+      if (!this._onButton(evt)) {
+        if (type !== 'touchstart' && this._pressedByRedispatch) {
+          this._pressedByRedispatch = false;
+          this.release();
+        }
+        return;
+      }
+
+      evt.preventDefault();
+
+      switch (type) {
+        case 'touchstart':
+          this.press();
+          this._pressedByRedispatch = true;
+          break;
+        case 'touchend':
+          this._pressedByRedispatch = false;
+          this.release();
+          break;
+      }
+    },
+
+    _onButton: function(e) {
+      var type = e.detail.type;
+      var touch = (type === 'touchend') ?
+                  e.detail.changedTouches[0] : e.detail.touches[0];
+
+      var x = touch.pageX;
+      var y = touch.pageY;
+
+      var radius = 4;
+      var rect = this._buttonRect;
+      var leftBound = rect.left - radius;
+      var rightBound = rect.right + radius;
+      var topBound = rect.top - radius;
+      var bottomBound = rect.bottom + radius;
+
+      return (x >= leftBound && x <= rightBound &&
+               y >= topBound && y <= bottomBound);
     }
   };
 

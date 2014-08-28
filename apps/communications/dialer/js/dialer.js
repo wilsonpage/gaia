@@ -2,7 +2,7 @@
 
 /* global AccessibilityHelper, CallLog, CallLogDBManager, Contacts,
           KeypadManager,LazyL10n, LazyLoader, MmiManager, Notification,
-          NotificationHelper, SettingsListener, SimSettingsHelper,
+          NotificationHelper, SettingsListener, SimPicker, SimSettingsHelper,
           SuggestionBar, TelephonyHelper, TonePlayer, Utils, Voicemail */
 
 var NavbarManager = {
@@ -275,14 +275,15 @@ var CallHandler = (function callHandler() {
     var incoming = data.direction === 'incoming';
 
     NavbarManager.ensureResources(function() {
-      // Missed call
-      if (incoming && !data.duration) {
+      // Missed call when not rejected by user
+      if(incoming && !data.duration && !data.hangUpLocal) {
         sendNotification(number, data.serviceId);
       }
 
       Voicemail.check(number, function(isVoicemailNumber) {
         var entry = {
           date: Date.now() - parseInt(data.duration),
+          duration: data.duration,
           type: incoming ? 'incoming' : 'dialing',
           number: number,
           serviceId: data.serviceId,
@@ -291,13 +292,40 @@ var CallHandler = (function callHandler() {
           status: (incoming && data.duration > 0) ? 'connected' : null
         };
 
-        CallLogDBManager.add(entry, function(logGroup) {
-          highPriorityWakeLock.unlock();
-          CallLog.appendGroup(logGroup);
+        // Store and display the call that ended
+        CallLogDBManager.add(entry, function(logEntry) {
+          CallLog.appendGroup(logEntry);
+
+          // A CDMA call can contain two calls. If it only has one call,
+          // we have nothing left to do and release the lock.
+          if(!data.secondNumber) {
+            highPriorityWakeLock.unlock();
+            return;
+          }
+
+          _addSecondCdmaCall(data, isVoicemailNumber, highPriorityWakeLock);
         });
       });
     });
-   }
+  }
+
+  function _addSecondCdmaCall(data, isVoicemailNumber, wakeLock) {
+    var entryCdmaSecond = {
+      date: Date.now() - parseInt(data.duration),
+      duration: data.duration,
+      type: 'incoming',
+      number: data.secondNumber,
+      serviceId: data.serviceId,
+      emergency: false,
+      voicemail: isVoicemailNumber,
+      status: 'connected'
+    };
+
+    CallLogDBManager.add(entryCdmaSecond, function(logGroupCdmaSecondCall) {
+      CallLog.appendGroup(logGroupCdmaSecondCall);
+      wakeLock.unlock();
+    });
+  }
 
   /* === postMessage support === */
   function handleMessage(evt) {
@@ -346,7 +374,15 @@ var CallHandler = (function callHandler() {
     // Dialing a specific number
     if (isAtd && command[3] !== '>') {
       var phoneNumber = command.substring(3);
-      CallHandler.call(phoneNumber);
+      LazyLoader.load(['/shared/js/sim_settings_helper.js',
+                       '/shared/js/sim_picker.js'], function() {
+        SimSettingsHelper.getCardIndexFrom('outgoingCall',
+        function(defaultCardIndex) {
+          SimPicker.getOrPick(defaultCardIndex, phoneNumber, function(ci) {
+            CallHandler.call(phoneNumber, ci);
+          });
+        });
+      });
       return;
     }
 
@@ -356,7 +392,19 @@ var CallHandler = (function callHandler() {
     CallLogDBManager.getGroupAtPosition(position, 'lastEntryDate', true, null,
     function(result) {
       if (result && (typeof result === 'object') && result.number) {
-        CallHandler.call(result.number);
+        LazyLoader.load(['/shared/js/sim_settings_helper.js'], function() {
+          SimSettingsHelper.getCardIndexFrom('outgoingCall', function(ci) {
+            // If the default outgoing call SIM is set to "Always ask", or is
+            // unset, we place this call on the SIM that was used the last time
+            // we were in a phone call with this number/contact.
+            if (ci === undefined || ci === null ||
+                ci == SimSettingsHelper.ALWAYS_ASK_OPTION_VALUE) {
+              ci = result.serviceId;
+            }
+
+            CallHandler.call(result.number, ci);
+          });
+        });
       } else {
         console.log('Could not get the group at: ' + position +
                     '. Error: ' + result);
@@ -367,7 +415,12 @@ var CallHandler = (function callHandler() {
   /* === Calls === */
   function call(number, cardIndex) {
     if (MmiManager.isMMI(number, cardIndex)) {
-      MmiManager.send(number, cardIndex);
+      if (number === '*#06#') {
+        MmiManager.showImei();
+      } else {
+        MmiManager.send(number, cardIndex);
+      }
+
       // Clearing the code from the dialer screen gives the user immediate
       // feedback.
       KeypadManager.updatePhoneNumber('', 'begin', true);
@@ -381,7 +434,7 @@ var CallHandler = (function callHandler() {
     };
 
     var error = function() {
-      KeypadManager.updatePhoneNumber(number, 'begin', true);
+      KeypadManager.updatePhoneNumber(number, 'begin', false);
     };
 
     var oncall = function() {
@@ -389,19 +442,9 @@ var CallHandler = (function callHandler() {
       SuggestionBar.clear();
     };
 
-    LazyLoader.load(['/dialer/js/telephony_helper.js',
-                     '/shared/js/sim_settings_helper.js'], function() {
-      // FIXME/bug 982163: Temporarily load a cardIndex from SimSettingsHelper
-      // if we were not given one as an argument.
-      if (cardIndex === undefined) {
-        SimSettingsHelper.getCardIndexFrom('outgoingCall', function(ci) {
-          TelephonyHelper.call(
-            number, ci, oncall, connected, disconnected, error);
-        });
-      } else {
-        TelephonyHelper.call(
-          number, cardIndex, oncall, connected, disconnected, error);
-      }
+    LazyLoader.load(['/dialer/js/telephony_helper.js'], function() {
+      TelephonyHelper.call(
+        number, cardIndex, oncall, connected, disconnected, error);
     });
   }
 

@@ -12,6 +12,7 @@ var CallScreen = {
 
   body: document.body,
   screen: document.getElementById('call-screen'),
+  lockscreenConnStates: document.getElementById('lockscreen-conn-states'),
   views: document.getElementById('views'),
 
   calls: document.getElementById('calls'),
@@ -27,6 +28,8 @@ var CallScreen = {
   bluetoothButton: document.getElementById('bt'),
   keypadButton: document.getElementById('keypad-visibility'),
   placeNewCallButton: document.getElementById('place-new-call'),
+
+  hideBarMuteButton: document.getElementById('keypad-hidebar-mute-action'),
 
   bluetoothMenu: document.getElementById('bluetooth-menu'),
   switchToDeviceButton: document.getElementById('btmenu-btdevice'),
@@ -44,7 +47,6 @@ var CallScreen = {
   incomingContainer: document.getElementById('incoming-container'),
   incomingInfo: document.getElementById('incoming-info'),
   incomingNumber: document.getElementById('incoming-number'),
-  fakeIncomingNumber: document.getElementById('fake-incoming-number'),
   incomingSim: document.getElementById('incoming-sim'),
   incomingNumberAdditionalInfo:
     document.getElementById('incoming-number-additional-info'),
@@ -114,6 +116,8 @@ var CallScreen = {
 
   init: function cs_init() {
     this.muteButton.addEventListener('click', this.toggleMute.bind(this));
+    this.hideBarMuteButton.addEventListener('click',
+                                    this.toggleMute.bind(this));
     this.keypadButton.addEventListener('click', this.showKeypad.bind(this));
     this.placeNewCallButton.addEventListener('click',
                                              this.placeNewCall.bind(this));
@@ -161,6 +165,21 @@ var CallScreen = {
     this.syncSpeakerEnabled();
   },
 
+  _connInfoManagerInitialized: false,
+  initLockScreenConnInfoManager: function cs_initLockScreenConnInfoManager() {
+    if (this._connInfoManagerInitialized) {
+      return;
+    }
+
+    /* mobile connection state on lock screen */
+    if (window.navigator.mozMobileConnections) {
+      LazyL10n.get(function localized(_) {
+          new window.LockScreenConnInfoManager(CallScreen.lockscreenConnStates);
+        CallScreen._connInfoManagerInitialized = true;
+      });
+    }
+  },
+
   _slideInitialized: false,
   initLockScreenSlide: function cs_initLockScreenSlide() {
     if (this._slideInitialized) {
@@ -172,46 +191,49 @@ var CallScreen = {
     this.hangUpIcon = document.getElementById('lockscreen-area-hangup');
     this.pickUpIcon = document.getElementById('lockscreen-area-pickup');
     this.initUnlockerEvents();
-    new LockScreenSlide(
-      // Options
-      {
-        IDs: {
-          overlay: 'main-container',
-          areas: {
-            left: 'lockscreen-area-hangup',
-            right: 'lockscreen-area-pickup'
-          }
-        },
+    new LockScreenSlide({
+      useNewStyle: true,
 
-        track: {
-          backgroundColor: 'rgba(0, 0, 0, 0.4)'
+      IDs: {
+        overlay: 'main-container',
+        areas: {
+          left: 'lockscreen-area-hangup',
+          right: 'lockscreen-area-pickup'
         },
+      },
 
-        colors: {
-          left: {
-            touchedColor: '255, 0, 0',
-            touchedColorStop: '255, 178, 178'
-          },
+      trackNew: {
+        strokeColorTop: 'rgba(0, 0, 0, 0)',
+        strokeColorBottom: 'rgba(0, 0, 0, 0)',
+        fillColorTop: 'rgba(0, 0, 0, 0.1)',
+        fillColorBottom: 'rgba(0, 0, 0, 0.1)'
+      },
 
-          right: {
-            touchedColor: '132, 200, 44',
-            touchedColorStop: '218, 238, 191'
-          }
+      colors: {
+        left: {
+          touchedColor: '224, 0, 0',
+          touchedColorStop: '255, 255, 255'
         },
-
-        resources: {
-          larrow: '/style/images/lock_screen/LArrow_Lockscreen.png',
-          rarrow: '/style/images/lock_screen/RArrow_Lockscreen.png'
-        },
-        handle: {
-          autoExpand: {
-            sentinelOffset: 80
-          },
-          backgroundColor: '255, 255, 255',
-          backgroundAlpha: 0.85
+        right: {
+          touchedColor: '0, 173, 173',
+          touchedColorStop: '255, 255, 255'
         }
+      },
+
+      iconBG: {
+        left: {
+          color: 'rgba(224, 0, 0, 0.80)'
+        },
+        right: {
+          color: 'rgba(0, 173, 173, 0.80)'
+        }
+      },
+
+      resourcesNew: {
+        larrow: '/style/images/lock_screen/lockscreen_toggle_arrow_left.png',
+        rarrow: '/style/images/lock_screen/lockscreen_toggle_arrow_right.png'
       }
-    );
+    });
   },
 
   _wallpaperReady: false,
@@ -332,6 +354,7 @@ var CallScreen = {
 
   hashchangeHandler: function cs_hashchangeHandler() {
     if (window.location.hash.startsWith('#locked')) {
+      this.initLockScreenConnInfoManager();
       this.showClock(new Date());
       this.initLockScreenSlide();
 
@@ -343,12 +366,14 @@ var CallScreen = {
 
   toggleMute: function cs_toggleMute() {
     this.muteButton.classList.toggle('active-state');
+    this.hideBarMuteButton.classList.toggle('active-state');
     this.calls.classList.toggle('muted');
     CallsHandler.toggleMute();
   },
 
   unmute: function cs_unmute() {
     this.muteButton.classList.remove('active-state');
+    this.hideBarMuteButton.classList.remove('active-state');
     this.calls.classList.remove('muted');
     CallsHandler.unmute();
   },
@@ -423,9 +448,6 @@ var CallScreen = {
 
   render: function cs_render(layout_type) {
     this.screen.dataset.layout = layout_type;
-    if (layout_type !== 'connected') {
-      this.disableKeypad();
-    }
   },
 
   showClock: function cs_showClock(now) {
@@ -467,12 +489,12 @@ var CallScreen = {
     }
   },
 
-  enableKeypad: function cs_enableKeypad() {
-    this.keypadButton.removeAttribute('disabled');
+  enablePlaceNewCall: function cs_enablePlaceNewCall() {
+    this.placeNewCallButton.removeAttribute('disabled');
   },
 
-  disableKeypad: function cs_disableKeypad() {
-    this.keypadButton.setAttribute('disabled', 'disabled');
+  disablePlaceNewCall: function cs_disablePlaceNewCall() {
+    this.placeNewCallButton.setAttribute('disabled', 'disabled');
   },
 
   showGroupDetails: function cs_showGroupDetails(evt) {
@@ -620,11 +642,10 @@ var CallScreen = {
     var scenario;
     if (this.inStatusBarMode) {
       scenario = FontSizeManager.STATUS_BAR;
-    } else if (this.calls.querySelectorAll(
-      'section:not([hidden])').length > 1) {
-      scenario = FontSizeManager.CALL_WAITING;
-    } else {
+    } else if (this.calls.classList.contains('single-line')) {
       scenario = FontSizeManager.SINGLE_CALL;
+    } else {
+      scenario = FontSizeManager.CALL_WAITING;
     }
     return scenario;
   }

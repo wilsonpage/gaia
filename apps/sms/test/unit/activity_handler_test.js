@@ -19,8 +19,8 @@ requireApp('sms/shared/test/unit/mocks/mock_notification_helper.js');
 requireApp('sms/shared/test/unit/mocks/mock_navigator_moz_apps.js');
 requireApp('sms/shared/test/unit/mocks/mock_navigator_moz_settings.js');
 requireApp('sms/shared/test/unit/mocks/mock_settings_url.js');
+requireApp('sms/shared/test/unit/mocks/mock_l10n.js');
 
-requireApp('sms/test/unit/mock_l10n.js');
 requireApp('sms/test/unit/mock_attachment.js');
 requireApp('sms/test/unit/mock_compose.js');
 requireApp('sms/test/unit/mock_contacts.js');
@@ -66,6 +66,8 @@ suite('ActivityHandler', function() {
   var realMozApps;
   var realMozL10n;
 
+  var isDocumentHidden;
+
   suiteSetup(function() {
     realSetMessageHandler = navigator.mozSetMessageHandler;
     navigator.mozSetMessageHandler = MockNavigatormozSetMessageHandler;
@@ -78,6 +80,13 @@ suite('ActivityHandler', function() {
 
     realMozL10n = navigator.mozL10n;
     navigator.mozL10n = MockL10n;
+
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      get: function() {
+        return isDocumentHidden;
+      }
+    });
   });
 
   suiteTeardown(function() {
@@ -85,10 +94,12 @@ suite('ActivityHandler', function() {
     navigator.requestWakeLock = realWakeLock;
     navigator.mozApps = realMozApps;
     navigator.mozL10n = realMozL10n;
+    delete document.hidden;
   });
 
   setup(function() {
     this.sinon.stub(window, 'alert');
+    isDocumentHidden = false;
 
     MockNavigatormozSetMessageHandler.mSetup();
 
@@ -115,8 +126,7 @@ suite('ActivityHandler', function() {
   });
 
   suite('"share" activity', function() {
-    var shareActivity, blobs, names;
-    var arr = [];
+    var shareActivity;
     var panelPromise;
 
     setup(function() {
@@ -146,23 +156,6 @@ suite('ActivityHandler', function() {
 
     teardown(function() {
       ActivityHandler.leaveActivity();
-    });
-
-    test('test for pushing an attachments to an array', function() {
-      blobs = shareActivity.source.data.blobs;
-      names = shareActivity.source.data.filenames;
-      assert.ok(arr.length === 0);
-
-      blobs.forEach(function(blob, idx) {
-        var attachment = new Attachment(blob, {
-          name: names[idx],
-          isDraft: true
-        });
-        arr.push(attachment);
-      });
-      ThreadUI.cleanFields(true);
-      //checks an array length after pushing the data to an array
-      assert.ok(arr.length > 0);
     });
 
     test('moves to the composer panel', function() {
@@ -333,7 +326,7 @@ suite('ActivityHandler', function() {
       var sendSpy;
       setup(function() {
         sendSpy = this.sinon.spy(window, 'Notification');
-        this.sinon.stub(Contacts, 'findByPhoneNumber')
+        this.sinon.stub(Contacts, 'findByAddress')
           .yields([{name: [contactName]}]);
 
         MockNavigatormozApps.mTriggerLastRequestSuccess();
@@ -353,7 +346,7 @@ suite('ActivityHandler', function() {
       setup(function() {
         sendSpy = this.sinon.spy(window, 'Notification');
         message.sender = phoneNumber;
-        this.sinon.stub(Contacts, 'findByPhoneNumber')
+        this.sinon.stub(Contacts, 'findByAddress')
           .yields([{
             name: [''],
             tel: {'value': phoneNumber}
@@ -365,6 +358,28 @@ suite('ActivityHandler', function() {
         sinon.assert.called(sendSpy);
         var notification = sendSpy.firstCall.thisValue;
         assert.equal(notification.title, phoneNumber);
+      });
+    });
+
+    suite('[Email]contact without name (after getSelf)', function() {
+      var emailAddress = 'a@b.com';
+      var sendSpy;
+
+      setup(function() {
+        sendSpy = this.sinon.spy(window, 'Notification');
+        message.sender = emailAddress;
+        this.sinon.stub(Contacts, 'findByAddress')
+          .yields([{
+            name: [''],
+            email: {'value': emailAddress}
+          }]);
+        MockNavigatormozApps.mTriggerLastRequestSuccess();
+      });
+
+      test('email in notification title when contact without name', function() {
+        sinon.assert.called(sendSpy);
+        var notification = sendSpy.firstCall.thisValue;
+        assert.equal(notification.title, emailAddress);
       });
     });
 
@@ -404,20 +419,6 @@ suite('ActivityHandler', function() {
 
     suite('Close notification', function() {
       var closeSpy;
-      var isDocumentHidden;
-
-      suiteSetup(function(){
-        Object.defineProperty(document, 'hidden', {
-          configurable: true,
-          get: function() {
-            return isDocumentHidden;
-          }
-        });
-      });
-
-      suiteTeardown(function(){
-        delete document.hidden;
-      });
 
       setup(function() {
         closeSpy = this.sinon.spy(Notification.prototype, 'close');
@@ -523,7 +524,7 @@ suite('ActivityHandler', function() {
     suite('contact retrieved (after getSelf)', function() {
       var contactName = 'contact';
       setup(function() {
-        this.sinon.stub(Contacts, 'findByPhoneNumber')
+        this.sinon.stub(Contacts, 'findByAddress')
           .yields([{name: [contactName]}]);
 
         MockNavigatormozApps.mTriggerLastRequestSuccess();
@@ -531,7 +532,7 @@ suite('ActivityHandler', function() {
 
       test('prefix the contact name with the SIM information', function() {
         var expected = 'dsds-notification-title-with-sim' +
-         '{"sim":"sim-name-0","sender":"contact"}';
+          '{"sim":"sim-name-0","sender":"contact"}';
         sinon.assert.calledWith(window.Notification, expected);
       });
     });
@@ -541,7 +542,7 @@ suite('ActivityHandler', function() {
 
       setup(function() {
         message.sender = phoneNumber;
-        this.sinon.stub(Contacts, 'findByPhoneNumber')
+        this.sinon.stub(Contacts, 'findByAddress')
           .yields([{
             name: [''],
             tel: {value: phoneNumber}
@@ -552,6 +553,26 @@ suite('ActivityHandler', function() {
       test('phone in notification title when contact without name', function() {
         var expected = 'dsds-notification-title-with-sim' +
           '{"sim":"sim-name-0","sender":"+1111111111"}';
+        sinon.assert.calledWith(window.Notification, expected);
+      });
+    });
+
+    suite('[Email]contact without name (after getSelf)', function() {
+      var emailAddress = 'a@b.com';
+
+      setup(function() {
+        message.sender = emailAddress;
+        this.sinon.stub(Contacts, 'findByAddress')
+          .yields([{
+            name: [''],
+            email: {value: emailAddress}
+          }]);
+        MockNavigatormozApps.mTriggerLastRequestSuccess();
+      });
+
+      test('email in notification title when contact without name', function() {
+        var expected = 'dsds-notification-title-with-sim' +
+          '{"sim":"sim-name-0","sender":"a@b.com"}';
         sinon.assert.calledWith(window.Notification, expected);
       });
     });
@@ -671,7 +692,7 @@ suite('ActivityHandler', function() {
 
     setup(function() {
       // find no contact in here
-      this.sinon.stub(Contacts, 'findByPhoneNumber').callsArgWith(1, []);
+      this.sinon.stub(Contacts, 'findByAddress').callsArgWith(1, []);
       this.sinon.spy(Navigation, 'toPanel');
     });
 

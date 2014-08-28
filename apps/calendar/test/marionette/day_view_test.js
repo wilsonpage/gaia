@@ -6,6 +6,7 @@ var Calendar = require('./lib/calendar'),
 marionette('day view', function() {
   var app;
   var day;
+  var month;
   var client = marionette.client({
     prefs: {
       // we need to disable the keyboard to avoid intermittent failures on
@@ -22,7 +23,7 @@ marionette('day view', function() {
     app.launch({ hideSwipeHint: true });
     app.openDayView();
     day = app.day;
-    day.waitForDisplay();
+    month = app.month;
   });
 
   test('header copy should not overflow', function() {
@@ -40,12 +41,11 @@ marionette('day view', function() {
         duration: 3
       });
       day.waitForDisplay();
+      // Scroll to top to make sure we could click the event element.
+      day.scrollTop = 0;
     });
 
-    // disabled bug 988516
-    test.skip('click after first hour', function() {
-      // click will happen at middle of element and middle is after first hour,
-      // so this should be enough to trigger the event details (Bug 972666)
+    test('click after first hour', function() {
       day.events[0].click();
       app.readEvent.waitForDisplay();
 
@@ -228,4 +228,66 @@ marionette('day view', function() {
     }
   });
 
+  suite('animated scrolling', function() {
+    test('today', function() {
+      assert.equal(
+        day.scrollTop,
+        day.getDistinationScrollTop(new Date().getHours() - 1),
+        'scroll to the previous hour of current time'
+      );
+    });
+
+    test('select next or previous day in the month', function() {
+      var today = new Date();
+      var selectedDay;
+
+      app.openMonthView();
+      if (today.getDate() === 1 && today.getDay() === 0) {
+        selectedDay = month.days[1];
+      } else {
+        selectedDay = month.days[0];
+      }
+      selectedDay.click();
+
+      app.openDayView();
+      assert.equal(
+        day.scrollTop,
+        day.getDistinationScrollTop(8),
+        'scroll to the 8AM element'
+      );
+    });
+
+    test('swipe to the next day', function() {
+      var previousScrollTop = day.scrollTop;
+      app.swipeLeft();
+
+      assert.equal(
+        day.scrollTop,
+        previousScrollTop,
+        'same scrollTop'
+      );
+    });
+
+    test('swipe to the previous day', function() {
+      var previousScrollTop = day.scrollTop;
+      app.swipeRight();
+
+      assert.equal(
+        day.scrollTop,
+        previousScrollTop,
+        'same scrollTop'
+      );
+    });
+
+    test('swipe to the today', function() {
+      app.swipeRight();
+      app.swipeLeft();
+
+      assert.equal(
+        day.scrollTop,
+        day.getDistinationScrollTop(new Date().getHours() - 1),
+        'scroll to the 8AM element'
+      );
+    });
+  });
 });

@@ -12,15 +12,16 @@ var MimeMapper,
     msgAttachmentDisabledConfirmNode =
                          require('tmpl!./msg/attachment_disabled_confirm.html'),
     common = require('mail_common'),
+    Toaster = require('toaster'),
     model = require('model'),
     headerCursor = require('header_cursor').cursor,
     evt = require('evt'),
     iframeShims = require('iframe_shims'),
     Marquee = require('marquee'),
     mozL10n = require('l10n!'),
+    queryURI = require('query_uri'),
 
     Cards = common.Cards,
-    Toaster = common.Toaster,
     ConfirmDialog = common.ConfirmDialog,
     displaySubject = common.displaySubject,
     prettyDate = common.prettyDate,
@@ -83,6 +84,8 @@ function MessageReaderCard(domNode, mode, args) {
     domNode.getElementsByClassName('scrollregion-below-header')[0];
   this.loadBar =
     this.domNode.getElementsByClassName('msg-reader-load-infobar')[0];
+  this.loadBarText =
+    this.domNode.getElementsByClassName('msg-reader-load-infobar-text')[0];
   this.rootBodyNode = domNode.getElementsByClassName('msg-body-container')[0];
 
   // whether or not we've built the body DOM the first time
@@ -324,10 +327,12 @@ MessageReaderCard.prototype = {
 
   onReplyMenu: function(event) {
     var contents = msgReplyMenuNode.cloneNode(true);
+    Cards.setStatusColor(contents);
     document.body.appendChild(contents);
 
     // reply menu selection handling
     var formSubmit = (function(evt) {
+      Cards.setStatusColor();
       document.body.removeChild(contents);
       switch (evt.explicitOriginalTarget.className) {
       case 'msg-reply-menu-reply':
@@ -359,8 +364,8 @@ MessageReaderCard.prototype = {
         id: 'msg-delete-ok',
         handler: function() {
           var op = this.header.deleteMessage();
-          Toaster.logMutation(op, true);
           Cards.removeCardAndSuccessors(this.domNode, 'animate');
+          Toaster.toastOperation(op);
         }.bind(this)
       },
       { // Cancel
@@ -383,8 +388,8 @@ MessageReaderCard.prototype = {
     //TODO: Please verify move functionality after api landed.
     Cards.folderSelector(function(folder) {
       var op = this.header.moveMessage(folder);
-      Toaster.logMutation(op, true);
       Cards.removeCardAndSuccessors(this.domNode, 'animate');
+      Toaster.toastOperation(op);
     }.bind(this));
   },
 
@@ -620,6 +625,7 @@ MessageReaderCard.prototype = {
             name: 'open',
             data: {
               type: mappedType,
+              filename: attachment.filename,
               blob: blob
             }
           });
@@ -640,12 +646,42 @@ MessageReaderCard.prototype = {
   onHyperlinkClick: function(event, linkNode, linkUrl, linkText) {
     var dialog = msgBrowseConfirmNode.cloneNode(true);
     var content = dialog.getElementsByTagName('p')[0];
-    content.textContent = mozL10n.get('browse-to-url-prompt', { url: linkUrl });
+    mozL10n.setAttributes(content, 'browse-to-url-prompt', { url: linkUrl });
     ConfirmDialog.show(dialog,
       { // Confirm
         id: 'msg-browse-ok',
         handler: function() {
-          window.open(linkUrl, '_blank', 'dialog');
+          if (/^mailto:/i.test(linkUrl)) {
+            // Fast path to compose. Works better than an activity, since
+            // "canceling" the activity has freaky consequences: what does it
+            // mean to cancel ourselves? What is the sound of one hand clapping?
+            var data = queryURI(linkUrl);
+            Cards.pushCard('compose', 'default', 'animate', {
+              composerData: {
+                onComposer: function(composer, composeCard) {
+                  // Copy the to, cc, bcc, subject, body to the compose.
+                  // It is OK to do this blind key copy since queryURI
+                  // explicitly only populates expected fields, does not blindly
+                  // accept input from the outside, and the queryURI properties
+                  // match the property names allowed on composer.
+                  Object.keys(data).forEach(function(key) {
+                    composer[key] = data[key];
+                  });
+                }
+              }
+            });
+          } else {
+            // Pop out to what is likely the browser, or the user's preferred
+            // viewer for the URL. This keeps the URL out of our cookie jar/data
+            // space too.
+            new MozActivity({
+              name: 'view',
+              data: {
+                type: 'url',
+                url: linkUrl
+              }
+            });
+          }
         }.bind(this)
       },
       { // Cancel
@@ -866,14 +902,12 @@ MessageReaderCard.prototype = {
     var loadBar = this.loadBar;
     if (body.embeddedImageCount && !body.embeddedImagesDownloaded) {
       loadBar.classList.remove('collapsed');
-      loadBar.textContent =
-        mozL10n.get('message-download-images',
-                    { n: body.embeddedImageCount });
+      mozL10n.setAttributes(this.loadBarText, 'message-download-images-tap',
+                            { n: body.embeddedImageCount });
     }
     else if (hasExternalImages) {
       loadBar.classList.remove('collapsed');
-      loadBar.textContent =
-        mozL10n.get('message-show-external-images');
+      mozL10n.setAttributes(this.loadBarText, 'message-show-external-images');
     }
     else {
       loadBar.classList.add('collapsed');

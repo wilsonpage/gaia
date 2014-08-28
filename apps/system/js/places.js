@@ -1,5 +1,5 @@
 'use strict';
-/* globals SettingsListener, Promise, AppWindowManager */
+/* globals Promise, AppWindowManager, asyncStorage */
 /* exported Places */
 
 (function(exports) {
@@ -9,7 +9,6 @@
    * B2G. Places monitors app events and syncs information with the Places
    * datastore for consumption by apps like Search.
    * @requires AppWindowManager
-   * @requires SettingsListener
    * @class Places
    */
   function Places() {}
@@ -31,13 +30,6 @@
     dataStore: null,
 
     /**
-     * Whether or not rocketbar is enabled.
-     * @memberof Places.prototype
-     * @type {Boolean}
-     */
-    rocketBarEnabled: false,
-
-    /**
      * Set when we are editing a place record in the datastore.
      * @memberof Places.prototype
      * @type {Boolean}
@@ -52,6 +44,15 @@
     screenshotQueue: [],
 
     /**
+     * Maximum number of top sites we display
+     * @memberof Places.prototype
+     * @type {Integer}
+     */
+    MAX_TOP_SITES: 6,
+
+    topSites: [],
+
+    /**
      * Starts places.
      * Adds necessary event listeners and gets the datastore.
      * @param {Function} callback
@@ -63,12 +64,12 @@
       window.addEventListener('appiconchange', this);
       window.addEventListener('apploaded', this);
 
+      asyncStorage.getItem('top-sites', (function(results) {
+        this.topSites = results || [];
+      }).bind(this));
+
       navigator.getDataStores(this.STORE_NAME)
         .then(this.initStore.bind(this)).then(callback);
-
-      SettingsListener.observe('rocketbar.enabled', false, (function(value) {
-        this.rocketBarEnabled = value;
-      }).bind(this));
     },
 
     /**
@@ -87,9 +88,6 @@
      * @memberof Places.prototype
      */
     handleEvent: function(evt) {
-      if (!this.rocketBarEnabled) {
-        return;
-      }
       var app = evt.detail;
       switch (evt.type) {
       case 'apptitlechange':
@@ -99,7 +97,7 @@
         this.addVisit(app.config.url);
         break;
       case 'appiconchange':
-        this.setPlaceIconUri(app.config.url, app.config.favicon.href);
+        this.addPlaceIcons(app.config.url, app.favicons);
         break;
       case 'apploaded':
         var index = this.screenshotQueue.indexOf(app.config.url);
@@ -143,7 +141,9 @@
       return {
         url: url,
         title: url,
-        frecency: 0
+        icons: {},
+        frecency: 0,
+        screenshot: null
       };
     },
 
@@ -184,11 +184,34 @@
      * @memberof Places.prototype
      */
     addVisit: function(url) {
+      var self = this;
       return this.editPlace(url, function(place, cb) {
         place.visited = Date.now();
         place.frecency++;
+        self.checkTopSites(place);
         cb(place);
       });
+    },
+
+    /**
+     * Check if we need to render a screenshot of the current visit
+     * in the case that it is in the top most visited sites
+     */
+    checkTopSites: function(place) {
+      var numTopSites = this.topSites.length;
+      var lastTopSite = this.topSites[numTopSites - 1];
+      if (numTopSites < this.MAX_TOP_SITES ||
+          place.frecency > lastTopSite.frecency) {
+        this.topSites.push(place);
+        this.screenshotRequested(place.url);
+        this.topSites.sort(function(a, b) {
+          return b.frecency - a.frecency;
+        });
+        if (this.topSites.length > this.MAX_TOP_SITES) {
+          this.topSites.length = this.MAX_TOP_SITES;
+        }
+        asyncStorage.setItem('top-sites', this.topSites);
+      }
     },
 
     saveScreenshot: function(url, screenshot) {
@@ -224,12 +247,14 @@
      * Set place icon.
      *
      * @param {String} url URL of place to update.
-     * @param {String} iconUri URL of the icon for url.
+     * @param {String} icon The icon object
      * @memberof Places.prototype
      */
-    setPlaceIconUri: function(url, iconUri) {
-      return this.editPlace(url, function(place, cb) {
-        place.iconUri = iconUri;
+    addPlaceIcons: function(url, icons) {
+      return this.editPlace(url, (place, cb) => {
+        for (var iconUri in icons) {
+          place.icons[iconUri] = icons[iconUri];
+        }
         cb(place);
       });
     }

@@ -8,7 +8,6 @@ module.exports = Email;
 Email.EMAIL_ORIGIN = 'app://email.gaiamobile.org';
 
 var Selector = {
-  notificationBar: '.card-message-list .msg-list-topbar',
   setupNameInput: '.card-setup-account-info .sup-info-name',
   setupEmailInput: '.card-setup-account-info .sup-info-email',
   setupPasswordInput: '.card-setup-account-info .sup-info-password',
@@ -39,6 +38,7 @@ var Selector = {
   msgUpBtn: '.card-message-reader .msg-up-btn',
   msgEnvelopeSubject: '.card-message-reader .msg-envelope-subject',
   showMailButton: '.card-setup-done .sup-show-mail-btn',
+  confirmDialogOkButton: '.confirm-dialog-form .confirm-dialog-ok',
   manualConfigButton: '.scrollregion-below-header .sup-manual-config-btn',
   composeButton: '.msg-list-header .msg-compose-btn',
   composeEmailContainer: '.card-compose .cmp-to-container',
@@ -49,6 +49,7 @@ var Selector = {
   composeBackButton: '.card-compose .cmp-back-btn',
   composeDraftDiscard: '#cmp-draft-discard',
   composeDraftSave: '#cmp-draft-save',
+  composeErrorMessage: '.card-compose .cmp-error-message',
   refreshButton: '.card.center .msg-refresh-btn',
   messageHeaderItem:
   '.msg-messages-container .msg-header-item',
@@ -76,6 +77,9 @@ var Selector = {
   notifyEmailCheckbox: '.tng-notify-mail-label',
   accountSettingsBackButton: '.card-settings-account .tng-back-btn',
   localDraftsItem: '.fld-folders-container a[data-type=localdrafts]',
+  outboxItem: '.fld-folders-container a[data-type=outbox]',
+  outboxItemSyncIcon: '.msg-header-syncing-section',
+  msgLastSync: '.msg-last-synced-value',
   toaster: 'section[role="status"]'
 };
 
@@ -84,8 +88,15 @@ Email.prototype = {
    * Send some emails and then receive them.
    *
    * @param {Array} messages list of messages with to, subject, and body.
+   * @param {Number} [messageSyncIndex] the index into the list of messages in
+   * the message list that indicates synchronization is complete. Uses the last
+   * index in messages by default.
    */
-  sendAndReceiveMessages: function(messages) {
+  sendAndReceiveMessages: function(messages, messageSyncIndex) {
+    if (messageSyncIndex === undefined) {
+      messageSyncIndex = messages.length - 1;
+    }
+
     messages.forEach(function(message) {
       this.tapCompose();
       this.typeTo(message.to);
@@ -95,23 +106,12 @@ Email.prototype = {
     }.bind(this));
 
     this.tapRefreshButton();
-    this.waitForNewEmail();
-    this.tapNotificationBar();
+    this.waitForSynchronized(messageSyncIndex);
   },
 
   waitForToaster: function() {
     var toaster = this.client.helper.waitForElement(Selector.toaster);
     this.client.helper.waitForElementToDisappear(toaster);
-  },
-
-  get notificationBar() {
-    return this.client.helper.waitForElement(Selector.notificationBar);
-  },
-
-  tapNotificationBar: function() {
-    var notificationBar = this.notificationBar;
-    notificationBar.click();
-    this.client.helper.waitForElementToDisappear(notificationBar);
   },
 
   get msgDownBtn() {
@@ -146,6 +146,18 @@ Email.prototype = {
       this.client.helper.waitForElement(Selector.composeEmailContainer);
     var text = container.text();
     return text;
+  },
+
+  getComposeErrorMessage: function() {
+    return this.client.helper
+      .waitForElement(Selector.composeErrorMessage)
+      .text();
+  },
+
+  getLastSyncText: function() {
+    return this.client.helper
+      .waitForElement(Selector.msgLastSync)
+      .text();
   },
 
   manualSetupImapEmail: function(server, finalActionName) {
@@ -191,12 +203,9 @@ Email.prototype = {
   // going to setting up a new account after triggering email launch
   // from an activity.
   confirmWantAccount: function() {
-    this.client.helper.waitForAlert('not set up to send or receive email');
-    // inlined selector since it is specific to the out-of-app confirm
-    // dialog found in system/index.html
-    this._tapSelector('#modal-dialog-confirm-ok');
     this.client.switchToFrame();
     this.client.apps.switchToApp(Email.EMAIL_ORIGIN);
+    this.client.helper.waitForElement(Selector.confirmDialogOkButton).tap();
     this.client.helper.waitForElement(Selector.manualConfigButton);
     this.client.helper.waitForElement(Selector.manualConfigButton).tap();
   },
@@ -228,6 +237,24 @@ Email.prototype = {
     // clicking that transitions us back to the message list; wait for us
     // to get there.
     this._waitForTransitionEnd('message_list');
+  },
+
+  tapOutboxItem: function() {
+    this._waitForElementNoTransition(Selector.outboxItem).tap();
+    this._waitForTransitionEnd('message_list');
+  },
+
+  getOutboxItemSyncIconForIndex: function(index) {
+    var header = this.getHeaderAtIndex(index);
+    var iconEl = header.findElement(Selector.outboxItemSyncIcon);
+    var className = iconEl.getAttribute('className');
+    if (/-syncing$/.test(className)) {
+      return 'syncing';
+    } else if (/-error$/.test(className)) {
+      return 'error';
+    } else {
+      return '';
+    }
   },
 
   switchAccount: function(number) {
@@ -342,13 +369,26 @@ Email.prototype = {
     return elements;
   },
 
+  isElementDisabled: function(selector) {
+    var client = this.client;
+
+    client.helper.waitForElement(selector);
+
+    client.waitFor(function() {
+      return client.executeScript(function(selector) {
+        var doc = window.wrappedJSObject.document,
+            selectNode = doc.querySelector(selector);
+
+        return selectNode.disabled;
+      }, [selector]);
+    });
+  },
+
   /**
    * Taps the trash button in edit mode.
    */
-  editModeTrash: function() {
-    this.client.helper
-      .waitForElement(Selector.editModeTrash)
-      .tap();
+  isEditModeTrashDisabled: function() {
+    this.isElementDisabled(Selector.editModeTrash);
   },
 
   abortCompose: function(cardId) {
@@ -439,8 +479,8 @@ Email.prototype = {
     this._waitForTransitionEnd('compose');
   },
 
-  waitForNewEmail: function() {
-    this._waitForElementNoTransition(Selector.notificationBar);
+  waitForSynchronized: function(index) {
+    this.getHeaderAtIndex(index);
   },
 
   launch: function() {
@@ -481,6 +521,10 @@ Email.prototype = {
       this._waitForTransitionEnd(cardId);
       return true;
     }.bind(this));
+  },
+
+  getMessageCount: function() {
+    return this.client.findElements(Selector.messageHeaderItem).length;
   },
 
   getEmailBySubject: function(subject) {

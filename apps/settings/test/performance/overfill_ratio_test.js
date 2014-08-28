@@ -1,12 +1,14 @@
 'use strict';
 
+var assert = require('assert');
+
 var MarionetteHelper = requireGaia('/tests/js-marionette/helper.js');
 var PerformanceHelper =
   requireGaia('/tests/performance/performance_helper.js');
 var SettingsIntegration = require('./integration.js');
 var Actions = require('marionette-client').Actions;
 
-marionette(mozTestInfo.appPath + ' >', function() {
+marionette(config.appPath + ' >', function() {
   var app;
   var client = marionette.client({
     settings: {
@@ -16,12 +18,12 @@ marionette(mozTestInfo.appPath + ' >', function() {
 
   var chrome = client.scope({context: 'chrome' });
   var actions = new Actions(client);
-  app = new SettingsIntegration(client, mozTestInfo.appPath);
+  app = new SettingsIntegration(client, config.appPath);
 
   setup(function() {
     // It affects the first run otherwise
-    this.timeout(500000);
-    client.setScriptTimeout(50000);
+    this.timeout(config.timeout);
+    client.setScriptTimeout(config.scriptTimeout);
 
     // inject perf event listener
     PerformanceHelper.injectHelperAtom(client);
@@ -31,7 +33,7 @@ marionette(mozTestInfo.appPath + ' >', function() {
 
   test('Overfill Settings Scroll >', function() {
     var results = [];
-    var lastEvent = 'startup-path-done';
+    var lastEvent = 'moz-app-loaded';
 
     var performanceHelper = new PerformanceHelper({
       app: app,
@@ -68,6 +70,9 @@ marionette(mozTestInfo.appPath + ' >', function() {
       }); // end wait for perf event
 
      });
+
+    // results is an Array of values, one per run.
+    assert.ok(results.length == config.runs, 'missing runs');
 
     PerformanceHelper.reportDuration(results, 'overfills');
   });

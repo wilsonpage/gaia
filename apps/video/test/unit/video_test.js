@@ -1,6 +1,3 @@
-/*
-  Video Media Info Tests
-*/
 'use strict';
 
 require('/shared/js/lazy_loader.js');
@@ -8,6 +5,7 @@ require('/shared/js/l10n.js');
 require('/shared/js/l10n_date.js');
 require('/shared/js/media/media_utils.js');
 require('/shared/test/unit/load_body_html_helper.js');
+require('/shared/test/unit/mocks/mock_lazy_loader.js');
 require('/shared/test/unit/mocks/mock_screen_layout.js');
 require('/shared/test/unit/mocks/mock_video_stats.js');
 requireApp('/video/js/video_utils.js');
@@ -15,15 +13,15 @@ requireApp('/video/test/unit/mock_l10n.js');
 requireApp('/video/test/unit/mock_metadata.js');
 requireApp('/video/test/unit/mock_mediadb.js');
 requireApp('/video/test/unit/mock_thumbnail_group.js');
+requireApp('/video/test/unit/mock_thumbnail_item.js');
 requireApp('/video/test/unit/mock_video_player.js');
 requireApp('/video/js/thumbnail_list.js');
 
-var metadataQueue; // Declare here to avoid pulling in metadata.js
-var MediaDB;       // Declare here to avoid pulling in mediadb.js
-var videodb;       // Used in video.js
-var videoControlsAutoHidingMsOverride = 0; // Used in video.js
+// Declare variables used in video.js that are declared in other
+// javascript files (that we don't want to pull in).
+var videodb;              // Declared in db.js
 var startParsingMetadata; // Declared in metadata.js
-var captureFrame;  // Declared in metadata.js
+var ThumbnailItem;
 
 function containsClass(element, value) {
   return element.classList.contains(value);
@@ -33,8 +31,20 @@ var mocksForVideo = new MocksHelper([
   'ScreenLayout'
 ]);
 
+function getAsset(filename, loadCallback) {
+  var req = new XMLHttpRequest();
+  req.open('GET', filename, true);
+  req.responseType = 'blob';
+  req.onload = function() {
+    loadCallback(req.response);
+  };
+  req.send();
+}
+
 suite('Video App Unit Tests', function() {
   var nativeMozL10n;
+  var videoName = 'video name';
+
   suiteSetup(function(done) {
 
     mocksForVideo.suiteSetup();
@@ -193,6 +203,7 @@ suite('Video App Unit Tests', function() {
 
   suite('#Update dialog tests', function() {
     var thumbnailItemName = 'dummy-file-name-09.3gp';
+    var realLazyLoader;
 
     suiteSetup(function() {
       MediaDB = new MockMediaDB();
@@ -208,104 +219,127 @@ suite('Video App Unit Tests', function() {
       dom.overlayMenu = document.createElement('overlay-menu');
       dom.overlayTitle = document.createElement('overlay-title');
       dom.overlayText = document.createElement('overlay-text');
+
+      realLazyLoader = LazyLoader;
+      LazyLoader = MockLazyLoader;
+    });
+
+    setup(function() {
+      dom.overlayTitle.setAttribute('data-l10n-id', '');
+      dom.overlayText.setAttribute('data-l10n-id', '');
+    });
+
+    suiteTeardown(function() {
+      LazyLoader = realLazyLoader;
     });
 
     /**
      * If there is at least one thumbnail loaded, hide overlay
      */
-    test('#Update dialog, hide overlay', function() {
+    test('#Update dialog, hide overlay', function(done) {
       thumbnailList.addItem({'name': thumbnailItemName});
       updateDialog();
-      assert.isTrue(dom.overlay.classList.contains('hidden'));
+      setTimeout(function() {
+        assert.isTrue(dom.overlay.classList.contains('hidden'));
+        done();
+      }, 1);
     });
 
     /**
      * DB being upraded
      */
-    test('#Update dialog, db upgrade, \'upgrade\' title and text', function() {
+    test('#Update dialog, db upgrade, \'upgrade\' title and text',
+        function(done) {
       thumbnailList.removeItem(thumbnailItemName);
       storageState = MediaDB.UPGRADING;
       dom.overlayMenu.classList.remove('hidden');
       dom.overlayActionButton.classList.remove('hidden');
-      dom.overlayTitle.textContent = '';
-      dom.overlayText.textContent = '';
 
       updateDialog();
 
-      assert.isTrue(dom.overlayMenu.classList.contains('hidden'));
-      assert.isTrue(dom.overlayActionButton.classList.contains('hidden'));
-      assert.equal(dom.overlayTitle.textContent, 'upgrade-title');
-      assert.equal(dom.overlayText.textContent, 'upgrade-text');
+      // Allow lazy loader to load
+      setTimeout(function() {
+        assert.isTrue(dom.overlayMenu.classList.contains('hidden'));
+        assert.isTrue(dom.overlayActionButton.classList.contains('hidden'));
+        assert.equal(dom.overlayTitle.getAttribute('data-l10n-id'),
+                                                   'upgrade-title');
+        assert.equal(dom.overlayText.getAttribute('data-l10n-id'),
+                                                  'upgrade-text');
+        done();
+      }, 1);
     });
 
-    test('#Update dialog, pick activity, cancel overlay menu', function() {
-      pendingPick = {'source': {'name': 'pick_name'}};
-      storageState = MediaDB.UNMOUNTED;
-      dom.overlayMenu.classList.add('hidden');
-      dom.overlayActionButton.classList.add('hidden');
-      dom.overlayTitle.textContent = '';
-      dom.overlayText.textContent = '';
-
-      updateDialog();
-
-      assert.isFalse(dom.overlayMenu.classList.contains('hidden'));
-      assert.isFalse(dom.overlayActionButton.classList.contains('hidden'));
-      assert.equal(dom.overlayActionButton.textContent,
-                   'overlay-cancel-button');
-      assert.equal(dom.overlayTitle.textContent, 'pluggedin-title');
-      assert.equal(dom.overlayText.textContent, 'pluggedin-text');
-    });
-
-    test('#Update dialog, empty list, \'empty\' overlay menu', function() {
+    test('#Update dialog, empty list, \'empty\' overlay menu',
+        function(done) {
       pendingPick = null;
       storageState = null;
       dom.overlayMenu.classList.add('hidden');
       dom.overlayActionButton.classList.add('hidden');
-      dom.overlayTitle.textContent = '';
-      dom.overlayText.textContent = '';
+      dom.overlayTitle.setAttribute('data-l10n-id', '');
+      dom.overlayText.setAttribute('data-l10n-id', '');
       firstScanEnded = true;
       metadataQueue = {'length': 0};
 
       updateDialog();
 
-      assert.isFalse(dom.overlayMenu.classList.contains('hidden'));
-      assert.isFalse(dom.overlayActionButton.classList.contains('hidden'));
-      assert.equal(dom.overlayActionButton.textContent,
-                   'overlay-camera-button');
-      assert.equal(dom.overlayTitle.textContent, 'empty-title');
-      assert.equal(dom.overlayText.textContent, 'empty-text');
+      // Allow lazy loader to load
+      setTimeout(function() {
+        assert.isFalse(dom.overlayMenu.classList.contains('hidden'));
+        assert.isFalse(dom.overlayActionButton.classList.contains('hidden'));
+        assert.equal(dom.overlayActionButton.getAttribute('data-l10n-id'),
+                     'overlay-camera-button');
+        assert.equal(dom.overlayTitle.getAttribute('data-l10n-id'),
+                                                   'empty-title');
+        assert.equal(dom.overlayText.getAttribute('data-l10n-id'),
+                                                  'empty-text');
+        done();
+      }, 1);
     });
 
-    test('#Update dialog, no card, \'no card\' title and text', function() {
+    test('#Update dialog, no card, \'no card\' title and text',
+        function(done) {
       thumbnailList.removeItem(thumbnailItemName);
       storageState = MediaDB.NOCARD;
       dom.overlayMenu.classList.remove('hidden');
       dom.overlayActionButton.classList.remove('hidden');
-      dom.overlayTitle.textContent = '';
-      dom.overlayText.textContent = '';
+      dom.overlayTitle.setAttribute('data-l10n-id', '');
+      dom.overlayText.setAttribute('data-l10n-id', '');
 
       updateDialog();
 
-      assert.isTrue(dom.overlayMenu.classList.contains('hidden'));
-      assert.isTrue(dom.overlayActionButton.classList.contains('hidden'));
-      assert.equal(dom.overlayTitle.textContent, 'nocard2-title');
-      assert.equal(dom.overlayText.textContent, 'nocard3-text');
+      // Allow lazy loader to load
+      setTimeout(function() {
+        assert.isTrue(dom.overlayMenu.classList.contains('hidden'));
+        assert.isTrue(dom.overlayActionButton.classList.contains('hidden'));
+        assert.equal(dom.overlayTitle.getAttribute('data-l10n-id'),
+                                                   'nocard2-title');
+        assert.equal(dom.overlayText.getAttribute('data-l10n-id'),
+                                                  'nocard3-text');
+        done();
+      }, 1);
     });
 
-    test('#Update dialog, media no mnt, \'no mount\' title/text', function() {
+    test('#Update dialog, media no mnt, \'no mount\' title/text',
+        function(done) {
       thumbnailList.removeItem(thumbnailItemName);
       storageState = MediaDB.UNMOUNTED;
       dom.overlayMenu.classList.remove('hidden');
       dom.overlayActionButton.classList.remove('hidden');
-      dom.overlayTitle.textContent = '';
-      dom.overlayText.textContent = '';
+      dom.overlayTitle.setAttribute('data-l10n-id', '');
+      dom.overlayText.setAttribute('data-l10n-id', '');
 
       updateDialog();
 
-      assert.isTrue(dom.overlayMenu.classList.contains('hidden'));
-      assert.isTrue(dom.overlayActionButton.classList.contains('hidden'));
-      assert.equal(dom.overlayTitle.textContent, 'pluggedin-title');
-      assert.equal(dom.overlayText.textContent, 'pluggedin-text');
+      // Allow lazy loader to load
+      setTimeout(function() {
+        assert.isTrue(dom.overlayMenu.classList.contains('hidden'));
+        assert.isTrue(dom.overlayActionButton.classList.contains('hidden'));
+        assert.equal(dom.overlayTitle.getAttribute('data-l10n-id'),
+                                                   'pluggedin-title');
+        assert.equal(dom.overlayText.getAttribute('data-l10n-id'),
+                                                  'pluggedin-text');
+        done();
+      }, 1);
     });
   });
 
@@ -317,6 +351,7 @@ suite('Video App Unit Tests', function() {
 
     var playerPlaySpy;
     var playerPauseSpy;
+    var fakeTimer;
 
     function getTitle(autoPlay, enterFullscreen, keepControls, misc) {
       var appendage;
@@ -365,6 +400,8 @@ suite('Video App Unit Tests', function() {
       playerPlaySpy = sinon.spy(dom.player, 'play');
       playerPauseSpy = sinon.spy(dom.player, 'pause');
 
+      fakeTimer = sinon.useFakeTimers();
+
       videoDuration = 1.25;
 
       selectedVideo = {
@@ -394,15 +431,7 @@ suite('Video App Unit Tests', function() {
       selectedThumbnail =
           thumbnailList.thumbnailMap[selectedVideo.name];
 
-      function getAsset(filename, loadCallback) {
-        var req = new XMLHttpRequest();
-        req.open('GET', filename, true);
-        req.responseType = 'blob';
-        req.onload = function() {
-          loadCallback(req.response);
-        };
-        req.send();
-      }
+      isPhone = true; // setControlsVisibility
 
       getAsset('/test/unit/media/test.webm', function(blob) {
         videodb = new MockMediaDB(blob);
@@ -418,6 +447,7 @@ suite('Video App Unit Tests', function() {
       selectedThumbnail.htmlNode.classList.remove('focused');
       dom.player.setDuration(0);
       dom.player.currentTime = -1;
+      dom.player.onloadedmetadata = null;
     });
 
     teardown(function() {
@@ -709,7 +739,7 @@ suite('Video App Unit Tests', function() {
     *   that has already been tested fully by the previous
     *   tests.
     */
-    test(getTitle(true, true, false), function(done) {
+    test(getTitle(true, true, false), function() {
 
       currentVideo = null;
       dom.player.setSeeking(false);
@@ -720,8 +750,6 @@ suite('Video App Unit Tests', function() {
       currentLayoutMode = LAYOUT_MODE.list;
       document.body.classList.add(LAYOUT_MODE.list);
 
-      // In order to test 'setControlsVisibility(true)'
-      isPhone = true;
       dom.videoControls.classList.remove('hidden');
 
       showPlayer(selectedVideo,
@@ -739,10 +767,9 @@ suite('Video App Unit Tests', function() {
       assert.isTrue(playerPlaySpy.calledOnce);
       assert.equal(playerPauseSpy.callCount, 0);
 
-      setTimeout(function() {
-        assert.isTrue(containsClass(dom.videoControls, 'hidden'));
-        done();
-      }, 0);
+      fakeTimer.tick(300);
+
+      assert.isTrue(containsClass(dom.videoControls, 'hidden'));
     });
 
     /**
@@ -916,18 +943,11 @@ suite('Video App Unit Tests', function() {
       updatePosterSpy = sinon.spy();
       setWatchedSpy = sinon.spy();
 
-      // We need a mock captureFrame function as opposed to simply
-      // using a spy because the function needs to have an implementation,
-      // it needs to invoke the callback function.
-      captureFrame = function captureFrame(player, metadata, callback) {
-        callback();
-      };
-
       videodb = new MockMediaDB();
       updateMetadataDbSpy = sinon.spy(videodb, 'updateMetadata');
 
       currentVideo = {
-        'name': 'video name'
+        'name': videoName
       };
 
       thumbnailList.addItem(currentVideo);
@@ -991,7 +1011,7 @@ suite('Video App Unit Tests', function() {
       dom.player.currentTime = 1;
 
       currentVideo = {
-        'name': 'video name',
+        'name': videoName,
         'metadata': {
           'title': 'video title',
           'watched': true
@@ -1033,7 +1053,7 @@ suite('Video App Unit Tests', function() {
       dom.player.currentTime = 1;
 
       currentVideo = {
-        'name': 'video name',
+        'name': videoName,
         'metadata': {
           'title': 'video title',
           'watched': false
@@ -1076,7 +1096,7 @@ suite('Video App Unit Tests', function() {
       var currentTime = 10;
 
       currentVideo = {
-        'name': 'video name',
+        'name': videoName,
         'metadata': {
           'title': 'video title',
           'watched': false,
@@ -1117,7 +1137,7 @@ suite('Video App Unit Tests', function() {
       // currentVideo.metadata.currentTime
 
       currentVideo = {
-        'name': 'video name'
+        'name': videoName
       };
 
       hidePlayer(true);
@@ -1154,7 +1174,7 @@ suite('Video App Unit Tests', function() {
       dom.player.currentTime = 1;
 
       currentVideo = {
-        'name': 'video name',
+        'name': videoName,
         'metadata': {
           'title': 'video title',
           'watched': false
@@ -1344,6 +1364,734 @@ suite('Video App Unit Tests', function() {
       assert.isFalse(updatePosterSpy.calledOnce);
       assert.isFalse(setWatchedSpy.calledOnce);
       assert.isFalse(updateMetadataDbSpy.calledOnce);
+    });
+  });
+
+  suite('handleScreenLayoutChange flows', function() {
+
+    var updateAllThumbnailTitleSpy;
+    var rescaleSpy;
+    var HAVE_METADATA = 1;
+
+    suiteSetup(function(done) {
+      dom.player = new MockVideoPlayer();
+      ThumbnailItem = MockThumbnailItem;
+
+      MockThumbnailGroup.reset();
+      var dummyContainer = document.createElement('div');
+
+      thumbnailList = new ThumbnailList(MockThumbnailGroup, dummyContainer);
+      thumbnailList.addItem({'name': videoName});
+
+      updateAllThumbnailTitleSpy = sinon.spy(thumbnailList,
+                                             'updateAllThumbnailTitle');
+      rescaleSpy = sinon.spy(VideoUtils, 'fitContainer');
+
+      getAsset('/test/unit/media/test.webm', function(blob) {
+        videodb = new MockMediaDB(blob);
+        done();
+      });
+    });
+
+    teardown(function() {
+      updateAllThumbnailTitleSpy.reset();
+      rescaleSpy.reset();
+    });
+
+    test('#handleScreenLayoutChange: tablet, landscape, everything is waiting',
+        function() {
+
+      // In tablet, the landscape mode will show player and list at the same
+      // time. To keep only one hardware codec be used, we shows loading icon
+      // at the player view before first batch of files scanned and all their
+      // metadata are parsed.
+
+      ScreenLayout.setCurrentLayout('landscape');
+      isPhone = false;
+      firstScanEnded = false;
+      dom.spinnerOverlay.classList.add('hidden'); // stage spinner being hidden
+
+      handleScreenLayoutChange();
+
+      assert.isFalse(containsClass(dom.spinnerOverlay, 'hidden'));
+      assert.isTrue(containsClass(dom.playerView, 'disabled'));
+      assert.equal(ThumbnailItem.titleMaxLines, 2);
+    });
+
+    test('#handleScreenLayoutChange: tablet, landscape, scan has ended',
+        function() {
+      ScreenLayout.setCurrentLayout('landscape');
+      isPhone = false;
+      firstScanEnded = true;
+      processingQueue = false;
+      dom.spinnerOverlay.classList.remove('hidden'); // stage spinner shown
+      dom.playerView.classList.add('disabled'); // stage player view
+
+      handleScreenLayoutChange();
+
+      assert.isTrue(containsClass(dom.spinnerOverlay, 'hidden'));
+      assert.isFalse(containsClass(dom.playerView, 'disabled'));
+      assert.equal(ThumbnailItem.titleMaxLines, 2);
+    });
+
+    test('#handleScreenLayoutChange: tablet rotating to portrait, list view',
+        function() {
+
+      isPhone = false;
+      currentLayoutMode = LAYOUT_MODE.list;
+      ScreenLayout.setCurrentLayout('portrait');
+      playerShowing = true;
+      //
+      // currentVideo without metadata will cause hidePlayer to execute
+      // faster (won't try to update metadata).
+      //
+      currentVideo = {
+        'name': videoName
+      };
+
+      handleScreenLayoutChange();
+
+      assert.isFalse(playerShowing);
+      assert.equal(ThumbnailItem.titleMaxLines, 4);
+    });
+
+    test('#handleScreenLayoutChange: tablet rotating to landscape, list view',
+        function() {
+
+      isPhone = false;
+      currentLayoutMode = LAYOUT_MODE.list;
+      ScreenLayout.setCurrentLayout('landscape');
+      playerShowing = false;
+
+      //
+      // handleScreenLayoutChange invokes showPlayer with 'currentVideo',
+      //
+      currentVideo = {
+        'name': videoName
+      };
+
+      dom.player.onloadedmetadata = null;
+
+      handleScreenLayoutChange();
+      //
+      // showPlayer calls setVideoUrl which sets 'src' of
+      // video element. Except that we're using a mock video
+      // object so onloadedmetadata is not going to be called
+      // automatically -- invoke it manually
+      //
+      dom.player.onloadedmetadata();
+
+      assert.isTrue(playerShowing);
+      assert.equal(ThumbnailItem.titleMaxLines, 2);
+    });
+
+    test('#handleScreenLayoutChange: update thumbnail title text immediately',
+        function() {
+
+      isPhone = true;
+      currentLayoutMode = LAYOUT_MODE.list;
+
+      handleScreenLayoutChange();
+
+      assert.isTrue(updateAllThumbnailTitleSpy.calledOnce);
+    });
+
+    test('#handleScreenLayoutChange: update thumbnail title text later',
+        function() {
+
+      isPhone = true;
+      currentLayoutMode = LAYOUT_MODE.fullscreenPlayer;
+      pendingUpdateTitleText = false;
+
+      handleScreenLayoutChange();
+
+      assert.equal(updateAllThumbnailTitleSpy.callCount, 0);
+      assert.isTrue(pendingUpdateTitleText);
+    });
+
+    test('#handleScreenLayoutChange: update thumbnail title text -- abort',
+        function() {
+
+      isPhone = true;
+      currentLayoutMode = LAYOUT_MODE.list;
+      pendingUpdateTitleText = false;
+      thumbnailList = null;
+
+      handleScreenLayoutChange();
+
+      // Shouldn't have invoked updateAllThumbnailTitle nor
+      // should have set pendingUpdateTitleText
+      assert.equal(updateAllThumbnailTitleSpy.callCount, 0);
+      assert.isFalse(pendingUpdateTitleText);
+    });
+
+    test('#handleScreenLayoutChange: phone, rescale',
+        function() {
+
+      currentVideo = {
+        'name': videoName,
+        'metadata': {
+          'rotation': '90'
+        }
+      };
+      isPhone = true;
+      currentLayoutMode = LAYOUT_MODE.fullscreenPlayer;
+      ScreenLayout.setCurrentLayout('portrait');
+      dom.player.readyState = HAVE_METADATA;
+
+      handleScreenLayoutChange();
+
+      assert.isTrue(rescaleSpy.calledOnce);
+    });
+
+    test('#handleScreenLayoutChange: phone, no rescale',
+        function() {
+
+      currentVideo = {
+        'name': videoName,
+        'metadata': {
+          'rotation': '90'
+        }
+      };
+      isPhone = true;
+      currentLayoutMode = LAYOUT_MODE.fullscreenPlayer;
+      ScreenLayout.setCurrentLayout('portrait');
+      dom.player.readyState = HAVE_NOTHING;
+
+      handleScreenLayoutChange();
+
+      assert.equal(rescaleSpy.callCount, 0);
+    });
+  });
+
+  suite('setControlsVisibility flows', function() {
+    var updateVideoControlSliderSpy;
+    var nativeUpdateVideoControlSlider;
+
+    suiteSetup(function() {
+      nativeUpdateVideoControlSlider = updateVideoControlSlider;
+      updateVideoControlSliderSpy = sinon.spy();
+      updateVideoControlSlider = updateVideoControlSliderSpy;
+    });
+
+    suiteTeardown(function() {
+      updateVideoControlSlider = nativeUpdateVideoControlSlider;
+    });
+
+    teardown(function() {
+      updateVideoControlSliderSpy.reset();
+    });
+
+    /**
+     * On tablet in landscape mode, we always shows the video controls in list
+     * layout. Therefore, in this use case setControlsVisibility will update
+     * video controls slider.
+     */
+    test('#setControlsVisibility: tablet in landscape mode, list view',
+        function() {
+      isPhone = false;
+      isPortrait = false;
+      currentLayoutMode = LAYOUT_MODE.list;
+      setControlsVisibility(false);
+      assert.isTrue(updateVideoControlSliderSpy.calledOnce);
+    });
+
+    /**
+     * On tablet in portrait mode, regardless of the view,
+     * setControlsVisibility will show video controls based on the 'visible'
+     * argument. And therefore, setControlsVisibility will update the video
+     * controls slider based on the value of the 'visible' argument.
+     */
+    test('#setControlsVisibility: tablet in portrait mode, show controls',
+        function() {
+      isPhone = false;
+      isPortrait = true;
+      currentLayoutMode = LAYOUT_MODE.list;
+      setControlsVisibility(true);
+      assert.isTrue(updateVideoControlSliderSpy.calledOnce);
+    });
+
+    /**
+     * On tablet in portrait mode, regardless of the view,
+     * setControlsVisibility will show video controls based on the 'visible'
+     * argument. And therefore, setControlsVisibility will update the video
+     * controls slider based on the value of the 'visible' argument.
+     */
+    test('#setControlsVisibility: tablet in portrait mode, dont show controls',
+        function() {
+      isPhone = false;
+      isPortrait = true;
+      currentLayoutMode = LAYOUT_MODE.list;
+      setControlsVisibility(false);
+      assert.equal(updateVideoControlSliderSpy.callCount, 0);
+    });
+
+    /**
+     * On phone, regardless of the view, setControlsVisibility will show
+     * video controls based on the 'visible' argument. And therefore,
+     * setControlsVisibility will update the video controls slider based on
+     * the value of the 'visible' argument.
+     */
+    test('#setControlsVisibility: phone, landscape, list view, show controls',
+        function() {
+      isPhone = true;
+      isPortrait = false;
+      currentLayoutMode = LAYOUT_MODE.list;
+      setControlsVisibility(true);
+      assert.isTrue(updateVideoControlSliderSpy.calledOnce);
+    });
+
+    test('#setControlsVisibility: phone, portrait, list view, show controls',
+        function() {
+      isPhone = true;
+      isPortrait = true;
+      currentLayoutMode = LAYOUT_MODE.list;
+      setControlsVisibility(true);
+      assert.isTrue(updateVideoControlSliderSpy.calledOnce);
+    });
+
+    test('#setControlsVisibility: phone, portrait, fullscreen, show controls',
+        function() {
+      isPhone = true;
+      isPortrait = false;
+      currentLayoutMode = LAYOUT_MODE.fullscreen;
+      setControlsVisibility(true);
+      assert.isTrue(updateVideoControlSliderSpy.calledOnce);
+    });
+
+    test('#setControlsVisibility: phone, landscape, list, no show controls',
+        function() {
+      isPhone = true;
+      isPortrait = false;
+      currentLayoutMode = LAYOUT_MODE.list;
+      setControlsVisibility(false);
+      assert.equal(updateVideoControlSliderSpy.callCount, 0);
+    });
+  });
+
+  suite('toggleVideoControls flows', function() {
+    var clearTimeoutSpy;
+    var setControlsVisibilitySpy;
+    var nativeSetControlsVisibility;
+    var event = {};
+
+    suiteSetup(function() {
+      clearTimeoutSpy = sinon.spy(window, 'clearTimeout');
+      clearTimeout = clearTimeoutSpy;
+      nativeSetControlsVisibility = setControlsVisibility;
+      setControlsVisibilitySpy = sinon.spy();
+      setControlsVisibility = setControlsVisibilitySpy;
+    });
+
+    suiteTeardown(function() {
+      clearTimeoutSpy.restore();
+    });
+
+    teardown(function() {
+      clearTimeoutSpy.reset();
+      setControlsVisibilitySpy.reset();
+    });
+
+    test('#toggleVideoControls: control fade timeout', function() {
+      controlFadeTimeout = 1;
+      toggleVideoControls(event);
+      assert.isTrue(clearTimeoutSpy.calledOnce);
+      assert.equal(controlFadeTimeout, null);
+    });
+
+    test('#toggleVideoControls: no control fade timeout', function() {
+      controlFadeTimeout = null;
+      toggleVideoControls(event);
+      assert.equal(clearTimeoutSpy.callCount, 0);
+      assert.equal(controlFadeTimeout, null);
+    });
+
+    test('#toggleVideoControls: toggle control showing', function() {
+      pendingPick = false;
+      controlShowing = false;
+      toggleVideoControls(event);
+      assert.isTrue(setControlsVisibilitySpy.calledOnce);
+      assert.isTrue(setControlsVisibilitySpy.calledWith(true));
+      assert.isTrue(event.cancelBubble);
+    });
+
+    test('#toggleVideoControls: toggle control not showing, target not vc',
+        function() {
+      pendingPick = false;
+      controlShowing = true;
+      event.originalTarget = 'some target';
+      toggleVideoControls(event);
+      assert.equal(setControlsVisibilitySpy.callCount, 0);
+    });
+
+    test('#toggleVideoControls: toggle control not showing, target vc',
+        function() {
+      pendingPick = false;
+      controlShowing = true;
+      event.originalTarget = dom.videoControls;
+      toggleVideoControls(event);
+      assert.isTrue(setControlsVisibilitySpy.calledOnce);
+      assert.isTrue(setControlsVisibilitySpy.calledWith(false));
+    });
+
+    test('#toggleVideoControls: pending pick, no toggle',
+        function() {
+      pendingPick = true;
+      toggleVideoControls(event);
+      assert.equal(setControlsVisibilitySpy.callCount, 0);
+    });
+  });
+
+  /*
+   * updateSelection is called when entering thumbnail selection mode, or
+   * when the selection changes. The function updates the message the top
+   * of the screen and enables or disables the Delete and Share buttons.
+   */
+  suite('updateSelection flows', function() {
+    var videodata = {};
+    var videoBlob;
+
+    suiteSetup(function(done) {
+      videodata = {'name': videoName};
+
+      MockThumbnailGroup.reset();
+      var dummyContainer = document.createElement('div');
+
+      thumbnailList = new ThumbnailList(MockThumbnailGroup, dummyContainer);
+      thumbnailList.addItem({'name': videodata.name});
+
+      getAsset('/test/unit/media/test.webm', function(blob) {
+        videoBlob = blob;
+        videodb = new MockMediaDB(videoBlob);
+        done();
+      });
+    });
+
+    setup(function() {
+      selectedFileNames = [];
+      selectedFileNamesToBlobs = {};
+    });
+
+    test('#updateSelection: toggle thumbnail as selected', function() {
+      var thumbnail = thumbnailList.thumbnailMap[videodata.name];
+      thumbnail.htmlNode.classList.remove('selected'); // not selected
+      updateSelection(videodata);
+      assert.isTrue(thumbnail.htmlNode.classList.contains('selected'),
+                    'thumbnail should contain \'selected\' class');
+    });
+
+    test('#updateSelection: toggle thumbnail as not selected', function() {
+      var thumbnail = thumbnailList.thumbnailMap[videodata.name];
+      thumbnail.htmlNode.classList.add('selected'); // selected
+      updateSelection(videodata);
+      assert.isFalse(thumbnail.htmlNode.classList.contains('selected'),
+                     'thumbnail should not contain \'selected\' class');
+    });
+
+    test('#updateSelection: update (add to) selected filenames', function() {
+      var thumbnail = thumbnailList.thumbnailMap[videodata.name];
+      thumbnail.htmlNode.classList.remove('selected'); // not selected
+      updateSelection(videodata);
+      assert.equal(selectedFileNames.length, 1,
+                   'should be one selected file');
+      assert.equal(selectedFileNames[0], videodata.name,
+                   'name of selected file should be name of videodata');
+      assert.equal(selectedFileNamesToBlobs[videodata.name], videoBlob,
+                   'blob associated with videodata name should be video blob');
+    });
+
+    test('#updateSelection: update (remove) selected filenames', function() {
+      var thumbnail = thumbnailList.thumbnailMap[videodata.name];
+      thumbnail.htmlNode.classList.add('selected'); // selected
+      updateSelection(videodata);
+      assert.equal(selectedFileNames.length, 0,
+                   'shouldnt be any selected files');
+      assert.equal(selectedFileNamesToBlobs[videodata.name], undefined,
+                   'no blob associated with videodata name');
+    });
+
+    test('#updateSelection: update UI, thumbnail is selected', function() {
+      dom.thumbnailsDeleteButton.classList.add('disabled');
+      dom.thumbnailsShareButton.classList.add('disabled');
+      var thumbnail = thumbnailList.thumbnailMap[videodata.name];
+      thumbnail.htmlNode.classList.remove('selected'); // not selected
+
+      updateSelection(videodata);
+      assert.equal(dom.thumbnailsNumberSelected.textContent,
+                   'number-selected2{"n":1}',
+                   'there should be one thumbnail selected');
+      assert.isFalse(containsClass(dom.thumbnailsDeleteButton, 'disabled'),
+                     'thumbnail delete button should be enabled');
+      assert.isFalse(containsClass(dom.thumbnailsShareButton, 'disabled'),
+                     'thumbnail share button should be enabled');
+    });
+
+    test('#updateSelection: update UI, no thumbnail is selected', function() {
+      var thumbnail = thumbnailList.thumbnailMap[videodata.name];
+      thumbnail.htmlNode.classList.add('selected'); // selected
+
+      updateSelection(videodata);
+      assert.equal(dom.thumbnailsNumberSelected.textContent,
+                   'number-selected2{"n":0}',
+                   'there shouldnt be any thumbnails selected');
+      assert.isTrue(containsClass(dom.thumbnailsDeleteButton, 'disabled'),
+                    'thumbnail delete button should be disabled');
+      assert.isTrue(containsClass(dom.thumbnailsShareButton, 'disabled'),
+                    'thumbnail share button should be disabled');
+    });
+  });
+
+  suite('handleSliderTouchStart flows', function() {
+    var handleSliderTouchMoveSpy;
+    var nativeHandleSliderTouchMove;
+    var existingTouchStartEventId = 1;
+    var touchStartIdFromEvent = 10;
+    var event = { 'changedTouches': [{'identifier': touchStartIdFromEvent}] };
+    var playerPauseSpy;
+    var width, height;
+
+    suiteSetup(function() {
+      nativeHandleSliderTouchMove = handleSliderTouchMove;
+      handleSliderTouchMoveSpy = sinon.spy();
+      handleSliderTouchMove = handleSliderTouchMoveSpy;
+      playerPauseSpy = sinon.spy(dom.player, 'pause');
+      width = 50;
+      height = 100;
+    });
+
+    setup(function() {
+      dragging = false;
+      touchStartID = null;
+      handleSliderTouchMoveSpy.reset();
+      playerPauseSpy.reset();
+      dom.sliderWrapper.style.width = width + 'px';
+      dom.sliderWrapper.style.height = height + 'px';
+    });
+
+    teardown(function() {
+      dom.sliderWrapper.style.width = 0 + 'px';
+      dom.sliderWrapper.style.height = 0 + 'px';
+    });
+
+    suiteTeardown(function() {
+      handleSliderTouchMove = nativeHandleSliderTouchMove;
+      playerPauseSpy.restore();
+    });
+
+    test('#handleSliderTouchStart: already have touch start event',
+         function() {
+      // stage data to indicate there has already been a touch start event
+      touchStartID = existingTouchStartEventId;
+
+      handleSliderTouchStart();
+
+      assert.equal(touchStartID, existingTouchStartEventId);
+      assert.equal(handleSliderTouchMoveSpy.callCount, 0);
+      assert.isFalse(dragging);
+      assert.equal(sliderRect, undefined);
+    });
+
+    test('#handleSliderTouchStart: dont know video duration',
+         function() {
+      dom.player.duration = Infinity;
+
+      handleSliderTouchStart(event);
+
+      assert.isTrue(dragging);
+      assert.equal(touchStartID, touchStartIdFromEvent,
+                   'touch start id should come from event');
+      assert.equal(handleSliderTouchMoveSpy.callCount, 0,
+                   'function returns before calling handleSliderTouchMove');
+      assert.equal(sliderRect.width, width);
+      assert.equal(sliderRect.height, height);
+      assert.equal(sliderRect.right, sliderRect.left + width);
+      assert.equal(sliderRect.bottom, sliderRect.top + height);
+    });
+
+    test('#handleSliderTouchStart: paused while dragging',
+         function() {
+      dom.player.duration = 100;
+      dom.player.paused = true;
+
+      handleSliderTouchStart(event);
+
+      assert.isTrue(dragging);
+      assert.equal(touchStartID, touchStartIdFromEvent,
+                   'touch start id should come from event');
+      assert.isTrue(handleSliderTouchMoveSpy.calledOnce,
+                   'handleSliderTouchMove is called once');
+      assert.equal(playerPauseSpy.callCount, 0,
+                   'dom.player.pause is not called');
+      assert.equal(sliderRect.width, width);
+      assert.equal(sliderRect.height, height);
+      assert.equal(sliderRect.right, sliderRect.left + width);
+      assert.equal(sliderRect.bottom, sliderRect.top + height);
+    });
+
+    test('#handleSliderTouchStart: not paused while dragging',
+         function() {
+      dom.player.duration = 100;
+      dom.player.paused = false;
+
+      handleSliderTouchStart(event);
+
+      assert.isTrue(dragging);
+      assert.equal(touchStartID, touchStartIdFromEvent,
+                   'touch start id should come from event');
+      assert.isTrue(handleSliderTouchMoveSpy.calledOnce,
+                   'handleSliderTouchMove is called once');
+      assert.isTrue(playerPauseSpy.calledOnce,
+                   'dom.player.pause is called');
+      assert.equal(sliderRect.width, width);
+      assert.equal(sliderRect.height, height);
+      assert.equal(sliderRect.right, sliderRect.left + width);
+      assert.equal(sliderRect.bottom, sliderRect.top + height);
+    });
+  });
+
+  suite('handleSliderTouchMove flows', function() {
+    var fastSeekSpy;
+
+    var clientX = 110;
+    var touch = {'clientX': clientX};
+    var identifiedTouchSuccess = function(touchStartID) {
+      return touch;
+    };
+
+    var identifiedTouchFailure = function(touchStartID) {
+      return null;
+    };
+
+    var successEvent = { 'changedTouches':
+                         {'identifiedTouch': identifiedTouchSuccess} };
+    var failureEvent = { 'changedTouches':
+                         {'identifiedTouch': identifiedTouchFailure} };
+
+    suiteSetup(function() {
+      fastSeekSpy = sinon.spy(dom.player, 'fastSeek');
+      sliderRect = {'left': 10,
+                    'width': 200};
+    });
+
+    setup(function() {
+      fastSeekSpy.reset();
+      dragging = true;
+      dom.playHead.classList.remove('active');
+    });
+
+    suiteTeardown(function() {
+      fastSeekSpy.restore();
+    });
+
+    test('#handleSliderTouchMove: update the slider', function() {
+
+      handleSliderTouchMove(successEvent);
+
+      assert.isTrue(containsClass(dom.playHead, 'active'));
+      assert.equal(dom.playHead.style.left, '50%');
+      assert.equal(dom.elapsedTime.style.width, '50%');
+      assert.isTrue(fastSeekSpy.calledOnce);
+    });
+
+    test('#handleSliderTouchMove: not dragging', function() {
+      dragging = false;
+
+      handleSliderTouchMove(successEvent);
+
+      assert.isFalse(containsClass(dom.playHead, 'active'));
+      assert.equal(fastSeekSpy.callCount, 0);
+    });
+
+    test('#handleSliderTouchMove: no touch start event', function() {
+      dragging = false;
+
+      handleSliderTouchMove(failureEvent);
+
+      assert.isFalse(containsClass(dom.playHead, 'active'));
+      assert.equal(fastSeekSpy.callCount, 0);
+    });
+  });
+
+  suite('handleSliderTouchEnd flows', function() {
+    var playerPlaySpy;
+    var playerPauseSpy;
+    var existingTouchEventId = 1;
+
+    var identifiedTouchSuccess = function(touchStartID) {
+      return true;
+    };
+
+    var identifiedTouchFailure = function(touchStartID) {
+      return false;
+    };
+
+    var touchEvent = { 'changedTouches':
+                            {'identifiedTouch': identifiedTouchSuccess} };
+    var unrelatedTouchEvent = { 'changedTouches':
+                                {'identifiedTouch': identifiedTouchFailure} };
+
+    suiteSetup(function() {
+      playerPlaySpy = sinon.spy(dom.player, 'play');
+      playerPauseSpy = sinon.spy(dom.player, 'pause');
+    });
+
+    setup(function() {
+      playerPlaySpy.reset();
+      playerPauseSpy.reset();
+      dragging = true;
+      dom.playHead.classList.add('active');
+    });
+
+    suiteTeardown(function() {
+      playerPlaySpy.restore();
+      playerPauseSpy.restore();
+    });
+
+    test('#handleSliderTouchEnd: no touch start event', function() {
+
+      touchStartID = existingTouchEventId;
+
+      handleSliderTouchEnd(unrelatedTouchEvent);
+
+      assert.equal(touchStartID, existingTouchEventId);
+      assert.isTrue(containsClass(dom.playHead, 'active'));
+    });
+
+    test('#handleSliderTouchEnd: not dragging', function() {
+
+      touchStartID = existingTouchEventId;
+      dragging = false;
+
+      handleSliderTouchEnd(touchEvent);
+
+      assert.isNull(touchStartID);
+      assert.isTrue(containsClass(dom.playHead, 'active'));
+    });
+
+    test('#handleSliderTouchEnd: video at end', function() {
+      touchStartID = existingTouchEventId;
+      dragging = true;
+      dom.player.currentTime = dom.player.duration = 10;
+
+      handleSliderTouchEnd(touchEvent);
+
+      assert.isNull(touchStartID);
+      assert.isFalse(containsClass(dom.playHead, 'active'));
+      assert.isTrue(playerPauseSpy.calledOnce);
+    });
+
+    test('#handleSliderTouchEnd: video not at end', function() {
+      touchStartID = existingTouchEventId;
+      dragging = true;
+      dom.player.currentTime = 5;
+      dom.player.duration = 10;
+
+      handleSliderTouchEnd(touchEvent);
+
+      assert.isNull(touchStartID);
+      assert.isFalse(containsClass(dom.playHead, 'active'));
+      assert.equal(playerPauseSpy.callCount, 0);
+      assert.isTrue(playerPlaySpy.calledOnce);
     });
   });
 });

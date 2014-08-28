@@ -1,8 +1,11 @@
 'use strict';
 
-/* global InputMethodGlue, InputMethodLoader, InputMethodManager, Promise */
+/* global InputMethodGlue, InputMethodLoader, InputMethodManager,
+          PerformanceTimer, IMEngineSettings, KeyEvent, Promise */
 
+require('/js/keyboard/settings.js');
 require('/js/keyboard/input_method_manager.js');
+require('/js/keyboard/performance_timer.js');
 
 suite('InputMethodGlue', function() {
   test('init', function() {
@@ -17,83 +20,149 @@ suite('InputMethodGlue', function() {
   test('sendCandidates', function() {
     var glue = new InputMethodGlue();
     var app = {
-      sendCandidates: this.sinon.stub()
+      candidatePanelManager: {
+        updateCandidates: this.sinon.stub()
+      }
     };
     var data = [['foo', 1]];
     glue.init(app, 'foo');
     glue.sendCandidates(data);
 
-    assert.isTrue(app.sendCandidates.calledWith(data));
+    assert.isTrue(app.candidatePanelManager.updateCandidates.calledWith(data));
   });
 
   test('setComposition', function() {
     var glue = new InputMethodGlue();
     var app = {
-      setComposition: this.sinon.stub()
+      inputContext: {
+        setComposition: this.sinon.stub()
+      }
     };
     var symbols = 'bar';
     var cursor = 1;
     glue.init(app, 'foo');
     glue.setComposition(symbols, cursor);
 
-    assert.isTrue(app.setComposition.calledWith(symbols, cursor));
+    assert.isTrue(app.inputContext.setComposition.calledWith(symbols, cursor));
   });
 
   test('endComposition', function() {
     var glue = new InputMethodGlue();
     var app = {
-      endComposition: this.sinon.stub()
+      inputContext: {
+        endComposition: this.sinon.stub()
+      }
     };
     var data = 'bar';
     glue.init(app, 'foo');
     glue.endComposition(data);
 
-    assert.isTrue(app.endComposition.calledWith(data));
+    assert.isTrue(app.inputContext.endComposition.calledWith(data));
   });
 
-  test('sendKey', function() {
-    var glue = new InputMethodGlue();
-    var app = {
-      sendKey: this.sinon.stub()
-    };
-    var p = {};
-    app.sendKey.returns(p);
-    var keyCode = 123;
-    var isRepeat = false;
-    glue.init(app, 'foo');
-    var returned = glue.sendKey(keyCode, isRepeat);
+  suite('sendKey', function() {
+    var glue;
+    var app;
+    var p;
+    setup(function() {
+      glue = new InputMethodGlue();
+      app = {
+        inputContext: {
+          sendKey: this.sinon.stub()
+        }
+      };
+      p = Promise.resolve();
+      app.inputContext.sendKey.returns(p);
+    });
 
-    assert.isTrue(app.sendKey.calledWith(keyCode, isRepeat));
-    assert.equal(returned, p);
+    test('KeyEvent.DOM_VK_BACK_SPACE', function() {
+      var keyCode = KeyEvent.DOM_VK_BACK_SPACE;
+      var isRepeat = false;
+      glue.init(app, 'foo');
+      var returned = glue.sendKey(keyCode, isRepeat);
+
+      assert.isTrue(
+        app.inputContext.sendKey.calledWith(keyCode, 0, 0, isRepeat));
+      assert.equal(returned, p);
+    });
+
+    test('KeyEvent.DOM_VK_RETURN', function() {
+      var keyCode = KeyEvent.DOM_VK_RETURN;
+      var isRepeat = false;
+      glue.init(app, 'foo');
+      var returned = glue.sendKey(keyCode, isRepeat);
+
+      assert.isTrue(
+        app.inputContext.sendKey.calledWith(keyCode, 0, 0));
+      assert.equal(returned, p);
+    });
+
+    test('99', function() {
+      var keyCode = 99;
+      var isRepeat = false;
+      glue.init(app, 'foo');
+      var returned = glue.sendKey(keyCode, isRepeat);
+
+      assert.isTrue(
+        app.inputContext.sendKey.calledWith(0, 99, 0));
+      assert.equal(returned, p);
+    });
+
+    test('-99', function() {
+      var keyCode = -99;
+      var isRepeat = false;
+      glue.init(app, 'foo');
+      var returned = glue.sendKey(keyCode, isRepeat);
+
+      assert.isTrue(
+        app.inputContext.sendKey.calledWith(0, -99, 0));
+      assert.equal(returned, p);
+    });
   });
 
   test('sendString', function() {
     var glue = new InputMethodGlue();
     var app = {
-      sendKey: this.sinon.stub()
+      inputContext: {
+        sendKey: this.sinon.stub()
+      }
     };
     var text = 'foobar';
     glue.init(app, 'foo');
     glue.sendString(text);
 
-    assert.equal(app.sendKey.getCall(0).args[0], text.charCodeAt(0));
-    assert.equal(app.sendKey.getCall(1).args[0], text.charCodeAt(1));
-    assert.equal(app.sendKey.getCall(2).args[0], text.charCodeAt(2));
-    assert.equal(app.sendKey.getCall(3).args[0], text.charCodeAt(3));
-    assert.equal(app.sendKey.getCall(4).args[0], text.charCodeAt(4));
-    assert.equal(app.sendKey.getCall(5).args[0], text.charCodeAt(5));
+    assert.isTrue(
+      app.inputContext.sendKey.getCall(0).calledWith(0, text.charCodeAt(0), 0));
+    assert.isTrue(
+      app.inputContext.sendKey.getCall(1).calledWith(0, text.charCodeAt(1), 0));
+    assert.isTrue(
+      app.inputContext.sendKey.getCall(2).calledWith(0, text.charCodeAt(2), 0));
+    assert.isTrue(
+      app.inputContext.sendKey.getCall(3).calledWith(0, text.charCodeAt(3), 0));
+    assert.isTrue(
+      app.inputContext.sendKey.getCall(4).calledWith(0, text.charCodeAt(4), 0));
+    assert.isTrue(
+      app.inputContext.sendKey.getCall(5).calledWith(0, text.charCodeAt(5), 0));
   });
 
   test('alterKeyboard', function() {
     var glue = new InputMethodGlue();
     var app = {
-      setForcedModifiedLayout: this.sinon.stub()
+      layoutManager: {
+        updateForcedModifiedLayout: this.sinon.stub()
+      },
+      layoutRenderingManager: {
+        updateLayoutRendering: this.sinon.stub()
+      }
     };
     var name = 'bar';
     glue.init(app, 'foo');
     glue.alterKeyboard(name);
 
-    assert.isTrue(app.setForcedModifiedLayout.calledWith(name));
+    assert.isTrue(
+      app.layoutManager.updateForcedModifiedLayout.calledWith(name));
+    assert.isTrue(
+      app.layoutRenderingManager.updateLayoutRendering.calledOnce);
   });
 
   test('setLayoutPage', function() {
@@ -114,34 +183,30 @@ suite('InputMethodGlue', function() {
   test('setUpperCase', function() {
     var glue = new InputMethodGlue();
     var app = {
-      setUpperCase: this.sinon.stub()
+      upperCaseStateManager: {
+        switchUpperCaseState: this.sinon.stub()
+      }
     };
-    var upperCase = true;
-    var uppserCaseLocked = false;
-    glue.init(app, 'foo');
-    glue.setUpperCase(upperCase, uppserCaseLocked);
-
-    assert.isTrue(app.setUpperCase.calledWith(upperCase, uppserCaseLocked));
-  });
-
-  test('resetUpperCase', function() {
-    var glue = new InputMethodGlue();
-    var app = {
-      resetUpperCase: this.sinon.stub()
+    var state = {
+      isUpperCase: true,
+      isUpperCaseLocked: false
     };
     glue.init(app, 'foo');
-    glue.resetUpperCase();
+    glue.setUpperCase(state);
 
-    assert.isTrue(app.resetUpperCase.calledOnce);
+    assert.isTrue(
+      app.upperCaseStateManager.switchUpperCaseState.calledWith(state));
   });
 
   test('replaceSurroundingText', function() {
     var glue = new InputMethodGlue();
     var app = {
-      replaceSurroundingText: this.sinon.stub()
+      inputContext: {
+        replaceSurroundingText: this.sinon.stub()
+      }
     };
-    var p = {};
-    app.replaceSurroundingText.returns(p);
+    var p = Promise.resolve();
+    app.inputContext.replaceSurroundingText.returns(p);
 
     var text = 'foobar';
     var offset = 3;
@@ -150,7 +215,7 @@ suite('InputMethodGlue', function() {
     var returned = glue.replaceSurroundingText(text, offset, length);
 
     assert.isTrue(
-      app.replaceSurroundingText.calledWith(text, offset, length));
+      app.inputContext.replaceSurroundingText.calledWith(text, offset, length));
     assert.equal(returned, p);
   });
 
@@ -308,6 +373,10 @@ suite('InputMethodLoader', function() {
 
 suite('InputMethodManager', function() {
   var realInputMethods;
+  var imEngineSettingsStub;
+  var app;
+  var initSettingsPromise;
+  var manager;
 
   suiteSetup(function() {
     realInputMethods = window.InputMethods;
@@ -317,84 +386,53 @@ suite('InputMethodManager', function() {
     window.InputMethods = realInputMethods;
   });
 
-  test('start', function() {
+  setup(function () {
+    imEngineSettingsStub = this.sinon.stub(IMEngineSettings.prototype);
+    this.sinon.stub(window, 'IMEngineSettings').returns(imEngineSettingsStub);
+    initSettingsPromise = Promise.resolve({
+      suggestionsEnabled: true,
+      correctionsEnabled: true
+    });
+    imEngineSettingsStub.initSettings.returns(initSettingsPromise);
+
+    app = {
+      promiseManager: {},
+      layoutManager: {
+        currentModifiedLayout: {
+          autoCorrectLanguage: 'xx-XX'
+        }
+      },
+      perfTimer: this.sinon.stub(PerformanceTimer.prototype),
+      inputContext: {
+        inputType: 'text',
+        inputMode: '',
+        selectionStart: 0,
+        selectionEnd: 0,
+        getText: this.sinon.stub()
+      }
+    };
+
     window.InputMethods = {
       'default': realInputMethods['default']
     };
 
-    var manager = new InputMethodManager({});
+    manager = new InputMethodManager(app);
     manager.start();
+    manager.loader.SOURCE_DIR = './fake-imes/';
 
     assert.equal(manager.loader.app, manager.app);
     assert.isTrue(!!manager.currentIMEngine, 'started with default IMEngine.');
   });
 
   test('switchCurrentIMEngine', function(done) {
-    window.InputMethods = {
-      'default': realInputMethods['default']
-    };
+    app.inputContext.getText.returns(Promise.resolve('foobar'));
 
-    var manager = new InputMethodManager({});
-    manager.start();
-    manager.loader.SOURCE_DIR = './fake-imes/';
+    manager.updateInputContextData();
+    assert.isTrue(app.inputContext.getText.calledOnce);
 
-    var dataPromise = new Promise(function(resolve) {
-      resolve(['foo', 'bar']);
-    });
-
-    var p = manager.switchCurrentIMEngine('foo', dataPromise);
-    p.then(function() {
-      assert.isTrue(true, 'resolved');
-      var imEngine = manager.loader.getInputMethod('foo');
-      assert.isTrue(!!imEngine, 'foo loaded');
-      assert.equal(manager.currentIMEngine, imEngine, 'currentIMEngine is set');
-
-      var activateStub = imEngine.activate;
-      assert.isTrue(activateStub.calledWith('foo', 'bar'));
-      assert.equal(activateStub.getCall(0).thisValue,
-        imEngine);
-
-      done();
-    }, function() {
-      assert.isTrue(false, 'should not reject');
-
-      done();
-    });
-  });
-
-  test('switchCurrentIMEngine (failed loader)', function(done) {
-    window.InputMethods = {
-      'default': realInputMethods['default']
-    };
-
-    var manager = new InputMethodManager({});
-    manager.start();
-    manager.loader.SOURCE_DIR = './fake-imes/';
-
-    var dataPromise = new Promise(function(resolve) {
-      resolve(['foo', 'bar']);
-    });
-
-    var p = manager.switchCurrentIMEngine('bar', dataPromise);
-    p.then(function() {
-      assert.isTrue(false, 'should not resolve');
-
-      done();
-    }, function() {
-      assert.isTrue(true, 'rejected');
-
-      done();
-    });
-  });
-
-  test('switchCurrentIMEngine (no data promise)', function(done) {
-    window.InputMethods = {
-      'default': realInputMethods['default']
-    };
-
-    var manager = new InputMethodManager({});
-    manager.start();
-    manager.loader.SOURCE_DIR = './fake-imes/';
+    manager.updateInputContextData();
+    assert.isTrue(app.inputContext.getText.calledOnce,
+      'Should not getText() twice if we have already do so.');
 
     var p = manager.switchCurrentIMEngine('foo');
     p.then(function() {
@@ -404,92 +442,45 @@ suite('InputMethodManager', function() {
       assert.equal(manager.currentIMEngine, imEngine, 'currentIMEngine is set');
 
       var activateStub = imEngine.activate;
-      assert.isTrue(activateStub.calledWithExactly());
+      assert.isTrue(activateStub.calledWithExactly('xx-XX', {
+        type: 'text',
+        inputmode: '',
+        selectionStart: 0,
+        selectionEnd: 0,
+        value: 'foobar',
+        inputContext: app.inputContext
+      }, {
+        suggest: true,
+        correct: true
+      }));
       assert.equal(activateStub.getCall(0).thisValue,
         imEngine);
-
-      done();
     }, function() {
       assert.isTrue(false, 'should not reject');
-
-      done();
-    });
+    }).then(done, done);
   });
 
-  test('switchCurrentIMEngine (failed data promise)', function(done) {
-    window.InputMethods = {
-      'default': realInputMethods['default']
-    };
+  test('switchCurrentIMEngine (failed loader)', function(done) {
+    app.inputContext.getText.returns(Promise.resolve('foobar'));
 
-    var manager = new InputMethodManager({});
-    manager.start();
-    manager.loader.SOURCE_DIR = './fake-imes/';
+    manager.updateInputContextData();
+    assert.isTrue(app.inputContext.getText.calledOnce);
 
-    var dataPromise = new Promise(function(resolve, reject) {
-      reject();
-    });
-
-    var p = manager.switchCurrentIMEngine('foo', dataPromise);
+    var p = manager.switchCurrentIMEngine('bar');
     p.then(function() {
       assert.isTrue(false, 'should not resolve');
-
-      done();
     }, function() {
       assert.isTrue(true, 'rejected');
-
-      done();
-    });
+    }).then(done, done);
   });
 
-  test('switchCurrentIMEngine (twice)', function(done) {
-    window.InputMethods = {
-      'default': realInputMethods['default']
-    };
+  test('switchCurrentIMEngine (failed getText())', function(done) {
+    app.inputContext.getText.returns(Promise.reject());
 
-    var manager = new InputMethodManager({});
-    manager.start();
-    manager.loader.SOURCE_DIR = './fake-imes/';
+    manager.updateInputContextData();
+    assert.isTrue(app.inputContext.getText.calledOnce);
 
-    var dataPromise = new Promise(function(resolve) {
-      resolve(['foo', 'bar']);
-    });
-
-    var p1 = manager.switchCurrentIMEngine('foo', dataPromise);
-    var p2 = manager.switchCurrentIMEngine('foo', dataPromise);
-    p1.then(function() {
-      assert.isTrue(false, 'should not resolve');
-    }, function() {
-      assert.isTrue(true, 'rejected');
-    });
-    p2.then(function() {
-      assert.isTrue(true, 'resolved');
-      assert.isTrue(!!manager.loader.getInputMethod('foo'), 'foo loaded');
-      assert.equal(manager.currentIMEngine,
-        manager.loader.getInputMethod('foo'),
-        'currentIMEngine is set');
-
-      done();
-    }, function() {
-      assert.isTrue(false, 'should not reject');
-
-      done();
-    });
-  });
-
-  test('switchCurrentIMEngine (reload after loaded)', function(done) {
-    window.InputMethods = {
-      'default': realInputMethods['default']
-    };
-
-    var manager = new InputMethodManager({});
-    manager.start();
-    manager.loader.SOURCE_DIR = './fake-imes/';
-
-    var dataPromise = new Promise(function(resolve) {
-      resolve(['foo', 'bar']);
-    });
-
-    var p = manager.switchCurrentIMEngine('foo', dataPromise);
+    var p = manager.switchCurrentIMEngine('foo');
     p.then(function() {
       assert.isTrue(true, 'resolved');
       var imEngine = manager.loader.getInputMethod('foo');
@@ -497,11 +488,85 @@ suite('InputMethodManager', function() {
       assert.equal(manager.currentIMEngine, imEngine, 'currentIMEngine is set');
 
       var activateStub = imEngine.activate;
-      assert.isTrue(activateStub.calledWith('foo', 'bar'));
+      assert.isTrue(activateStub.calledWithExactly('xx-XX', {
+        type: 'text',
+        inputmode: '',
+        selectionStart: 0,
+        selectionEnd: 0,
+        value: '',
+        inputContext: app.inputContext
+      }, {
+        suggest: true,
+        correct: true
+      }));
+      assert.equal(activateStub.getCall(0).thisValue, imEngine);
+    }, function() {
+      assert.isTrue(false, 'should not reject');
+    }).then(done, done);
+  });
+
+  test('switchCurrentIMEngine (twice)', function(done) {
+    app.inputContext.getText.returns(Promise.resolve('foobar'));
+
+    manager.updateInputContextData();
+    assert.isTrue(app.inputContext.getText.calledOnce);
+
+    var p1 = manager.switchCurrentIMEngine('foo');
+
+    manager.updateInputContextData();
+    assert.isTrue(app.inputContext.getText.calledTwice);
+
+    var p2 = manager.switchCurrentIMEngine('foo');
+    p1.then(function() {
+      assert.isTrue(false, 'should not resolve');
+
+      return p2;
+    }, function() {
+      assert.isTrue(true, 'rejected');
+
+      return p2;
+    }).then(function() {
+      assert.isTrue(true, 'resolved');
+      assert.isTrue(!!manager.loader.getInputMethod('foo'), 'foo loaded');
+      assert.equal(manager.currentIMEngine,
+        manager.loader.getInputMethod('foo'),
+        'currentIMEngine is set');
+    }, function() {
+      assert.isTrue(false, 'should not reject');
+    }).then(done, done);
+  });
+
+  test('switchCurrentIMEngine (reload after loaded)', function(done) {
+    app.inputContext.getText.returns(Promise.resolve('foobar'));
+
+    manager.updateInputContextData();
+    assert.isTrue(app.inputContext.getText.calledOnce);
+
+    var p = manager.switchCurrentIMEngine('foo');
+    p.then(function() {
+      assert.isTrue(true, 'resolved');
+      var imEngine = manager.loader.getInputMethod('foo');
+      assert.isTrue(!!imEngine, 'foo loaded');
+      assert.equal(manager.currentIMEngine, imEngine, 'currentIMEngine is set');
+
+      var activateStub = imEngine.activate;
+      assert.isTrue(activateStub.calledWithExactly('xx-XX', {
+        type: 'text',
+        inputmode: '',
+        selectionStart: 0,
+        selectionEnd: 0,
+        value: 'foobar',
+        inputContext: app.inputContext
+      }, {
+        suggest: true,
+        correct: true
+      }));
       assert.equal(activateStub.getCall(0).thisValue,
         imEngine);
 
-      var p2 = manager.switchCurrentIMEngine('foo', dataPromise);
+      manager.updateInputContextData();
+
+      var p2 = manager.switchCurrentIMEngine('foo');
 
       var deactivateStub = imEngine.deactivate;
       assert.isTrue(deactivateStub.calledOnce);
@@ -512,29 +577,33 @@ suite('InputMethodManager', function() {
         manager.loader.getInputMethod('default'),
         'currentIMEngine is set to default');
 
-      p2.then(function() {
-        assert.isTrue(true, 'resolved');
-        var imEngine = manager.loader.getInputMethod('foo');
-        assert.isTrue(!!imEngine, 'foo loaded');
-        assert.equal(manager.currentIMEngine, imEngine,
-          'currentIMEngine is set');
-
-        var activateStub = imEngine.activate;
-        assert.isTrue(activateStub.calledTwice);
-        assert.isTrue(activateStub.getCall(1).calledWith('foo', 'bar'));
-        assert.equal(activateStub.getCall(1).thisValue,
-          imEngine);
-
-        done();
-      }, function() {
-        assert.isTrue(false, 'should not reject');
-
-        done();
-      });
+      return p2;
     }, function() {
       assert.isTrue(false, 'should not reject');
+    }).then(function() {
+      assert.isTrue(true, 'resolved');
+      var imEngine = manager.loader.getInputMethod('foo');
+      assert.isTrue(!!imEngine, 'foo loaded');
+      assert.equal(manager.currentIMEngine, imEngine,
+        'currentIMEngine is set');
 
-      done();
-    });
+      var activateStub = imEngine.activate;
+      assert.isTrue(activateStub.calledTwice);
+      assert.isTrue(activateStub.getCall(1).calledWithExactly('xx-XX', {
+        type: 'text',
+        inputmode: '',
+        selectionStart: 0,
+        selectionEnd: 0,
+        value: 'foobar',
+        inputContext: app.inputContext
+      }, {
+        suggest: true,
+        correct: true
+      }));
+      assert.equal(activateStub.getCall(1).thisValue,
+        imEngine);
+    }, function() {
+      assert.isTrue(false, 'should not reject');
+    }).then(done, done);
   });
 });

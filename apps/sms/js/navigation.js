@@ -1,6 +1,6 @@
-/* global
-      Promise,
-      Utils
+/* global Promise,
+      Utils,
+      Startup
 */
 
 /* exported Navigation */
@@ -34,6 +34,7 @@ function nextQueuedPanel() {
 }
 
 var Navigation = window.Navigation = {
+  isReady: false,
   panelObjects: window,
 
   defaultPanel: 'thread-list',
@@ -65,6 +66,11 @@ var Navigation = window.Navigation = {
     this.mainWrapper = document.getElementById('main-wrapper');
     this.transitioning = false;
 
+    Startup.on('post-initialize', function() {
+      this.isReady = true;
+      nextQueuedPanel();
+    }.bind(this));
+
     return this.toPanelFromHash();
   },
 
@@ -78,18 +84,10 @@ var Navigation = window.Navigation = {
    * must be an object. It returns whether the current panel is the first
    * argument, and for each property of the second argument, whether its value
    * is equal to the value for the current panel's arguments' same property.
-   *
-   * Called with 1 argument that is an object, it must have 2 properties panel
-   * and args, which have the same meaning as the 2-argument call.
    */
   isCurrentPanel: function n_isCurrentPanel(panel, args) {
     if (!currentPanel || !panel) {
       return false;
-    }
-
-    if (typeof panel === 'object') {
-      args = panel.args;
-      panel = panel.panel;
     }
 
     if (panel !== currentPanel.panel) {
@@ -109,14 +107,6 @@ var Navigation = window.Navigation = {
     }
 
     return true;
-  },
-
-  /*
-   * Returns the currentPanel object, with 2
-   * properties: panel, args.
-   */
-  getCurrentPanel: function n_getCurrentPanel() {
-    return currentPanel;
   },
 
   /**
@@ -152,7 +142,11 @@ var Navigation = window.Navigation = {
       return Promise.reject(new Error('Panel ' + panel + ' is unknown.'));
     }
 
-    if (this.transitioning) {
+    // put the request to a queue when:
+    //   - Panel is still transitioning
+    //   - trying to navigate when the app is not loaded completely
+    var notReadyNavigate = (panel !== this.defaultPanel && !this.isReady);
+    if (this.transitioning || notReadyNavigate) {
       queuedPanel = {
         panel: panel,
         args: args
@@ -216,6 +210,11 @@ var Navigation = window.Navigation = {
         nextPanelObject.beforeEnter.bind(nextPanelObject, transitionArgs)
       );
     }
+
+    promise = promise.then(function resetPanel() {
+      // While we're sliding, we aren't in any panel
+      currentPanel = null;
+    });
 
     // sliding
     promise = promise.then(
@@ -301,7 +300,7 @@ var Navigation = window.Navigation = {
           return;
         }
 
-        e.target.removeEventListener(e.type, trWait);
+        e.currentTarget.removeEventListener(e.type, trWait);
         resolve();
       });
     });

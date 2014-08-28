@@ -2,7 +2,7 @@
 
 mocha.globals(['MockL10n']);
 
-suite('LanguageItem', function() {
+suite('BatteryItem', function() {
   var realL10n;
   var modules = [
     'unit/mock_l10n',
@@ -79,9 +79,9 @@ suite('LanguageItem', function() {
 
   suite('_boundRefreshText', function() {
     test('should call to localize correctly', function() {
-      this.sinon.stub(this.MockL10n, 'localize');
+      this.sinon.stub(this.MockL10n, 'setAttributes');
       this.subject._boundRefreshText();
-      sinon.assert.calledWith(this.MockL10n.localize, this.element,
+      sinon.assert.calledWith(this.MockL10n.setAttributes, this.element,
         'batteryLevel-percent-' + this.MockBattery.state,
         sinon.match({level: this.MockBattery.level}));
     });

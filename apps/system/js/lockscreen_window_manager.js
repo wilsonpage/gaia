@@ -15,12 +15,7 @@
    *
    * @constructor LockScreenWindowManager
    */
-  var LockScreenWindowManager = function() {
-    this.startEventListeners();
-    this.startObserveSettings();
-    this.initElements();
-    this.initWindow();
-  };
+  var LockScreenWindowManager = function() {};
   LockScreenWindowManager.prototype = {
     /**
      * @memberof LockScreenWindowManager#
@@ -39,7 +34,6 @@
     states: {
       FTUOccurs: false,
       enabled: true,
-      unlockDetail: null,
       instance: null,
       active: false,
       windowCreating: false
@@ -50,6 +44,7 @@
      */
     configs: {
       listens: ['lockscreen-request-unlock',
+                'lockscreen-request-lock',
                 'lockscreen-appcreated',
                 'lockscreen-appterminated',
                 'lockscreen-appclose',
@@ -57,9 +52,21 @@
                 'ftuopen',
                 'ftudone',
                 'overlaystart',
-                'showlockscreenwindow'
+                'showlockscreenwindow',
+                'home'
                ]
     }
+  };
+
+  /**
+   * To initialize the class instance (register events, observe settings, etc.)
+   */
+  LockScreenWindowManager.prototype.start =
+  function lwm_start() {
+    this.startEventListeners();
+    this.startObserveSettings();
+    this.initElements();
+    this.initWindow();
   };
 
   /**
@@ -101,20 +108,10 @@
           this.states.FTUOccurs = false;
           break;
         case 'lockscreen-request-unlock':
-          // Only when the background app is ready,
-          // we close the window.
-          var activeApp = window.AppWindowManager ?
-                window.AppWindowManager.getActiveApp() : null,
-              nextPaint = () => {
-                this.states.unlockDetail = evt.detail;
-                this.closeApp();
-              };
-
-          if (!activeApp) {
-            nextPaint();
-          } else {
-            activeApp.ready(nextPaint);
-          }
+          this.responseUnlock(evt.detail);
+          break;
+        case 'lockscreen-request-lock':
+          this.responseLock(evt.detail);
           break;
         case 'lockscreen-appcreated':
           app = evt.detail;
@@ -125,7 +122,6 @@
           this.unregisterApp(app);
           break;
         case 'lockscreen-appclose':
-          this.states.unlockDetail = null;
           break;
         case 'screenchange':
           // The screenchange may be invoked by proximity sensor,
@@ -136,6 +132,18 @@
               !this.states.FTUOccurs) {
             // The app would be inactive while screen off.
             this.openApp();
+          }
+          break;
+        case 'home':
+          // We assume that this component is started before AppWindowManager
+          // to make this blocking code works.
+          if (this.states.active) {
+            // XXX: I don't want to change the order of event registration
+            // at this early-refactoring stage, so do this to minimize the
+            // risk and complete the work.
+            window.dispatchEvent(
+              new CustomEvent('lockscreen-notify-homepressed'));
+            evt.stopImmediatePropagation();
           }
           break;
       }
@@ -174,19 +182,21 @@
         }
       };
 
-      // FIXME(ggp) this is currently used by Find My Device
-      // to force locking. Should be replaced by a proper
-      // IAC API in the future.
-      var lockListener = (val) => {
-        if (true === val) {
+      // FIXME(ggp) this is currently used by Find My Device to force locking.
+      // Should be replaced by a proper IAC API in bug 992277.
+      var lockListener = (event) => {
+        if (true === event.settingValue) {
           this.openApp();
         }
       };
 
       window.SettingsListener.observe('lockscreen.enabled',
           true, enabledListener);
-      window.SettingsListener.observe('lockscreen.lock-immediately',
-          false, lockListener);
+
+      // We are only interested in changes to the setting, rather
+      // than its value, so just observe it instead of using SettingsListener
+      navigator.mozSettings.addObserver('lockscreen.lock-immediately',
+          lockListener);
     };
 
   /**
@@ -231,9 +241,9 @@
       if (!this.states.enabled && !this.states.active) {
         return;
       }
+      this.states.active = false;
       this.states.instance.close(instant ? 'immediate': undefined);
       this.elements.screen.classList.remove('locked');
-      this.states.active = false;
     };
 
   /**
@@ -338,6 +348,24 @@
         }
         this.openApp();
       };
+    };
+
+  LockScreenWindowManager.prototype.responseUnlock =
+    function lwm_responseUnlock(detail) {
+      // Only when the background app is ready,
+      // we close the window.
+      var activeApp = window.AppWindowManager ?
+            window.AppWindowManager.getActiveApp() : null;
+      if (!activeApp) {
+        this.closeApp();
+      } else {
+        activeApp.ready(this.closeApp.bind(this));
+      }
+    };
+
+  LockScreenWindowManager.prototype.responseLock =
+    function lwm_responseLock(detail) {
+      this.openApp();
     };
 
   /** @exports LockScreenWindowManager */

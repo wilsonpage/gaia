@@ -8,7 +8,7 @@ requireApp('system/test/unit/mock_notification_screen.js');
 requireApp('system/test/unit/mock_applications.js');
 requireApp('system/test/unit/mock_utility_tray.js');
 requireApp('system/test/unit/mock_modal_dialog.js');
-requireApp('system/test/unit/mock_l10n.js');
+require('/shared/test/unit/mocks/mock_l10n.js');
 requireApp('system/test/unit/mock_ftu_launcher.js');
 requireApp('system/test/unit/mock_keyboard_manager.js');
 
@@ -1423,19 +1423,26 @@ suite('system/AppInstallManager >', function() {
                       setupInstalledAppDialog.classList.contains('visible'));
       AppInstallManager.handleInstallSuccess(mockAppTwo);
       assert.isTrue(AppInstallManager.showSetupDialog.calledOnce);
-      assert.equal(AppInstallManager.setupAppName.textContent,
-        'app-install-success{"appName":"' + mockAppName + '"}');
+
+      var l10nAttrs = MockL10n.getAttributes(
+        AppInstallManager.setupAppName);
+      assert.equal(l10nAttrs.id, 'app-install-success');
+      assert.deepEqual(l10nAttrs.args, {appName: mockAppName});
     });
 
     test('should show setupInstalledAppDialog two times', function() {
       this.sinon.spy(AppInstallManager, 'showSetupDialog');
       AppInstallManager.handleInstallSuccess(mockApp);
-      assert.equal(AppInstallManager.setupAppName.textContent,
-        'app-install-success{"appName":"' + mockAppName + '"}');
+      var l10nAttrs = MockL10n.getAttributes(
+        AppInstallManager.setupAppName);
+      assert.equal(l10nAttrs.id, 'app-install-success');
+      assert.deepEqual(l10nAttrs.args, {appName: mockAppName});
       AppInstallManager.setupCancelButton.click();
       AppInstallManager.handleInstallSuccess(mockAppTwo);
-      assert.equal(AppInstallManager.setupAppName.textContent,
-        'app-install-success{"appName":"' + mockAppTwoName + '"}');
+      var l10nAttrs = MockL10n.getAttributes(
+        AppInstallManager.setupAppName);
+      assert.equal(l10nAttrs.id, 'app-install-success');
+      assert.deepEqual(l10nAttrs.args, {appName: mockAppTwoName});
     });
 
     test('should show ime list', function() {

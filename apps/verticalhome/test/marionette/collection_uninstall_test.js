@@ -1,11 +1,11 @@
 'use strict';
-/* global __dirname */
 
 var assert = require('assert');
 var Actions = require('marionette-client').Actions;
 var Collection = require('./lib/collection');
 var Home2 = require('./lib/home2');
-var EmeServer = require('./eme_server/parent');
+var EmeServer = require(
+  '../../../../shared/test/integration/eme_server/parent');
 var System = require('../../../../apps/system/test/marionette/lib/system');
 
 marionette('Vertical - Uninstall Collection', function() {
@@ -14,8 +14,7 @@ marionette('Vertical - Uninstall Collection', function() {
   var actions, collection, home, selectors, server, system;
 
   suiteSetup(function(done) {
-    var folder = __dirname + '/fixtures/everythingme';
-    EmeServer(folder, client, function(err, _server) {
+    EmeServer(client, function(err, _server) {
       server = _server;
       done(err);
     });
@@ -34,26 +33,9 @@ marionette('Vertical - Uninstall Collection', function() {
     system = new System(client);
     system.waitForStartup();
 
-    client.apps.launch(Home2.URL);
-
     home.waitForLaunch();
-
-    // Disable Geolocation prompt
-    var chromeClient = client.scope({ context: 'chrome' });
-    chromeClient.executeScript(function(origin) {
-      var mozPerms = navigator.mozPermissionSettings;
-      mozPerms.set(
-        'geolocation', 'deny', origin + '/manifest.webapp', origin, false
-      );
-    }, [Collection.URL]);
-
-    // Update eme server settings
-    chromeClient.executeScript(function(url) {
-      navigator.mozSettings.createLock().set({
-        'everythingme.api.url': url
-      });
-    }, [server.url + '/{resource}']);
-
+    collection.disableGeolocation();
+    collection.setServerURL(server);
 
     var name = 'Around Me';
     collection.enterCreateScreen();
@@ -70,7 +52,7 @@ marionette('Vertical - Uninstall Collection', function() {
       return el.dataset.identifier;
     });
 
-    remove.click();
+    remove.tap();
     home.confirmDialog('remove');
 
     // ensure the icon disappears

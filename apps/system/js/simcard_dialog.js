@@ -31,12 +31,12 @@ var SimPinDialog = {
 
   initElements: function spl_initElements() {
     // All of the simpin dialog elements are appended via SimPinSystemDialog.
-    this.dialogTitle = document.querySelector('#simpin-dialog header h1');
+    this.dialogTitle = document.querySelector('#simpin-dialog gaia-header h1');
     this.dialogDone =
       document.querySelector('#simpin-dialog button[type="submit"]');
     this.dialogSkip =
       document.querySelector('#simpin-dialog button[type="reset"]');
-    this.dialogBack = document.querySelector('#simpin-dialog button.back');
+    this.header = document.querySelector('#simpin-dialog gaia-header');
 
     this.pinArea = document.getElementById('pinArea');
     this.pukArea = document.getElementById('pukArea');
@@ -83,7 +83,7 @@ var SimPinDialog = {
   },
 
   handleCardState: function spl_handleCardState() {
-    var _ = navigator.mozL10n.get;
+    var _ = navigator.mozL10n.setAttributes;
 
     if (!this._currentSlot) {
       return;
@@ -99,7 +99,7 @@ var SimPinDialog = {
       var retryCount = request.result.retryCount;
       if (retryCount) {
         var l10nArgs = { n: retryCount };
-        this.triesLeftMsg.textContent = _('inputCodeRetriesLeft', l10nArgs);
+        _(this.triesLeftMsg, 'inputCodeRetriesLeft', l10nArgs);
         this.triesLeftMsg.hidden = false;
       }
     }).bind(this);
@@ -116,8 +116,8 @@ var SimPinDialog = {
         break;
       case 'puk':
         this.lockType = lockType;
-        this.errorMsgHeader.textContent = _('simCardLockedMsg') || '';
-        this.errorMsgBody.textContent = _('enterPukMsg') || '';
+        _(this.errorMsgHeader, 'simCardLockedMsg');
+        _(this.errorMsgBody, 'enterPukMsg');
         this.errorMsg.hidden = false;
         this.inputFieldControl(false, true, false, true);
         this.pukInput.focus();
@@ -133,7 +133,7 @@ var SimPinDialog = {
         this.lockType = lockType;
         this.errorMsg.hidden = true;
         this.inputFieldControl(false, false, true, false);
-        this.desc.textContent = _(lockType + 'Code');
+        _(this.desc, lockType + 'Code');
         this.xckInput.focus();
         break;
       default:
@@ -141,11 +141,10 @@ var SimPinDialog = {
         break;
     }
     if (this.lockType !== 'pin' || !SIMSlotManager.isMultiSIM()) {
-      this.dialogTitle.textContent =
-        _(this.lockType + 'Title') || '';
+      _(this.dialogTitle, this.lockType + 'Title');
     } else {
-      this.dialogTitle.textContent =
-        _('multiSIMpinTitle', { n: this._currentSlot.index + 1 }) || '';
+      _(this.dialogTitle, 'multiSIMpinTitle',
+        { n: this._currentSlot.index + 1 });
     }
   },
 
@@ -166,15 +165,15 @@ var SimPinDialog = {
   },
 
   showErrorMsg: function spl_showErrorMsg(retry, type) {
-    var _ = navigator.mozL10n.get;
+    var _ = navigator.mozL10n.setAttributes;
     var l10nArgs = { n: retry };
 
-    this.triesLeftMsg.textContent = _('inputCodeRetriesLeft', l10nArgs);
-    this.errorMsgHeader.textContent = _(type + 'ErrorMsg');
+    _(this.triesLeftMsg, 'inputCodeRetriesLeft', l10nArgs);
+    _(this.errorMsgHeader, type + 'ErrorMsg');
     if (retry !== 1) {
-      this.errorMsgBody.textContent = _(type + 'AttemptMsg2', l10nArgs);
+      _(this.errorMsgBody, type + 'AttemptMsg2', l10nArgs);
     } else {
-      this.errorMsgBody.textContent = _(type + 'LastChanceMsg');
+      _(this.errorMsgBody, type + 'LastChanceMsg');
     }
 
     this.triesLeftMsg.hidden = false;
@@ -193,7 +192,7 @@ var SimPinDialog = {
   },
 
   unlockPuk: function spl_unlockPuk() {
-    var _ = navigator.mozL10n.get;
+    var _ = navigator.mozL10n.setAttributes;
 
     var puk = this.pukInput.value;
     var newPin = this.newPinInput.value;
@@ -203,8 +202,8 @@ var SimPinDialog = {
     }
 
     if (newPin !== confirmPin) {
-      this.errorMsgHeader.textContent = _('newPinErrorMsg');
-      this.errorMsgBody.textContent = '';
+      _(this.errorMsgHeader, 'newPinErrorMsg');
+      _(this.errorMsgBody, '');
       this.errorMsg.hidden = false;
       return;
     }
@@ -306,9 +305,12 @@ var SimPinDialog = {
     }
 
     if (skipped) {
-      delete this.dialogBack.hidden;
+      this.header.setAttribute('action', 'back');
+      // Force header-text to be repositioned
+      // now the action-button is present
+      this.dialogTitle.textContent = this.dialogTitle.textContent;
     } else {
-      this.dialogBack.hidden = true;
+      this.header.removeAttribute('action');
     }
   },
 
@@ -369,7 +371,7 @@ var SimPinDialog = {
 
     this.dialogDone.onclick = this.verify.bind(this);
     this.dialogSkip.onclick = this.skip.bind(this);
-    this.dialogBack.onclick = this.back.bind(this);
+    this.header.addEventListener('action', this.back.bind(this));
     this.pinInput = this.getNumberPasswordInputField('simpin');
     this.pukInput = this.getNumberPasswordInputField('simpuk');
     this.xckInput = this.getNumberPasswordInputField('xckpin');

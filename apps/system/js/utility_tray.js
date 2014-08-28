@@ -10,9 +10,16 @@ var UtilityTray = {
 
   overlay: document.getElementById('utility-tray'),
 
+  notifications: document.getElementById('utility-tray-notifications'),
+
+  notificationsPlaceholder:
+    document.getElementById('notifications-placeholder'),
+
   statusbar: document.getElementById('statusbar'),
 
   statusbarIcons: document.getElementById('statusbar-icons'),
+
+  topPanel: document.getElementById('top-panel'),
 
   grippy: document.getElementById('utility-tray-grippy'),
 
@@ -24,6 +31,7 @@ var UtilityTray = {
       this.overlay.addEventListener(name, this);
       this.statusbarIcons.addEventListener(name, this);
       this.grippy.addEventListener(name, this);
+      this.topPanel.addEventListener(name, this);
     }, this);
 
     window.addEventListener('screenchange', this);
@@ -33,6 +41,10 @@ var UtilityTray = {
     window.addEventListener('launchapp', this);
     window.addEventListener('displayapp', this);
     window.addEventListener('appopening', this);
+    window.addEventListener('resize', this);
+
+    // Listen for screen reader edge gestures
+    window.addEventListener('mozChromeEvent', this);
 
     // Firing when the keyboard and the IME switcher shows/hides.
     window.addEventListener('keyboardimeswitchershow', this);
@@ -52,6 +64,9 @@ var UtilityTray = {
 
     this.overlay.addEventListener('transitionend', this);
 
+    window.addEventListener('software-button-enabled', this);
+    window.addEventListener('software-button-disabled', this);
+
     if (window.navigator.mozMobileConnections) {
       window.LazyLoader.load('js/cost_control.js');
     }
@@ -59,11 +74,15 @@ var UtilityTray = {
 
   startY: undefined,
   lastDelta: undefined,
-  screenHeight: undefined,
-  screenWidth: undefined,
+  isTap: false,
+  screenWidth: 0,
+  screenHeight: 0,
+  grippyHeight: 0,
+  placeholderHeight: 0,
 
   handleEvent: function ut_handleEvent(evt) {
     var target = evt.target;
+    var detail = evt.detail;
 
     switch (evt.type) {
       case 'home':
@@ -79,8 +98,24 @@ var UtilityTray = {
       case 'keyboardchangecanceled':
       case 'simpinshow':
       case 'appopening':
-      case 'launchapp':
         if (this.shown) {
+          this.hide();
+        }
+        break;
+
+      case 'launchapp':
+        // we don't want background apps to trigger this event, otherwise,
+        // utility tray will be closed accidentally.
+        var findMyDevice =
+          window.location.origin.replace('system', 'findmydevice');
+
+        var blacklist = [findMyDevice];
+
+        var isBlockedApp = blacklist.some(function(blockedApp) {
+          return blockedApp === detail.origin;
+        });
+
+        if (!isBlockedApp && this.shown) {
           this.hide();
         }
         break;
@@ -89,12 +124,14 @@ var UtilityTray = {
       case 'keyboardimeswitchershow':
         this.overlay.addEventListener('mousedown', this._pdIMESwitcherShow);
         this.statusbar.addEventListener('mousedown', this._pdIMESwitcherShow);
+        this.topPanel.addEventListener('mousedown', this._pdIMESwitcherShow);
         break;
 
       case 'keyboardimeswitcherhide':
         this.overlay.removeEventListener('mousedown', this._pdIMESwitcherShow);
         this.statusbar.removeEventListener('mousedown',
                                            this._pdIMESwitcherShow);
+        this.topPanel.removeEventListener('mousedown', this._pdIMESwitcherShow);
         break;
 
       case 'screenchange':
@@ -104,12 +141,13 @@ var UtilityTray = {
         break;
 
       case 'touchstart':
-        if (window.System.locked) {
+        if (window.System.locked || window.System.runningFTU) {
           return;
         }
 
         if (target !== this.overlay && target !== this.grippy &&
-            evt.currentTarget !== this.statusbarIcons) {
+            evt.currentTarget !== this.statusbarIcons &&
+            evt.currentTarget !== this.topPanel) {
           return;
         }
 
@@ -151,22 +189,65 @@ var UtilityTray = {
       case 'wheel':
         if (evt.deltaMode === evt.DOM_DELTA_PAGE && evt.deltaY &&
           evt.deltaY > 0) {
-          this.hide();
+          this.hide(true);
         }
         break;
 
       case 'transitionend':
         if (!this.shown) {
           this.screen.classList.remove('utility-tray');
+          this.notifications.classList.remove('visible');
         }
+        break;
+
+      case 'resize':
+        console.log('Window resized');
+        this.validateCachedSizes(true);
+        break;
+
+      case 'mozChromeEvent':
+        if (evt.detail.type !== 'accessibility-control') {
+          break;
+        }
+        var eventType = JSON.parse(evt.detail.details).eventType;
+        if (eventType === 'edge-swipe-down') {
+          this[this.shown ? 'hide' : 'show']();
+        }
+        break;
+
+      case 'software-button-enabled':
+      case 'software-button-disabled':
+        this.validateCachedSizes(true);
         break;
     }
   },
 
+  validateCachedSizes: function(refresh) {
+    var screenRect;
+    if (refresh || !this.screenHeight || !this.screenWidth) {
+      screenRect = this.overlay.getBoundingClientRect();
+    }
+
+    if (refresh || !this.screenWidth) {
+      this.screenWidth = screenRect.width || 0;
+    }
+
+    if (refresh || !this.screenHeight) {
+      this.screenHeight = screenRect.height || 0;
+    }
+
+    if (refresh || !this.grippyHeight) {
+      this.grippyHeight = this.grippy.clientHeight || 0;
+    }
+
+    if (refresh || !this.placeholderHeight) {
+      this.placeholderHeight = this.notificationsPlaceholder.clientHeight || 0;
+      this.notifications.style.height = this.placeholderHeight + 'px';
+    }
+  },
+
   onTouchStart: function ut_onTouchStart(touch) {
-    var screenRect = this.overlay.getBoundingClientRect();
-    this.screenHeight = screenRect.height;
-    this.screenWidth = screenRect.width;
+    this.validateCachedSizes();
     this.active = true;
     this.startY = touch.pageY;
     if (!this.screen.classList.contains('utility-tray')) {
@@ -181,7 +262,10 @@ var UtilityTray = {
                                   [touch.rotationAngle], [touch.force], 1);
       }
     }
-    this.screen.classList.add('utility-tray');
+
+    this.isTap = true;
+
+    window.dispatchEvent(new CustomEvent('utility-tray-overlayopening'));
   },
 
   onTouchMove: function ut_onTouchMove(touch) {
@@ -189,12 +273,20 @@ var UtilityTray = {
       return;
     }
 
+    this.validateCachedSizes();
     var screenHeight = this.screenHeight;
 
     var y = touch.pageY;
 
     var dy = -(this.startY - y);
     this.lastDelta = dy;
+
+    // Tap threshold
+    if (dy > 5) {
+      this.isTap = false;
+      this.screen.classList.add('utility-tray');
+      this.notifications.classList.add('visible');
+    }
 
     if (this.shown) {
       dy += screenHeight;
@@ -204,6 +296,11 @@ var UtilityTray = {
     var style = this.overlay.style;
     style.MozTransition = '';
     style.MozTransform = 'translateY(' + dy + 'px)';
+
+    this.notifications.style.transition = '';
+    var notificationBottom = Math.max(0, dy - this.grippyHeight);
+    this.notifications.style.clip =
+      'rect(0, ' + this.screenWidth + 'px, ' + notificationBottom + 'px, 0)';
   },
 
   onTouchEnd: function ut_onTouchEnd(touch) {
@@ -216,23 +313,42 @@ var UtilityTray = {
 
       shouldOpen ? this.show() : this.hide();
     }
+
+    // Trigger search from the left half of the screen
+    var corner = touch && (touch.target === this.topPanel) &&
+                 (touch.pageX < (window.innerWidth / 2));
+    if (this.isTap && corner) {
+      if (this.shown) {
+        this.hide();
+      }
+      setTimeout(function() {
+        window.dispatchEvent(new CustomEvent('global-search-request'));
+      });
+    }
+
     this.startY = undefined;
     this.lastDelta = undefined;
-    this.screenHeight = undefined;
+    this.isTap = false;
   },
 
   hide: function ut_hide(instant) {
+    this.validateCachedSizes();
     var alreadyHidden = !this.shown;
     var style = this.overlay.style;
     style.MozTransition = instant ? '' : '-moz-transform 0.2s linear';
-    style.MozTransform = '';
-    this.shown = false;
+    this.notifications.style.transition = instant ? '' : 'clip 0.2s linear';
+    this.notifications.style.clip =
+      'rect(0, ' + this.screenWidth + 'px, 0, 0)';
 
     // If the transition has not started yet there won't be any transitionend
     // event so let's not wait in order to remove the utility-tray class.
     if (instant || style.MozTransform === '') {
       this.screen.classList.remove('utility-tray');
+      this.notifications.classList.remove('visible');
     }
+
+    style.MozTransform = '';
+    this.shown = false;
     window.dispatchEvent(new CustomEvent('utility-tray-overlayclosed'));
 
     if (!alreadyHidden) {
@@ -243,12 +359,21 @@ var UtilityTray = {
   },
 
   show: function ut_show(dy) {
+    this.validateCachedSizes();
     var alreadyShown = this.shown;
     var style = this.overlay.style;
     style.MozTransition = '-moz-transform 0.2s linear';
     style.MozTransform = 'translateY(100%)';
+
     this.shown = true;
     this.screen.classList.add('utility-tray');
+    this.notifications.classList.add('visible');
+    this.notifications.style.transition = 'clip 0.2s linear';
+    this.notifications.style.height = this.placeholderHeight + 'px';
+    var notificationBottom = Math.max(0, this.screenHeight - this.grippyHeight);
+    this.notifications.style.clip =
+      'rect(0, ' + this.screenWidth + 'px, ' + notificationBottom + 'px, 0)';
+    this.notifications.classList.add('visible');
     window.dispatchEvent(new CustomEvent('utility-tray-overlayopened'));
 
     if (!alreadyShown) {
@@ -264,5 +389,3 @@ var UtilityTray = {
     }
   }
 };
-
-UtilityTray.init();

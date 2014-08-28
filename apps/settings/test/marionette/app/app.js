@@ -39,7 +39,7 @@ module.exports = Settings;
 
 Settings.Selectors = {
   'menuItemsSection': '#root',
-  'bluetoothMenuItem': '#menuItem-bluetooth',
+  'bluetoothMenuItem': '.menuItem-bluetooth',
   'doNotTrackMenuItem': '#menuItem-doNotTrack',
   'hotspotMenuItem': '#menuItem-internetSharing',
   'hotspotPanel': '#hotspot',
@@ -55,8 +55,8 @@ Settings.Selectors = {
   'screenLockMenuItem': '#menuItem-screenLock',
   'appPermissionPanel': '#menuItem-appPermissions',
   'displayMenuItem': '#menuItem-display',
-  'appStorageMenuItem': '#menuItem-applicationStorage',
-  'mediaStorageMenuItem': '#menuItem-mediaStorage',
+  'appStorageMenuItem': '.menuItem-applicationStorage',
+  'mediaStorageMenuItem': '.menuItem-mediaStorage',
   'keyboardMenuItem': '#menuItem-keyboard',
   'messageMenuItem': '#menuItem-messagingSettings'
 };
@@ -215,7 +215,7 @@ Settings.prototype = {
       return this.findElement('messageMenuItem').enabled();
     }.bind(this));
 
-    menuItem.tap();
+    menuItem.tap(20, 20);
     this.client.waitFor(function() {
       var loc = parentSection.location();
       var size = parentSection.size();

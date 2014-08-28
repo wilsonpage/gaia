@@ -20,8 +20,10 @@
     this._normalAudioChannelActive = false;
     this._deviceLockedTimer = 0;
     this.overlayEvents = [
+      'cardviewshown',
+      'cardviewclosed',
       'lockscreen-appopened',
-      'lockscreen-appclosing',
+      'lockscreen-request-unlock',
       'attentionscreenshow',
       'attentionscreenhide',
       'status-active',
@@ -32,7 +34,12 @@
       'rocketbar-overlayopened',
       'rocketbar-overlayclosed',
       'utility-tray-overlayopened',
-      'utility-tray-overlayclosed'
+      'utility-tray-overlayclosed',
+      'system-dialog-show',
+      'system-dialog-hide',
+      'searchrequestforeground',
+      'apprequestforeground',
+      'homescreenrequestforeground'
     ];
   };
 
@@ -45,7 +52,6 @@
     this.overlayEvents.forEach(function overlayEventIterator(event) {
       window.addEventListener(event, this);
     }, this);
-    return this;
   };
 
   VisibilityManager.prototype.handleEvent = function vm_handleEvent(evt) {
@@ -53,12 +59,23 @@
       clearTimeout(this._attentionScreenTimer);
     }
     switch (evt.type) {
+      case 'searchrequestforeground':
+      case 'homescreenrequestforeground':
+      case 'apprequestforeground':
+        if (!System.locked &&
+            !AttentionScreen.isFullyVisible()) {
+          evt.detail.setVisible(true);
+        }
+        break;
       // XXX: See Bug 999318.
       // Audio channel is always normal without going back to none.
       // We are actively discard audio channel state when homescreen
       // is opened.
       case 'appclosing':
       case 'homescreenopened':
+        if (window.taskManager.isShown()) {
+          this.publish('hidewindowforscreenreader');
+        }
         this._normalAudioChannelActive = false;
         break;
       case 'status-active':
@@ -72,9 +89,21 @@
         }
         this._resetDeviceLockedTimer();
         break;
-      case 'lockscreen-appclosing':
+      case 'lockscreen-request-unlock':
+        var detail = evt.detail,
+            activity = null,
+            notificationId = null;
+
+        if (detail) {
+          activity = detail.activity;
+          notificationId = detail.notificationId;
+        }
+
         if (!AttentionScreen.isFullyVisible()) {
-          this.publish('showwindow', { type: evt.type });
+          this.publish('showwindow', {
+            activity: activity,  // Trigger activity opening in AWM
+            notificationId: notificationId
+          });
         }
         this._resetDeviceLockedTimer();
         break;
@@ -103,10 +132,14 @@
         break;
       case 'rocketbar-overlayopened':
       case 'utility-tray-overlayopened':
+      case 'cardviewshown':
+      case 'system-dialog-show':
         this.publish('hidewindowforscreenreader');
         break;
       case 'rocketbar-overlayclosed':
       case 'utility-tray-overlayclosed':
+      case 'cardviewclosed':
+      case 'system-dialog-hide':
         this.publish('showwindowforscreenreader');
         break;
       case 'mozChromeEvent':
@@ -116,8 +149,10 @@
           if (this._normalAudioChannelActive &&
               evt.detail.channel !== 'normal' && window.System.locked) {
             this._deviceLockedTimer = setTimeout(function setVisibility() {
-              this.publish('hidewindow',
-                { screenshoting: false, type: evt.type });
+              if (window.System.locked) {
+                this.publish('hidewindow',
+                  { screenshoting: false, type: evt.type });
+              }
             }.bind(this), 3000);
           }
 

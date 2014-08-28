@@ -179,7 +179,7 @@ function shareSingleItem() {
 
   function shareModifiedImage() {
     var metadata = fileinfo.metadata;
-    var button = $('fullscreen-share-button');
+    var button = fullscreenButtons.share;
     button.classList.add('disabled');
     showSpinner();
     cropResizeRotate(currentFrame.imageblob, null,
@@ -453,6 +453,11 @@ function setFramesPosition() {
     'translateX(' + (frameOffset + width) + 'px)';
   previousFrame.container.style.transform =
     'translateX(' + (frameOffset - width) + 'px)';
+
+  // XXX Bug 1021782 add 'current' class to currentFrame
+  nextFrame.container.classList.remove('current');
+  previousFrame.container.classList.remove('current');
+  currentFrame.container.classList.add('current');
 }
 
 function resetFramesPosition() {

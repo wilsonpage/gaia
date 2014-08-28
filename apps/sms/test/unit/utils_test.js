@@ -1,22 +1,26 @@
 /*global MockL10n, Utils, MockContact, FixturePhones, MockContactPhotoHelper,
          MockContacts, MockMozPhoneNumberService, MocksHelper, Notification,
-         MockNotification, Threads, Promise */
+         MockNotification, Threads, Promise, MockSettings,
+         AssetsHelper
+*/
 
 'use strict';
 
 requireApp('sms/test/unit/mock_contact.js');
 requireApp('sms/test/unit/mock_contacts.js');
-requireApp('sms/test/unit/mock_l10n.js');
+require('/shared/test/unit/mocks/mock_l10n.js');
 requireApp('sms/test/unit/mock_navigator_mozphonenumberservice.js');
 require('/shared/test/unit/mocks/mock_contact_photo_helper.js');
 requireApp('sms/js/utils.js');
 requireApp('sms/shared/test/unit/mocks/mock_notification.js');
 requireApp('sms/test/unit/mock_threads.js');
+require('/test/unit/mock_settings.js');
 
 var MocksHelperForUtilsUnitTest = new MocksHelper([
   'ContactPhotoHelper',
   'Notification',
-  'Threads'
+  'Threads',
+  'Settings'
 ]).init();
 
 
@@ -78,30 +82,30 @@ suite('Utils', function() {
     });
   });
 
-  /*
-
-  Omit this test, pending:
-  Bug 847975 - [MMS][SMS] remove use of "dtf" alias from SMS
-  https://bugzilla.mozilla.org/show_bug.cgi?id=847975
-
   suite('Utils.getFormattedHour', function() {
     var time = 1362166084256;
 
     test('([String|Number|Date])', function() {
-      var expect = 'Fri Mar 01 2013 14:28:04 GMT-0500 (EST)';
-      var fixtures = {
-        string: time + '',
-        number: time,
-        date: new Date(time)
-      };
+      [true, false].forEach(function(isMozHour12) {
+        navigator.mozHour12 = isMozHour12;
 
-      assert.equal(Utils.getFormattedHour(fixtures.string), expect);
-      assert.equal(Utils.getFormattedHour(fixtures.number), expect);
-      assert.equal(Utils.getFormattedHour(fixtures.date), expect);
+        var expect = Utils.date.format.localeFormat(
+          new Date(time),
+          isMozHour12 ? 'shortTimeFormat12' : 'shortTimeFormat24'
+        );
+
+        var fixtures = {
+          string: time + '',
+          number: time,
+          date: new Date(time)
+        };
+
+        assert.equal(Utils.getFormattedHour(fixtures.string), expect);
+        assert.equal(Utils.getFormattedHour(fixtures.number), expect);
+        assert.equal(Utils.getFormattedHour(fixtures.date), expect);
+      });
     });
   });
-  */
-
 
   suite('Utils.getDayDate', function() {
     test('(UTSMS)', function() {
@@ -724,46 +728,46 @@ suite('Utils', function() {
   });
 
   suite('Utils.getResizedImgBlob', function() {
-    // a list of files in /test/unit/media/ to test resizing on
-    var typeTestData = {
-      'IMG_0554.bmp': null,
-      'IMG_0554.gif': null,
-      'IMG_0554.png': null,
-      'IMG_0554.jpg': null
-    };
-    var qualityTestData = {
-      'low_quality.jpg': null,
-      'low_quality_resized.jpg': null,
-      'default_quality_resized.jpg': null
-    };
+    var blobPromises = [],
+        typeTestData = new Map(),
+        lowQualityJPEGBlob = null,
+        lowQualityResizedJPEGBlob = null,
+        defaultQualityResizedJPEGBlob = null,
+        width = 480,
+        height = 800;
 
-    this.timeout(5000);
+    ['bmp', 'gif', 'png', 'jpeg'].forEach((type) => {
+      var blobName = width + 'x' + height + ' ' + type.toUpperCase();
+      typeTestData.set(blobName, null);
+
+      blobPromises.push(
+        AssetsHelper.generateImageBlob(width, height, 'image/' + type).then(
+          (blob) => typeTestData.set(blobName, blob)
+        )
+      );
+    });
+
+    blobPromises.push(
+      AssetsHelper.generateImageBlob(width, height, 'image/jpeg', 0.25).then(
+        (blob) => lowQualityJPEGBlob = blob
+      )
+    );
+
+    blobPromises.push(
+      AssetsHelper.generateImageBlob(
+          width / 2, height / 2, 'image/jpeg', 0.25
+      ).then((blob) => lowQualityResizedJPEGBlob = blob)
+    );
+
+    blobPromises.push(
+      AssetsHelper.generateImageBlob(
+          width / 2, height / 2, 'image/jpeg', 0.5
+      ).then((blob) => defaultQualityResizedJPEGBlob = blob)
+    );
+
 
     suiteSetup(function(done) {
-      // load test blobs for image resize testing
-      var assetsNeeded = 0;
-
-      function loadBlob(filename) {
-        /*jshint validthis: true */
-        assetsNeeded++;
-
-        var req = new XMLHttpRequest();
-        var testData = this;
-        req.open('GET', '/test/unit/media/' + filename, true);
-        req.responseType = 'blob';
-
-        req.onload = function() {
-          testData[filename] = req.response;
-          if (--assetsNeeded === 0) {
-            done();
-          }
-        };
-        req.send();
-      }
-
-      // load the images
-      Object.keys(typeTestData).forEach(loadBlob, typeTestData);
-      Object.keys(qualityTestData).forEach(loadBlob, qualityTestData);
+      Promise.all(blobPromises).then(() => done(), done);
     });
 
     setup(function() {
@@ -783,9 +787,9 @@ suite('Utils', function() {
       );
     }
 
-    Object.keys(typeTestData).forEach(function(filename) {
-      test(filename, function(done) {
-        var blob = typeTestData[filename];
+    typeTestData.forEach(function(value, key) {
+      test(key, function(done) {
+        var blob = typeTestData.get(key);
         // half the image size, or 100k, whichever is smaller
         var limit = Math.min(100000, (blob.size / 2));
 
@@ -801,7 +805,7 @@ suite('Utils', function() {
     });
 
     test('Image size is smaller than limit', function(done) {
-      var blob = qualityTestData['low_quality.jpg'];
+      var blob = lowQualityJPEGBlob;
       var limit = blob.size * 2;
       this.sinon.spy(Utils, '_resizeImageBlobWithRatio');
 
@@ -816,10 +820,12 @@ suite('Utils', function() {
     });
 
     test('Resize low quality image', function(done) {
-      var blob = qualityTestData['low_quality.jpg'];
-      var resizedBlob = qualityTestData['low_quality_resized.jpg'];
-      var defaultBlob = qualityTestData['default_quality_resized.jpg'];
-      var limit = blob.size / 2;
+      var blob = lowQualityJPEGBlob;
+      var resizedBlob = lowQualityResizedJPEGBlob;
+      var defaultBlob = defaultQualityResizedJPEGBlob;
+      // Limit should be less then size of the blob returned on the first
+      // "toBlob" call so that resize routine is repeated.
+      var limit = defaultBlob.size - 1;
 
       var toBlobStub = this.sinon.stub(HTMLCanvasElement.prototype,
         'toBlob', function(callback, type, quality) {
@@ -847,10 +853,10 @@ suite('Utils', function() {
     });
 
     test('Decrease image quality not working', function(done) {
-      var blob = qualityTestData['low_quality.jpg'];
-      var resizedBlob = qualityTestData['low_quality_resized.jpg'];
-      var defaultBlob = qualityTestData['default_quality_resized.jpg'];
-      var limit = blob.size / 2;
+      var blob = lowQualityJPEGBlob;
+      var resizedBlob = lowQualityResizedJPEGBlob;
+      var defaultBlob = defaultQualityResizedJPEGBlob;
+      var limit = defaultBlob.size - 1;
 
       var resizeSpy = this.sinon.spy(Utils, '_resizeImageBlobWithRatio');
 
@@ -1113,24 +1119,13 @@ suite('Utils', function() {
   });
 
   suite('Utils.imageUrlToDataUrl', function() {
-     var getCustomImageDataURL = function(width, height, type) {
-      var canvas = document.createElement('canvas'),
-          context = canvas.getContext('2d');
-
-      canvas.width = width;
-      canvas.height = height;
-
-      context.fillStyle = 'rgb(255, 0, 0)';
-      context.fillRect (0, 0, width, height);
-
-      return canvas.toDataURL(type);
-    };
-
     test('generates the same image if size is not adjusted', function(done) {
-      var type = 'image/jpeg',
+      var type = 'image/png',
           actualWidth = 100,
           actualHeight = 200,
-          imageURL = getCustomImageDataURL(actualWidth, actualHeight, type);
+          imageURL = AssetsHelper.generateImageDataURL(
+            actualWidth, actualHeight, type
+          );
 
       Utils.imageUrlToDataUrl(imageURL, type).then((result) => {
         assert.deepEqual(result, {
@@ -1146,7 +1141,9 @@ suite('Utils', function() {
           actualWidth = 100,
           actualHeight = 200,
           scaleFactor = 2,
-          imageURL = getCustomImageDataURL(actualWidth, actualHeight, type);
+          imageURL = AssetsHelper.generateImageDataURL(
+            actualWidth, actualHeight, type
+          );
 
       Utils.imageUrlToDataUrl(imageURL, type, (width, height) => {
         return {
@@ -1174,7 +1171,9 @@ suite('Utils', function() {
       var type = 'image/png',
           actualWidth = 100,
           actualHeight = 200,
-          imageURL = getCustomImageDataURL(actualWidth, actualHeight, type);
+          imageURL = AssetsHelper.generateImageDataURL(
+            actualWidth, actualHeight, type
+          );
 
       Utils.imageUrlToDataUrl(imageURL, type, () => {
         throw new Error('Something went wrong!');
@@ -1184,6 +1183,37 @@ suite('Utils', function() {
           assert.ok(e);
         }
       ).then(done, done);
+    });
+  });
+
+  suite('Utils.debounce', function() {
+    setup(function() {
+      this.sinon.useFakeTimers();
+    });
+
+    test('calls function only once it stops being called', function() {
+      var waitTime = 1000,
+          funcToExecute = sinon.stub(),
+          debouncedFuncToExecute = Utils.debounce(funcToExecute, waitTime);
+
+      debouncedFuncToExecute();
+      sinon.assert.notCalled(funcToExecute);
+
+      this.sinon.clock.tick(waitTime - 100);
+      sinon.assert.notCalled(funcToExecute);
+
+      debouncedFuncToExecute();
+      debouncedFuncToExecute();
+      debouncedFuncToExecute();
+
+      this.sinon.clock.tick(waitTime - 100);
+      sinon.assert.notCalled(funcToExecute);
+
+      this.sinon.clock.tick(100);
+      sinon.assert.calledOnce(funcToExecute);
+
+      this.sinon.clock.tick(waitTime);
+      sinon.assert.calledOnce(funcToExecute);
     });
   });
 
@@ -1231,6 +1261,8 @@ suite('Utils', function() {
 });
 
 suite('getDisplayObject', function() {
+  MocksHelperForUtilsUnitTest.attachTestHelpers();
+
   var nativeMozL10n = navigator.mozL10n;
   setup(function() {
     navigator.mozL10n = MockL10n;
@@ -1309,9 +1341,59 @@ suite('getDisplayObject', function() {
     assert.equal(data.carrier, carrier);
     assert.equal(data.number, value);
   });
+
+  test('Tel object with title, type and value of email', function() {
+    MockSettings.supportEmailRecipient = true;
+    var type = 'Personal';
+    var myTitle = 'My title';
+    var value = 'a@b.com';
+    var data = Utils.getDisplayObject(myTitle, {
+      'value': value,
+      'type': [type]
+    });
+
+    assert.equal(data.name, myTitle);
+    assert.equal(data.type, type);
+    assert.equal(data.carrier, '');
+    assert.equal(data.number, value);
+    assert.equal(data.email, value);
+  });
+
+  test('Tel object with title, NO type and value of email', function() {
+    MockSettings.supportEmailRecipient = true;
+    var myTitle = 'My title';
+    var value = 'a@b.com';
+    var data = Utils.getDisplayObject(myTitle, {
+      'value': value
+    });
+
+    assert.equal(data.name, myTitle);
+    assert.equal(data.type, '');
+    assert.equal(data.carrier, '');
+    assert.equal(data.number, value);
+    assert.equal(data.email, value);
+  });
+
+  test('Tel object with NO title, type and value of email', function() {
+    MockSettings.supportEmailRecipient = true;
+    var type = 'Personal';
+    var value = 'a@b.com';
+    var data = Utils.getDisplayObject(null, {
+      'value': value,
+      'type': [type]
+    });
+
+    assert.equal(data.name, value);
+    assert.equal(data.type, type);
+    assert.equal(data.carrier, '');
+    assert.equal(data.number, value);
+    assert.equal(data.email, value);
+  });
 });
 
 suite('getContactDisplayInfo', function() {
+  MocksHelperForUtilsUnitTest.attachTestHelpers();
+
   var nativeMozL10n = navigator.mozL10n;
 
   setup(function() {
@@ -1402,6 +1484,24 @@ suite('getContactDisplayInfo', function() {
   });
 });
 
+suite('isEmailAddress', function() {
+  test('check +348888888888', function() {
+    assert.isFalse(Utils.isEmailAddress('+348888888888'));
+  });
+  test('check a@b.com', function() {
+    assert.isTrue(Utils.isEmailAddress('a@b.com'));
+  });
+  test('check @b.com', function() {
+    assert.isFalse(Utils.isEmailAddress('@b.com'));
+  });
+  test('check abcd@', function() {
+    assert.isFalse(Utils.isEmailAddress('abcd@'));
+  });
+  test('check a@a', function() {
+    assert.isTrue(Utils.isEmailAddress('a@a'));
+  });
+});
+
 test('getClosestSampleSize', function() {
   assert.equal(Utils.getClosestSampleSize(1), 1);
   assert.equal(Utils.getClosestSampleSize(2), 2);
@@ -1454,4 +1554,3 @@ test('extend()', function() {
     'does not copy over properties from prototype'
   );
 });
-

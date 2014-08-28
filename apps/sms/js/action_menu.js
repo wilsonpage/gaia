@@ -93,6 +93,8 @@ var OptionMenu = function(options) {
 
     if (typeof options.header === 'string') {
       header.textContent = options.header || '';
+    } else if (options.header.l10nId) {
+      header.setAttribute('data-l10n-id', options.header.l10nId);
     } else {
       header.appendChild(options.header);
     }
@@ -119,7 +121,7 @@ var OptionMenu = function(options) {
   items.forEach(function renderOption(item) {
     var button = document.createElement('button');
     if (item.l10nId) {
-      navigator.mozL10n.localize(button, item.l10nId, item.l10nArgs);
+      navigator.mozL10n.setAttributes(button, item.l10nId, item.l10nArgs);
     } else if (item.name && item.name.length) {
       button.textContent = item.name || '';
     } else {
@@ -166,8 +168,6 @@ var OptionMenu = function(options) {
 
 // We prototype functions to show/hide the UI of action-menu
 OptionMenu.prototype.show = function() {
-  // We translate and append the element to body
-  navigator.mozL10n.translate(this.form);
   document.body.appendChild(this.form);
   // Focus form to blur anything triggered keyboard
   this.form.focus();

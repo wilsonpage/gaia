@@ -1,18 +1,21 @@
-/* global
-    Navigation,
+/* global Navigation,
+    Startup,
     MocksHelper,
-    Promise
+    Promise,
+    TransitionEvent
  */
 
 'use strict';
 
 require('/js/utils.js');
 require('/test/unit/mock_utils.js');
+require('/test/unit/mock_startup.js');
 
 require('/js/navigation.js');
 
 var mocksHelperForNavigation = new MocksHelper([
-  'Utils'
+  'Utils',
+  'Startup'
 ]).init();
 
 suite('navigation >', function() {
@@ -48,9 +51,22 @@ suite('navigation >', function() {
     fakeContainer = document.createElement('div');
     fakeContainer.id = 'main-wrapper';
     document.body.appendChild(fakeContainer);
+    window.location.hash = '';
 
-    Panel1 = {};
-    Panel2 = {};
+    Panel1 = {
+      beforeEnter: sinon.stub(),
+      beforeLeave: sinon.stub(),
+      afterEnter: sinon.stub(),
+      afterLeave: sinon.stub()
+    };
+
+    Panel2 = {
+      beforeEnter: sinon.stub(),
+      beforeLeave: sinon.stub(),
+      afterEnter: sinon.stub(),
+      afterLeave: sinon.stub()
+    };
+
     Panel3 = {
       beforeEnter: sinon.stub(),
       beforeLeave: sinon.stub(),
@@ -108,7 +124,15 @@ suite('navigation >', function() {
 
     test('currentPanel is the default panel', function() {
       Navigation.init();
+      assert.isFalse(Navigation.isReady);
       sinon.assert.calledWith(Navigation.toPanel, 'panel1');
+    });
+
+    test('ready is false while init and true when Startup ready', function() {
+      this.sinon.stub(Startup, 'on');
+      Navigation.init();
+      Startup.on.withArgs('post-initialize').yield();
+      assert.isTrue(Navigation.isReady);
     });
 
     test('The hash is controlling the panel', function() {
@@ -127,6 +151,8 @@ suite('navigation >', function() {
   suite('toPanel >', function() {
     setup(function(done) {
       this.sinon.stub(Navigation, 'slide').returns(Promise.resolve());
+      this.sinon.stub(Startup, 'on');
+      Navigation.isReady = true;
       Navigation.init().then(done, done);
     });
 
@@ -151,6 +177,19 @@ suite('navigation >', function() {
           done();
         }
       );
+    });
+
+    test('Queue panel requests while not ready', function(done) {
+      Navigation.isReady = false;
+      Navigation.toPanel('panel2').then(function() {
+        sinon.assert.callOrder(
+          Panel1.beforeLeave,
+          Panel2.beforeEnter,
+          Panel1.afterLeave,
+          Panel2.afterEnter
+        );
+      }).then(done, done);
+      Startup.on.withArgs('post-initialize').yield();
     });
 
     test('Queue panel transition requests', function(done) {
@@ -213,6 +252,16 @@ suite('navigation >', function() {
       });
 
       test('isCurrentPanel is changed at the right time', function(done) {
+        var slidePromise = {
+          then: function lazyThen(ifResolved /*, ifRejected */) {
+            return Promise.resolve().then(function() {
+              assert.isFalse(Navigation.isCurrentPanel('panel3'));
+              assert.isFalse(Navigation.isCurrentPanel('panel4'));
+            }).then(ifResolved, done);
+          }
+        };
+        Navigation.slide.returns(slidePromise);
+
         var results = [];
 
         Panel3.beforeLeave = function() {
@@ -380,7 +429,7 @@ suite('navigation >', function() {
 
     test('Remove any focus left on specific elements ', function() {
       this.sinon.spy(document.activeElement, 'blur');
-      Navigation.toPanel('panel1');
+      Navigation.toPanel('panel2');
       sinon.assert.called(document.activeElement.blur);
     });
   });
@@ -423,6 +472,58 @@ suite('navigation >', function() {
           Navigation.isCurrentPanel('panel1', { prop2: 'prop1' })
         );
       }).then(done, done);
+    });
+  });
+
+  suite('slide()', function() {
+    var wrapper;
+
+    setup(function() {
+      loadBodyHTML('/index.html');
+      wrapper = document.getElementById('main-wrapper'),
+      Navigation.init();
+    });
+
+    teardown(function() {
+      document.body.innerHTML = '';
+    });
+
+    function transitionendEvent() {
+      return new TransitionEvent('transitionend', {
+        bubbles: true,
+        propertyName: 'transform'
+      });
+    }
+
+    test('does not resolve the promise after 1 transitionend event',
+    function(done) {
+      var afterSlide = sinon.stub();
+      Navigation.slide('left').then(afterSlide);
+
+      wrapper.children[0].dispatchEvent(transitionendEvent());
+
+      Promise.resolve().then(function() {
+        sinon.assert.notCalled(afterSlide);
+      }).then(done, done);
+    });
+
+    test('resolve the promise after 2 transitionend events', function(done) {
+      var afterSlide = sinon.stub();
+      Navigation.slide('left').then(afterSlide).then(done, done);
+
+      wrapper.children[0].dispatchEvent(transitionendEvent());
+      wrapper.children[1].dispatchEvent(transitionendEvent());
+    });
+
+    test('the event listener is correctly removed', function() {
+      this.sinon.spy(wrapper, 'removeEventListener');
+
+      Navigation.slide('left');
+
+      wrapper.children[0].dispatchEvent(transitionendEvent());
+      wrapper.children[1].dispatchEvent(transitionendEvent());
+
+      sinon.assert.calledWith(wrapper.removeEventListener, 'transitionend');
     });
   });
 });

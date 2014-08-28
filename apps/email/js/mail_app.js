@@ -117,6 +117,7 @@ model.latestOnce('api', function(api) {
     },
     folderNames: {
       inbox: mozL10n.get('folder-inbox'),
+      outbox: mozL10n.get('folder-outbox'),
       sent: mozL10n.get('folder-sent'),
       drafts: mozL10n.get('folder-drafts'),
       trash: mozL10n.get('folder-trash'),
@@ -148,22 +149,29 @@ var finalCardStateCallback,
     cachedNode = Cards._cardsNode.children[0],
     startCardId = cachedNode && cachedNode.getAttribute('data-type');
 
-var startCardArgs = {
-  'setup_account_info': [
-    'setup_account_info', 'default', 'immediate',
-    {
-      onPushed: function(impl) {
-        htmlCache.delayedSaveFromNode(impl.domNode.cloneNode(true));
+function getStartCardArgs(id) {
+  // Use a function that returns fresh arrays for each call so that object
+  // in that last array position is fresh for each call and does not have other
+  // properties mixed in to it by multiple reuse of the same object
+  // (bug 1031588).
+  if (id === 'setup_account_info') {
+    return [
+      'setup_account_info', 'default', 'immediate',
+      {
+        onPushed: function(impl) {
+          htmlCache.delayedSaveFromNode(impl.domNode.cloneNode(true));
+        }
       }
-    }
-  ],
-  'message_list': [
-    'message_list', 'nonsearch', 'immediate', {}
-  ]
-};
+    ];
+  } else if (id === 'message_list') {
+    return [
+      'message_list', 'nonsearch', 'immediate', {}
+    ];
+  }
+}
 
 function pushStartCard(id, addedArgs) {
-  var args = startCardArgs[id];
+  var args = getStartCardArgs(id);
   if (!args) {
     throw new Error('Invalid start card: ' + id);
   }
@@ -187,6 +195,7 @@ if (appMessages.hasPending('activity') ||
   // and block normal first card selection, wait for activity.
   cachedNode = null;
   waitForAppMessage = true;
+  console.log('email waitForAppMessage');
 }
 
 if (appMessages.hasPending('alarm')) {
@@ -194,10 +203,15 @@ if (appMessages.hasPending('alarm')) {
   // as we were woken up just for the alarm.
   cachedNode = null;
   startedInBackground = true;
+  console.log('email startedInBackground');
 }
 
 // If still have a cached node, then show it.
 if (cachedNode) {
+  // l10n may not see this as it was injected before l10n.js was loaded,
+  // so let it know it needs to translate it.
+  mozL10n.translateFragment(cachedNode);
+
   // Wire up a card implementation to the cached node.
   if (startCardId) {
     pushStartCard(startCardId);
@@ -216,7 +230,7 @@ if (cachedNode) {
 function resetCards(cardId, args) {
   cachedNode = null;
 
-  var startArgs = startCardArgs[cardId],
+  var startArgs = getStartCardArgs(cardId),
       query = [startArgs[0], startArgs[1]];
 
   if (!Cards.hasCard(query)) {
@@ -268,18 +282,6 @@ document.addEventListener('visibilitychange', function onVisibilityChange() {
     finalCardStateCallback = null;
   }
 }, false);
-
-// Some event modifications during setup do not have full account
-// IDs. This listener catches those modifications and applies
-// them when the data is available.
-evt.on('accountModified', function(accountId, data) {
-  model.latestOnce('acctsSlice', function() {
-    var account = model.getAccount(accountId);
-    if (account) {
-      account.modifyAccount(data);
-    }
-  });
-});
 
 // The add account UI flow is requested.
 evt.on('addAccount', function() {
@@ -463,6 +465,7 @@ appMessages.on('activity', gateEntry(function(type, data, rawActivity) {
       initComposer();
     } else {
       waitingForCreateAccountPrompt = true;
+      console.log('email waitingForCreateAccountPrompt');
       promptEmptyAccount();
     }
   } else {
@@ -472,6 +475,7 @@ appMessages.on('activity', gateEntry(function(type, data, rawActivity) {
     initComposer();
 
     waitingForCreateAccountPrompt = true;
+    console.log('email waitingForCreateAccountPrompt');
     model.latestOnce('acctsSlice', function activityOnAccount() {
       if (!model.hasAccount()) {
         promptEmptyAccount();
@@ -480,8 +484,22 @@ appMessages.on('activity', gateEntry(function(type, data, rawActivity) {
   }
 }));
 
+appMessages.on('notificationClosed', gateEntry(function(data) {
+  // The system notifies the app of closed messages. This really is not helpful
+  // for the email app, but since it wakes up the app, if we do not at least try
+  // to show a usable UI, the user could end up with a blank screen. As the app
+  // could also have been awakened by sync or just user action and running in
+  // the background, we cannot just close the app. So just make sure there is
+  // some usable UI.
+  if (waitForAppMessage && !Cards.getCurrentCardType()) {
+    resetApp();
+  }
+}));
+
 appMessages.on('notification', gateEntry(function(data) {
-  var type = data ? data.type : '';
+  data = data || {};
+  var type = data.type || '';
+  var folderType = data.folderType || 'inbox';
 
   model.latestOnce('foldersSlice', function latestFolderSlice() {
     function onCorrectFolder() {
@@ -522,7 +540,10 @@ appMessages.on('notification', gateEntry(function(data) {
         accountId = data.accountId;
 
     if (model.account.id === accountId) {
-      return model.selectInbox(onCorrectFolder);
+      // folderType will often be 'inbox' (in the case of a new message
+      // notification) or 'outbox' (in the case of a "failed send"
+      // notification).
+      return model.selectFirstFolderWithType(folderType, onCorrectFolder);
     } else {
       var newAccount;
       acctsSlice.items.some(function(account) {
@@ -533,7 +554,9 @@ appMessages.on('notification', gateEntry(function(data) {
       });
 
       if (newAccount) {
-        model.changeAccount(newAccount, onCorrectFolder);
+        model.changeAccount(newAccount, function() {
+          model.selectFirstFolderWithType(folderType, onCorrectFolder);
+        });
       }
     }
   });

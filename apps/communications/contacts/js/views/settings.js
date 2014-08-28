@@ -25,9 +25,10 @@ var contacts = window.contacts || {};
 contacts.Settings = (function() {
 
   var navigationHandler,
-    importSettingsBack,
+    importSettingsHeader,
     orderCheckBox,
     orderByLastName,
+    setICEButton,
     importSettingsPanel,
     importSettingsTitle,
     importContacts,
@@ -71,6 +72,8 @@ contacts.Settings = (function() {
     utils.sdcard.subscribeToChanges('check_sdcard', function(value) {
       updateStorageOptions(utils.sdcard.checkStorageCard());
     });
+
+    window.addEventListener('timeformatchange', updateTimestamps);
   };
 
   var hideSettings = function hideSettings() {
@@ -117,6 +120,9 @@ contacts.Settings = (function() {
     importLiveOption = document.getElementById('import-live-option');
     importGmailOption = document.getElementById('import-gmail-option');
 
+    // ICE view
+    setICEButton = document.getElementById('set-ice');
+
     /*
      * Adding listeners
      */
@@ -130,8 +136,8 @@ contacts.Settings = (function() {
     });
 
     // Navigation back
-    importSettingsBack = document.getElementById('import-settings-back');
-    importSettingsBack.addEventListener('click', importSettingsBackHandler);
+    importSettingsHeader = document.getElementById('import-settings-header');
+    importSettingsHeader.addEventListener('action', importSettingsBackHandler);
 
     // Handlers for the navigation through the panels
     importContacts = document.getElementById('importContacts');
@@ -148,6 +154,9 @@ contacts.Settings = (function() {
 
     exportOptions = document.getElementById('export-options');
     exportOptions.addEventListener('click', exportOptionsHandler);
+
+    // ICE view
+    setICEButton.addEventListener('click', showICEScreen);
 
     // Bulk delete
     bulkDeleteButton = document.getElementById('bulkDelete');
@@ -177,6 +186,10 @@ contacts.Settings = (function() {
       document.addEventListener('fb_token_error', function() {
         fbImportedValue = 'renew-pwd';
         fbImportOption.dataset.state = fbImportedValue;
+      });
+
+      document.addEventListener('fb_cleaned', function onFbCleaned(evt) {
+        checkNoContacts();
       });
     }
     else {
@@ -214,6 +227,16 @@ contacts.Settings = (function() {
           navigationHandler.go('import-settings', 'right-left');
         }, Contacts.SHARED_CONTACTS);
       }
+  }
+
+  function showICEScreen(cb) {
+    LazyLoader.load(['/contacts/js/ice.js'], function(){
+      contacts.ICE.init();
+      navigationHandler.go('ice-settings', 'right-left');
+      if (typeof cb === 'function') {
+        cb();
+      }
+    });
   }
 
   // Given an event, select wich should be the targeted
@@ -444,6 +467,7 @@ contacts.Settings = (function() {
     fbGetTotals(false);
 
     fbImportCheck.checked = true;
+    document.dispatchEvent(new CustomEvent('facebookEnabled'));
   }
 
   function fbSetDisabledState() {
@@ -605,6 +629,8 @@ contacts.Settings = (function() {
       var cleaner = req.result;
       progressBar.setTotal(cleaner.lcontacts.length);
       cleaner.onsuccess = function() {
+        document.dispatchEvent(new CustomEvent('fb_cleaned'));
+
         Contacts.showOverlay(_('loggingOutFb'), 'activityBar');
         var logoutReq = fb.utils.logout();
 
@@ -619,7 +645,7 @@ contacts.Settings = (function() {
           });
 
           window.asyncStorage.removeItem(fb.utils.LAST_UPDATED_KEY);
-          window.asyncStorage.removeItem(fb.utils.CACHE_FRIENDS_KEY);
+          fb.utils.removeCachedNumFriends();
 
           resetWait(wakeLock);
         };
@@ -1019,7 +1045,8 @@ contacts.Settings = (function() {
     'refresh': refresh,
     'cardStateChanged': checkSIMCard,
     'updateTimestamps': updateTimestamps,
-    'navigation': navigationHandler,
+    'showICEScreen' : showICEScreen,
+    get navigation() { return navigationHandler; },
     'importFromSDCard': onSdImport,
     'importFromSIMCard': onSimImport
   };

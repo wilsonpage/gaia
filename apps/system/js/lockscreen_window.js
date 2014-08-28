@@ -1,6 +1,5 @@
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- /
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
-/* global StatusBar */
 'use strict';
 
 (function(exports) {
@@ -19,7 +18,6 @@
     var configs = {
       url: window.location.href,
       manifest: {
-        fullscreen: true,
         orientation: ['default']
       },
       name: 'Lockscreen',
@@ -39,6 +37,11 @@
     this.lockscreen = new window.LockScreen();
     window.lockScreen = this.lockscreen;
     this.lockscreen.init();
+    window.lockScreenNotificationBuilder
+      .start(document.getElementById('notifications-lockscreen-container'));
+    window.lockScreenNotifications.start(window.lockScreen);
+    window.lockScreenStateManager = new window.LockScreenStateManager();
+    window.lockScreenStateManager.start(window.lockScreen);
   };
 
   /**
@@ -93,7 +96,7 @@
     var height, width;
 
     // We want the lockscreen to go below the StatusBar
-    height = self.layoutManager.height + StatusBar.height;
+    height = self.layoutManager.height;
     width = self.layoutManager.width;
 
     this.width = width;
@@ -126,9 +129,6 @@
           dummy = document.createElement('div');
 
       dummy.innerHTML = html;
-      // Need to translate to render some attributes correctly (e.g.
-      // aria-label).
-      navigator.mozL10n.translate(dummy);
       var iframe = dummy.firstElementChild;
       iframe.setVisible = function() {};
       // XXX: real iframes would own these methods.

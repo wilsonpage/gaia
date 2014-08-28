@@ -22,6 +22,8 @@ The goal is to ensure that each panel loads only the required scripts. This coul
 ### Modules
 We are using [AMD](http://en.wikipedia.org/wiki/Asynchronous_module_definition) modules, loaded using 'Alemeda' (a lighter version of [RequireJS](http://requirejs.org)) and building/optimizing using ['r.js'](http://requirejs.org/docs/optimization.html) (the RequireJS optimizer). We have dependencies on files (`shared/js`)  which aren't AMD modules. For those we use the ['shim'](http://requirejs.org/docs/api.html#config-shim) options in our [`requirejs_config.js`](js/config/require.js)
 
+Module should not aware the existence of any UI elements, it should only expose the general functionalities that used by panels.
+
 A few fundamental modules are listed below:
 
 #### module/settings_service.js
@@ -170,3 +172,26 @@ Our `Makefile` has two tasks, one to **'build'** and one to **'clean'** (delete 
 1. Remove any previous settings build from the `build_stage/`
 2. Create an new directory `build_stage/settings`
 3. Run the `r.js` (RequireJS optimizer), pointing it at our `require_config.jslike` file (`.jslike` because we don't want Gaia builds to mess with it [I think]). This copies our entire application (JS and all) and bundles our JS (tracing `require()` calls) and CSS (tracing `@import`) in two single files.
+
+## Q&A
+
+### How to make sure some specific works are done before rendering panels ?
+
+Sometimes, you may need to do something before rendering panels. In order to achieve this, you have to return a promise object in `onBeforeShow` first and Settings app will do the transition after the promise is resolved. By the way, don't put some really heavy works here, otherwise users will feel confused and would treat Settings app as broken.
+
+```js
+return SettingsPanel({
+  onBeforeShow: function _onBeforeShow() {
+    var promise = new Promise(function(resolve, reject) {
+      // do your works here
+      // then call the resolve method from Promise instance
+      fetch_data_from_server(function callback() {
+        resolve();
+      });
+    });
+
+    // Return the promise object back to Settings app
+    return promise;
+  }
+});
+```

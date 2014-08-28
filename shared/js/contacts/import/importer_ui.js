@@ -1,6 +1,6 @@
 /* globals LazyLoader, ConfirmDialog, utils, contacts, oauthflow,
   Curtain, ImageLoader, importer, asyncStorage, FriendListRenderer,
-  Rest, oauth2, contactsList*/
+  Rest, oauth2, contactsList, ImportStatusData */
 'use strict';
 
 if (typeof window.importer === 'undefined') {
@@ -95,7 +95,6 @@ if (typeof window.importer === 'undefined') {
       var recommend = serviceConnector.name === 'facebook';
       var dialog = parent.document.getElementById('confirmation-message');
       parent.LazyLoader.load(dialog, function() {
-        navigator.mozL10n.translate(dialog);
         LazyLoader.load('/shared/js/confirm.js',
           function() {
           ConfirmDialog.show(_('connectionLost'), _('connectionLostMsg'),
@@ -231,7 +230,7 @@ if (typeof window.importer === 'undefined') {
 
     function removeToken(cb) {
       var theCb = (typeof cb === 'function') ? cb : function() {};
-      window.asyncStorage.removeItem(tokenKey, theCb, theCb);
+      ImportStatusData.remove(tokenKey).then(theCb, theCb);
     }
 
     function markPendingLogout(url, service, cb) {
@@ -342,8 +341,8 @@ if (typeof window.importer === 'undefined') {
       var serviceName = connector.name;
 
       // Setting UI title
-      document.querySelector('#content h1').textContent =
-                                          _(serviceName + '-serviceName');
+      document.querySelector('#content h1').
+        setAttribute('data-l10n-id', serviceName + '-serviceName');
       document.body.classList.add(serviceName);
 
       serviceConnector = connector;
@@ -581,12 +580,11 @@ if (typeof window.importer === 'undefined') {
           Curtain.hide(notifyParent.bind(null, {
             type: 'token_error'
           }, targetApp));
-          window.asyncStorage.removeItem(tokenKey,
-            function token_removed() {
-              oauth2.getAccessToken(function(new_acc_tk) {
-                access_token = new_acc_tk;
-                Importer.getFriends(new_acc_tk);
-              }, 'friends', serviceConnector.name);
+          ImportStatusData.remove(tokenKey).then(function token_removed() {
+            oauth2.getAccessToken(function(new_acc_tk) {
+              access_token = new_acc_tk;
+              Importer.getFriends(new_acc_tk);
+            }, 'friends', serviceConnector.name);
           });
         } // else
       } // else

@@ -11,12 +11,12 @@ from gaiatest.apps.base import Base
 class Language(Base):
 
     _select_language_locator = (By.CSS_SELECTOR, "select[name='language.current']")
-    _back_button_locator = (By.CSS_SELECTOR, '.current header > a')
+    _header_locator = (By.CSS_SELECTOR, '.current gaia-header')
     _language_locator = (By.ID, 'languages')
 
     def go_back(self):
-        self.wait_for_element_displayed(*self._back_button_locator)
-        self.marionette.find_element(*self._back_button_locator).tap()
+        self.wait_for_element_displayed(*self._header_locator)
+        self.marionette.find_element(*self._header_locator).tap(25, 25)
         self.wait_for_condition(lambda m:
                                 m.execute_script(
                                     "return window.wrappedJSObject.Settings && window.wrappedJSObject.Settings._currentPanel === '#root'"))
@@ -38,9 +38,9 @@ class Language(Base):
         # have to go back to top level to get the B2G select box wrapper
         self.marionette.switch_to_frame()
 
-        self.wait_for_condition(lambda m: len(self.marionette.find_elements(By.CSS_SELECTOR, '#value-selector-container li')) > 0)
+        self.wait_for_condition(lambda m: len(self.marionette.find_elements(By.CSS_SELECTOR, '.value-selector-container li')) > 0)
 
-        options = self.marionette.find_elements(By.CSS_SELECTOR, '#value-selector-container li')
+        options = self.marionette.find_elements(By.CSS_SELECTOR, '.value-selector-container li')
         close_button = self.marionette.find_element(By.CSS_SELECTOR, 'button.value-option-confirm')
 
         # loop options until we find the match

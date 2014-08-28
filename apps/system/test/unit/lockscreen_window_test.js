@@ -7,7 +7,7 @@ requireApp('system/shared/test/unit/mocks/mock_manifest_helper.js');
 requireApp('system/shared/test/unit/mocks/mock_settings_listener.js');
 requireApp('system/test/unit/mock_applications.js');
 requireApp('system/test/unit/mock_layout_manager.js');
-requireApp('system/test/unit/mock_l10n.js');
+require('/shared/test/unit/mocks/mock_l10n.js');
 requireApp('system/test/unit/mock_statusbar.js');
 requireApp('system/test/unit/mock_screen_layout.js');
 
@@ -22,20 +22,33 @@ suite('system/LockScreenWindow', function() {
 
   setup(function(done) {
     stubById = this.sinon.stub(document, 'getElementById', function(id) {
+
+      var element = document.createElement('div');
+
       // Must give a node with comment node for Template.
       if ('lockscreen-overlay-template' === id) {
-        var node = document.createElement('div'),
-            comment = document.createComment('<div id="lockscreen"></div>');
-        node.appendChild(comment);
-        return node;
-      } else {
-        return document.createElement('div');
+        var comment = document.createComment('<div id="lockscreen"></div>');
+        element.appendChild(comment);
+      } else if (id.indexOf('AppWindow' >= 0)) {
+        var container = document.createElement('div');
+        container.className = 'browser-container';
+        element.appendChild(container);
       }
+
+      return element;
     });
     // Differs from the existing mock which is expected by other components.
     window.LockScreen = function() {};
     window.LockScreen.prototype.init = this.sinon.stub();
-    window.layoutManager = new LayoutManager().start();
+    window.lockScreenNotificationBuilder =
+    window.lockScreenNotifications = {
+      start: function() {}
+    };
+    window.LockScreenStateManager = function() {
+      this.start = function() {};
+    };
+    window.layoutManager = new LayoutManager();
+    window.layoutManager.start();
 
     realL10n = window.navigator.mozL10n;
     window.navigator.mozL10n = MockL10n;
@@ -77,6 +90,7 @@ suite('system/LockScreenWindow', function() {
       // Or the AppWindow would look for it.
       app.element = document.createElement('div');
       parentElement.appendChild(app.element);
+      app.transitionController = {};
       app.kill();
       assert.isTrue(stubDispatch.calledWithMatch(sinon.match(
           function(e) {
@@ -95,6 +109,9 @@ suite('system/LockScreenWindow', function() {
       // Or the AppWindow would look for it.
       app.element = document.createElement('div');
       parentElement.appendChild(app.element);
+      app.transitionController = {
+        requireClose: function() {}
+      };
       app.kill();
       app.close();
       assert.isTrue(stubDispatch.calledWithMatch(sinon.match(
@@ -119,6 +136,6 @@ suite('system/LockScreenWindow', function() {
     var stubIsActive = this.sinon.stub(app, 'isActive');
     stubIsActive.returns(true);
     app.resize();
-    assert.equal(app.height, layoutManager.height + 20);
+    assert.equal(app.height, layoutManager.height);
   });
 });

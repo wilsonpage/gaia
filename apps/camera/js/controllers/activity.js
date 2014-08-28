@@ -24,8 +24,9 @@ module.exports.ActivityController = ActivityController;
  */
 function ActivityController(app) {
   bindAll(this);
-  this.settings = app.settings;
   this.app = app;
+  this.win = app.win;
+  this.settings = app.settings;
   this.configure();
   this.bindEvents();
   debug('initialized');
@@ -47,7 +48,8 @@ ActivityController.prototype.types = {
  * @private
  */
 ActivityController.prototype.configure = function() {
-  this.app.activity[this.getName()] = true;
+  this.name = this.getName();
+  this.app.activity[this.name] = true;
 };
 
 /**
@@ -59,9 +61,20 @@ ActivityController.prototype.configure = function() {
  * @private
  */
 ActivityController.prototype.bindEvents = function() {
-  navigator.mozSetMessageHandler('activity', this.onMessage);
   this.app.on('activitycanceled', this.onActivityCanceled);
   this.app.on('confirm:selected', this.onActivityConfirmed);
+
+  // If an activity name was found, we must bind
+  // the listener straight away so we don't miss
+  // the event, otherwise we can bind more lazily.
+  if (this.name) { this.setupListener(); }
+  else { this.app.once('criticalpathdone', this.setupListener); }
+};
+
+ActivityController.prototype.setupListener = function() {
+  debug('setup listener');
+  navigator.mozSetMessageHandler('activity', this.onMessage);
+  debug('listener setup');
 };
 
 /**
@@ -74,7 +87,7 @@ ActivityController.prototype.bindEvents = function() {
  * @private
  */
 ActivityController.prototype.getName = function() {
-  var hash = location.hash;
+  var hash = this.win.location.hash;
   var name = hash && hash.substr(1);
   return this.types[name];
 };
@@ -248,11 +261,16 @@ ActivityController.prototype.onActivityCanceled = function() {
 
 // TODO: Messy, tidy up!
 ActivityController.prototype.onActivityConfirmed = function(newMedia) {
+  var self = this;
   var activity = this.activity;
   var needsResizing;
   var media = {
     blob: newMedia.blob
   };
+
+  // In low end devices resizing can be slow.
+  // We display a spinner
+  this.app.showSpinner();
 
   // Video
   if (newMedia.isVideo) {
@@ -271,15 +289,20 @@ ActivityController.prototype.onActivityConfirmed = function(newMedia) {
         blob: newMedia.blob,
         width: activity.source.data.width,
         height: activity.source.data.height
-      }, function(resizedBlob) {
-        media.blob = resizedBlob;
-        activity.postResult(media);
-      });
+      }, onImageResized);
       return;
     }
   }
 
-  this.activity.postResult(media);
+  function onImageResized(resizedBlob) {
+    media.blob = resizedBlob;
+    activity.postResult(media);
+    self.app.clearSpinner();
+  }
+
+  activity.postResult(media);
+  this.app.clearSpinner();
+
 };
 
 });

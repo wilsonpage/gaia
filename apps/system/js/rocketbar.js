@@ -1,5 +1,5 @@
 'use strict';
-/* global SettingsListener, AppWindow, AppWindowManager, SearchWindow, places,
+/* global SettingsListener, AppWindowManager, SearchWindow, places,
           SettingsURL */
 
 (function(exports) {
@@ -11,21 +11,15 @@
    * @class Rocketbar
    */
   function Rocketbar() {
+
     // States
     this.enabled = false;
-    this.expanded = false;
-    this.transitioning = false;
     this.focused = false;
     this.active = false;
-    this.onHomescreen = false;
-    this.newTabPage = false;
-    this.cardView = false;
-    this.waitingOnCardViewLaunch = false;
     this.currentApp = null;
 
     // Properties
     this._port = null; // Inter-app communications port
-    this._touchStart = -1;
     this._wasClicked = false; // Remember when transition triggered by a click
     this._pendingMessage = null;
 
@@ -33,24 +27,13 @@
     this.body = document.body;
     this.screen = document.getElementById('screen');
     this.rocketbar = document.getElementById('rocketbar');
-    this.title = document.getElementById('rocketbar-title');
-    this.titleContent = document.getElementById('rocketbar-title-content');
     this.form = document.getElementById('rocketbar-form');
     this.input = document.getElementById('rocketbar-input');
     this.cancel = document.getElementById('rocketbar-cancel');
     this.clearBtn = document.getElementById('rocketbar-clear');
     this.results = document.getElementById('rocketbar-results');
     this.backdrop = document.getElementById('rocketbar-backdrop');
-    this.overflow = document.getElementById('rocketbar-overflow-button');
-
-    // Listen for settings changes
-    SettingsListener.observe('rocketbar.enabled', false, function(value) {
-      if (value) {
-        this.start();
-      } else {
-        this.stop();
-      }
-    }.bind(this));
+    this.start();
 
     // TODO: We shouldnt be creating a blob for each wallpaper that needs
     // changed in the system app
@@ -68,51 +51,12 @@
   Rocketbar.prototype = {
 
     /**
-     * How many pixels of swipe triggers expand/collapse
-     * @type {Number}
-     * @memberof Rocketbar.prototype
-     */
-    EXPANSION_THRESHOLD: 5,
-
-    /**
-     * How many pixels of swipe triggers card view
-     * @type {Number}
-     * @memberof Rocketbar.prototype
-     */
-    TASK_MANAGER_THRESHOLD: 200,
-
-    /**
-     * How many pixels of scroll triggers expand
-     * @type {Number}
-     * @memberof Rocketbar.prototype
-     */
-    SCROLL_THRESHOLD: 5,
-
-    /**
-     * Current scroll position of the app window.
-     * @type {Number}
-     * @memberof Rocketbar.prototype
-     */
-    currentScrollPosition: 0,
-
-    /**
      * Starts Rocketbar.
      * @memberof Rocketbar.prototype
      */
     start: function() {
       this.addEventListeners();
-      this.body.classList.add('rb-enabled');
       this.enabled = true;
-    },
-
-    /**
-     * Stops Rocketbar.
-     * @memberof Rocketbar.prototype
-     */
-    stop: function() {
-      this.removeEventListeners();
-      this.body.classList.remove('rb-enabled');
-      this.enabled = false;
     },
 
     /**
@@ -133,18 +77,40 @@
       this.active = true;
       this.rocketbar.classList.add('active');
       this.form.classList.remove('hidden');
-      this.title.classList.add('hidden');
-      this.backdrop.classList.remove('hidden');
-      this.loadSearchApp((function() {
+      this.screen.classList.add('rocketbar-focused');
+
+      // We wait for the transition do be over and the search app to be loaded
+      // before moving on (and triggering the callback).
+      var searchLoaded = false;
+      var transitionEnded = false;
+      var waitOver = function() {
+        if (searchLoaded && transitionEnded && callback) {
+          callback();
+        }
+      };
+
+      var backdrop = this.backdrop;
+      var safetyTimeout = null;
+      var finishTransition = function() {
+        backdrop.removeEventListener('transitionend', finishTransition);
+        clearTimeout(safetyTimeout);
+
+        window.dispatchEvent(new CustomEvent('rocketbar-overlayopened'));
+        transitionEnded = true;
+        waitOver();
+      };
+      backdrop.classList.remove('hidden');
+      backdrop.addEventListener('transitionend', finishTransition);
+      safetyTimeout = setTimeout(finishTransition, 300);
+
+      var finishLoad = (function() {
         if (this.input.value.length) {
           this.handleInput();
         }
-        if (callback) {
-          callback();
-        }
-      }).bind(this));
-      this.screen.classList.add('rocketbar-focused');
-      window.dispatchEvent(new CustomEvent('rocketbar-overlayopened'));
+        searchLoaded = true;
+        waitOver();
+      }).bind(this);
+      this.loadSearchApp(finishLoad);
     },
 
     /**
@@ -158,15 +124,31 @@
         return;
       }
       this.active = false;
-      this.cardView = false;
-      this.newTabPage = false;
-      this.rocketbar.classList.remove('active');
-      this.form.classList.add('hidden');
-      this.title.classList.remove('hidden');
-      this.backdrop.classList.add('hidden');
-      this.blur();
-      this.screen.classList.remove('rocketbar-focused');
-      window.dispatchEvent(new CustomEvent('rocketbar-overlayclosed'));
+
+      var backdrop = this.backdrop;
+
+      var finish = (function() {
+        this.form.classList.add('hidden');
+        this.rocketbar.classList.remove('active');
+        this.screen.classList.remove('rocketbar-focused');
+
+        backdrop.classList.add('hidden');
+
+        backdrop.addEventListener('transitionend', function trWait() {
+          backdrop.removeEventListener('transitionend', trWait);
+          window.dispatchEvent(new CustomEvent('rocketbar-overlayclosed'));
+        });
+      }).bind(this);
+
+      if (this.focused) {
+        window.addEventListener('keyboardhidden', function onhiddenkeyboard() {
+          window.removeEventListener('keyboardhidden', onhiddenkeyboard);
+          finish();
+        });
+        this.blur();
+      } else {
+        finish();
+      }
     },
 
     /**
@@ -176,39 +158,29 @@
     addEventListeners: function() {
       // Listen for events from window manager
       window.addEventListener('apploading', this);
+      window.addEventListener('appforeground', this);
       window.addEventListener('apptitlechange', this);
-      window.addEventListener('applocationchange', this);
-      window.addEventListener('appscroll', this);
-      window.addEventListener('home', this);
-      window.addEventListener('cardviewclosedhome', this);
-      window.addEventListener('cardviewclosed', this);
-      window.addEventListener('cardviewshown', this);
+      window.addEventListener('lockscreen-appopened', this);
       window.addEventListener('appopened', this);
-      window.addEventListener('homescreenopened', this);
-      window.addEventListener('stackchanged', this);
-      window.addEventListener('searchcrashed', this);
-      window.addEventListener('permissiondialoghide', this);
+      window.addEventListener('home', this);
       window.addEventListener('launchactivity', this, true);
+      window.addEventListener('searchterminated', this);
+      window.addEventListener('permissiondialoghide', this);
+      window.addEventListener('attentionscreenshow', this);
+      window.addEventListener('status-inactive', this);
+      window.addEventListener('global-search-request', this);
 
       // Listen for events from Rocketbar
-      this.rocketbar.addEventListener('touchstart', this);
-      this.rocketbar.addEventListener('touchmove', this);
-      this.rocketbar.addEventListener('touchend', this);
-      this.rocketbar.addEventListener('transitionend', this);
       this.input.addEventListener('focus', this);
       this.input.addEventListener('blur', this);
       this.input.addEventListener('input', this);
       this.cancel.addEventListener('click', this);
       this.clearBtn.addEventListener('click', this);
-      this.overflow.addEventListener('click', this);
       this.form.addEventListener('submit', this);
       this.backdrop.addEventListener('click', this);
 
       // Listen for messages from search app
       window.addEventListener('iac-search-results', this);
-
-      // Listen for FTU events
-      window.addEventListener('ftudone', this);
     },
 
     /**
@@ -220,59 +192,21 @@
     handleEvent: function(e) {
       switch(e.type) {
         case 'apploading':
+        case 'appforeground':
         case 'appopened':
-          this.handleAppChange(e);
-          break;
-        case 'apptitlechange':
-          this.handleTitleChange(e);
-          break;
-        case 'applocationchange':
-          this.handleLocationChange(e);
-          break;
-        case 'appscroll':
-          this.handleScroll(e);
-          break;
-        case 'home':
-        case 'cardviewclosedhome':
-          this.handleHome(e);
-          break;
-        case 'lockscreen-appopened':
+        case 'attentionscreenshow':
+        case 'status-inactive':
           this.hideResults();
           this.deactivate();
           break;
-        case 'cardviewshown':
-          if (this.waitingOnCardViewLaunch) {
-            this.showTaskManager();
-            this.waitingOnCardViewLaunch = false;
-          }
-          break;
-        case 'cardviewclosed':
-          this.cardView = false;
-          if (this.waitingOnCardViewLaunch) {
-            this.handleClick();
-            this.waitingOnCardViewLaunch = false;
-          }
-        break;
-        case 'launchactivity':
-          this.handleActivity(e);
-          break;
-        case 'searchcrashed':
-          this.handleSearchCrashed(e);
-          break;
-        case 'touchstart':
-        case 'touchmove':
-        case 'touchend':
-          if (e.target != this.cancel &&
-              e.target != this.clearBtn &&
-              e.target != this.overflow) {
-            this.handleTouch(e);
-          }
-          break;
-        case 'transitionend':
-          this.handleTransitionEnd(e);
+        case 'lockscreen-appopened':
+          this.handleLock(e);
           break;
         case 'focus':
           this.handleFocus(e);
+          break;
+        case 'home':
+          this.handleHome(e);
           break;
         case 'blur':
           this.handleBlur(e);
@@ -285,11 +219,15 @@
             this.handleCancel(e);
           } else if (e.target == this.clearBtn) {
             this.clear();
-          } else if (e.target == this.overflow) {
-            this.handleOverflow(e);
           } else if (e.target == this.backdrop) {
             this.deactivate();
           }
+          break;
+        case 'launchactivity':
+          this.handleActivity(e);
+          break;
+        case 'searchterminated':
+          this.handleSearchTerminated(e);
           break;
         case 'submit':
           this.handleSubmit(e);
@@ -297,58 +235,42 @@
         case 'iac-search-results':
           this.handleSearchMessage(e);
           break;
-        case 'ftudone':
-          this.handleFTUDone(e);
-          break;
-        case 'homescreenopened':
-          this.enterHome(e);
-          break;
-        case 'stackchanged':
-          this.handleStackChanged(e);
-          break;
         case 'permissiondialoghide':
           if (this.active) {
             this.focus();
           }
           break;
+        case 'global-search-request':
+          // XXX: fix the WindowManager coupling
+          // but currently the transition sequence is crucial for performance
+          var app = AppWindowManager.getActiveApp();
+
+          // If the app is not a browser, retain the search value and activate.
+          if (app && !app.isBrowser()) {
+            this.activate(this.focus.bind(this));
+            return;
+          }
+
+          // Set the input to be the URL in the case of a browser.
+          this.setInput(app.config.url);
+
+          var focusAndSelect = () => {
+            this.hideResults();
+            setTimeout(() => {
+              this.focus();
+              this.selectAll();
+            });
+          };
+
+          if (app && app.appChrome && !app.appChrome.isMaximized()) {
+            app.appChrome.maximize(() => {
+              this.activate(focusAndSelect);
+            });
+          } else {
+            this.activate(focusAndSelect);
+          }
+          break;
       }
-    },
-
-    /**
-     * Remove all event listeners. Called when Rocketbar is disabled.
-     * @memberof Rocketbar.prototype
-     */
-    removeEventListeners: function() {
-      // Stop listening for events from window manager
-      window.removeEventListener('apploading', this);
-      window.removeEventListener('apptitlechange', this);
-      window.removeEventListener('applocationchange', this);
-      window.removeEventListener('home', this);
-      window.removeEventListener('cardviewclosed', this);
-      window.removeEventListener('cardviewshown', this);
-      window.removeEventListener('cardviewclosedhome', this);
-      window.removeEventListener('appopened', this);
-      window.removeEventListener('homescreenopened', this);
-      window.removeEventListener('stackchanged', this);
-      window.removeEventListener('permissiondialoghide', this);
-
-
-      // Stop listening for events from Rocketbar
-      this.rocketbar.removeEventListener('touchstart', this);
-      this.rocketbar.removeEventListener('touchmove', this);
-      this.rocketbar.removeEventListener('touchend', this);
-      this.rocketbar.removeEventListener('transitionend', this);
-      this.input.removeEventListener('focus', this);
-      this.input.removeEventListener('blur', this);
-      this.input.removeEventListener('input', this);
-      this.cancel.removeEventListener('click', this);
-      this.clearBtn.removeEventListener('click', this);
-      this.overflow.removeEventListener('click', this);
-      this.form.removeEventListener('submit', this);
-      this.backdrop.removeEventListener('click', this);
-
-      // Stop listening for messages from search app
-      window.removeEventListener('iac-search-results', this);
     },
 
     /**
@@ -362,70 +284,9 @@
         'manifest.webapp' : '';
     },
 
-    /**
-     * Put Rocketbar in expanded state.
-     * @memberof Rocketbar.prototype
-     */
-    expand: function() {
-      if (this.expanded || this.transitioning) {
-        return;
-      }
-
-      //TODO: support fullscreen apps in the rocketbar
-      var app = AppWindowManager.getActiveApp();
-      if (app && app.isFullScreen()) {
-        return;
-      }
-
-      this.transitioning = true;
-      this.rocketbar.classList.add('expanded');
-      this.screen.classList.add('rocketbar-expanded');
-      this.expanded = true;
-    },
-
-    /**
-     * Take Rocketbar out of expanded state, into status state.
-     * @memberof Rocketbar.prototype
-     */
-    collapse: function() {
-      if (!this.expanded || this.transitioning) {
-        return;
-      }
-
-      this.transitioning = true;
-      this.expanded = false;
-      this.rocketbar.classList.remove('expanded');
-      this.screen.classList.remove('rocketbar-expanded');
-      this.exitHome();
-      this.hideResults();
-      this.deactivate();
-    },
-
-    /**
-     * Put Rocketbar into homescreen state.
-     * @memberof Rocketbar.prototype
-     */
-    enterHome: function() {
-      if (this.onHomescreen) {
-        return;
-      }
-      this.onHomescreen = true;
-      if (!this.expanded) {
-        this.expand();
-      }
-      this.clear();
-      this.disableNavigation();
-    },
-
-    /**
-     * Take Rocketbar out of homescreen state.
-     * @memberof Rocketbar.prototype
-     */
-    exitHome: function() {
-      if (!this.onHomescreen) {
-        return;
-      }
-      this.onHomescreen = false;
+    setInput: function(input) {
+      this.input.value = input;
+      this.rocketbar.classList.toggle('has-text', input.length);
     },
 
     /**
@@ -433,8 +294,8 @@
      * @memberof Rocketbar.prototype
      */
     showResults: function() {
-      if (this.searchWindow) {
-        this.searchWindow._setVisible(true);
+      if (this.searchWindow && !this.searchWindow.isDead()) {
+        this.searchWindow.open();
       }
       this.results.classList.remove('hidden');
     },
@@ -445,7 +306,7 @@
      */
     hideResults: function() {
       if (this.searchWindow) {
-        this.searchWindow._setVisible(false);
+        this.searchWindow.close();
         this.searchWindow.hideContextMenu();
       }
 
@@ -463,49 +324,7 @@
      * Reset the Rocketbar to its initial empty state.
      */
     clear: function() {
-      this.input.value = '';
-      this.handleInput();
-      this.titleContent.textContent =
-        navigator.mozL10n.get('search-or-enter-address');
-    },
-
-    /**
-     * Send event to the system app to show the task manager.
-     */
-    fireTaskManagerShow: function() {
-      this.waitingOnCardViewLaunch = true;
-      window.dispatchEvent(new CustomEvent('taskmanagershow'));
-    },
-
-    /**
-     * Show the task manager and clear Rocketbar.
-     * @memberof Rocketbar.prototype
-     */
-    showTaskManager: function() {
-      this.cardView = true;
-      if (this._port) {
-        this._port.postMessage({
-          action: 'showTaskManager'
-        });
-      }
-      this.showResults();
-      this.clear();
-    },
-
-    /**
-     * Show New Tab Page.
-     * @memberof Rocketbar.prototype
-     */
-    showNewTabPage: function() {
-      this.newTabPage = true;
-      this.activate((function() {
-        this.showResults();
-        if (this._port) {
-          this._port.postMessage({
-            action: 'showNewTabPage'
-          });
-        }
-      }).bind(this));
+      this.setInput('');
     },
 
     /**
@@ -531,6 +350,14 @@
     },
 
     /**
+     * SelectAll text content from Rocketbar input.
+     * @memberof Rocketbar.prototype
+     */
+    selectAll: function() {
+      this.input.setSelectionRange(0, this.input.value.length, 'forward');
+    },
+
+    /**
      * Handle a focus event.
      * @memberof Rocketbar.prototype
      */
@@ -542,8 +369,13 @@
         this.handleKeyboardChange, true);
     },
 
-    handleOverflow: function() {
-      this.currentApp.showDefaultContextMenu();
+    /**
+     * Handle press of hardware home button.
+     * @memberof Rocketbar.prototype
+     */
+    handleHome: function() {
+      this.hideResults();
+      this.deactivate();
     },
 
     /**
@@ -572,7 +404,6 @@
      */
     handleLock: function() {
       this.hideResults();
-      this.collapse();
       this.deactivate();
     },
 
@@ -589,186 +420,16 @@
     },
 
     /**
-     * Handle app being opened or switched to.
-     *
-     * @param {Event} e Window manager event.
-     * @memberof Rocketbar.prototype
-     */
-    handleAppChange: function(e) {
-      this.currentApp = e.detail;
-      this.currentScrollPosition = 0;
-      this.handleLocationChange(e);
-      this.handleTitleChange(e);
-      this.exitHome();
-      if (!this.currentApp.isBrowser()) {
-        this.collapse();
-        this.disableNavigation();
-      } else {
-        this.expand();
-        this.enableNavigation();
-      }
-      this.hideResults();
-    },
-
-    /**
-     * Update Rocketbar title.
-     *
-     * @param {Event} e Window manager event.
-     * @memberof Rocketbar.prototype
-     */
-    handleTitleChange: function(e) {
-      if (e.detail instanceof AppWindow && !e.detail.isActive()) {
-        return;
-      }
-      if (e.detail.title) {
-        this.titleContent.textContent = e.detail.title;
-      } else {
-        this.titleContent.textContent = '';
-      }
-      this.updateSearchIndex();
-    },
-
-    /**
-     * Handle scroll of web content.
-     *
-     * @param {Event} e mozbrowserasyncscroll event.
-     * @memberof Rocketbar.prototype
-     */
-    handleScroll: function(e) {
-      if (e.detail.manifestURL) {
-        return;
-      }
-      if (this.expanded && !this.focused &&
-          e.detail.scrollPosition > this.currentScrollPosition) {
-        this.collapse();
-      } else if (!this.expanded && e.detail.scrollPosition <
-        (this.currentScrollPosition - this.SCROLL_THRESHOLD)) {
-        this.expand();
-      }
-      this.currentScrollPosition = e.detail.scrollPosition;
-    },
-
-    /**
-    * Update the Rocketbar's input field.
-    *
-    * @param {Event} e Window manager event.
-    * @memberof Rocketbar.prototype
-    */
-    handleLocationChange: function(e) {
-      if (e.detail.config.url && !e.detail.manifestURL) {
-        this.input.value = e.detail.config.url;
-      } else {
-        this.input.value = '';
-      }
-      this.titleContent.textContent = '';
-      this.updateSearchIndex();
-      this.deactivate();
-    },
-
-    /**
-     * Handle press of hardware home button.
-     * @memberof Rocketbar.prototype
-     */
-    handleHome: function() {
-      this.hideResults();
-      this.enterHome();
-      this.deactivate();
-    },
-
-    /**
-     * Handle touches on the Rocketbar.
-     *
-     * @param {Event} e Touch event.
-     * @memberof Rocketbar.prototype
-     */
-    handleTouch: function(e) {
-      var dy = 0;
-      switch (e.type) {
-        case 'touchstart':
-          this._wasClicked = false;
-          this._touchStart = e.touches[0].pageY;
-          break;
-        case 'touchmove':
-          dy = parseInt(e.touches[0].pageY) - parseInt(this._touchStart);
-          if (dy > this.EXPANSION_THRESHOLD) {
-            this.expand();
-          } else if (dy < (this.EXPANSION_THRESHOLD * -1) &&
-            !this.onHomescreen) {
-            this.collapse();
-          }
-          if (dy > this.TASK_MANAGER_THRESHOLD &&
-              !this.active && !this.cardView && !this.waitingOnCardViewLaunch) {
-            this.fireTaskManagerShow();
-          }
-          break;
-        case 'touchend':
-          dy = parseInt(e.changedTouches[0].pageY) -
-            parseInt(this._touchStart);
-          if (dy > (this.EXPANSION_THRESHOLD * -1) &&
-              dy < this.EXPANSION_THRESHOLD) {
-            this.handleClick();
-          }
-          this._touchStart = -1;
-          break;
-      }
-    },
-
-    /**
-     * Handle clicks on the Rocketbar.
-     * @memberof Rocketbar.prototype
-     */
-    handleClick: function() {
-      if (this.active) {
-        this.focus();
-        return;
-      }
-      if (this.expanded) {
-        this.activate((function() {
-          this.focus();
-        }).bind(this));
-      } else {
-        this._wasClicked = true;
-        this.expand();
-      }
-    },
-
-    /**
-     * Focus the Rocketbar once expanded if was clicked.
-     * @memberof Rocketbar.prototype
-     */
-    handleTransitionEnd: function() {
-      this.transitioning = false;
-      if (this.expanded && this._wasClicked) {
-        this.activate((function() {
-          this.focus();
-        }).bind(this));
-        this._wasClicked = false;
-      }
-    },
-
-    /**
      * Handle text input in Roketbar.
      * @memberof Rocketbar.prototype
      */
     handleInput: function() {
       var input = this.input.value;
 
-      this.rocketbar.classList.toggle('hasText', input.length);
+      this.rocketbar.classList.toggle('has-text', input.length);
 
-      // If the task manager is shown, hide it
-      if (this.screen.classList.contains('task-manager')) {
-        this.cardView = false;
-        window.dispatchEvent(new CustomEvent('taskmanagerhide'));
-      }
-
-      if (!input && !this.newTabPage &&
-          !this.results.classList.contains('hidden')) {
+      if (!input && !this.results.classList.contains('hidden')) {
         this.hideResults();
-        return;
-      }
-
-      if (!input && this.newTabPage) {
-        this.showNewTabPage();
         return;
       }
 
@@ -789,7 +450,7 @@
      * @memberof Rocketbar.prototype
      */
     handleCancel: function(e) {
-      this.input.value = '';
+      this.setInput('');
       this.hideResults();
       this.deactivate();
     },
@@ -825,20 +486,6 @@
     },
 
     /**
-     * Handle change to sheets stack.
-     * @memberof Rocketbar.prototype
-     */
-    handleStackChanged: function(e) {
-      // Focus the Rocketbar in cards view when stack length reaches zero.
-      if (this.cardView && e.detail.sheets.length === 0) {
-        this.hideResults();
-        this.activate((function() {
-          this.focus();
-        }).bind(this));
-      }
-    },
-
-    /**
      * Instantiates a new SearchWindow.
      * @memberof Rocketbar.prototype
      */
@@ -851,17 +498,15 @@
     },
 
     /**
-     * Handles when the search app crashes.
+     * Handles when the search app terminates.
      * @memberof Rocketbar.prototype
      */
-    handleSearchCrashed: function(e) {
+    handleSearchTerminated: function(e) {
       if (!this.searchWindow) {
         return;
       }
 
-      this.clear();
       this.hideResults();
-      this.collapse();
       this.deactivate();
 
       this.searchWindow = null;
@@ -926,13 +571,13 @@
 
       switch (e.detail.action) {
         case 'render':
-          this.activate(this.focus.bind(this));
+          this.activate(setTimeout.bind(null, this.focus.bind(this)));
           break;
         case 'focus':
           this.focus();
           break;
         case 'input':
-          this.input.value = e.detail.input;
+          this.setInput(e.detail.input);
           this.focus();
           this.handleInput();
           break;
@@ -941,18 +586,9 @@
           break;
         case 'hide':
           this.hideResults();
-          this.collapse();
           this.deactivate();
           break;
       }
-    },
-
-    /**
-    * Reset the Rocketbar after completion of FTU
-    * @memberof Rocketbar.prototype
-    */
-    handleFTUDone: function() {
-      this.clear();
     },
 
     /**

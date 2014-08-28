@@ -2,6 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import time
 from marionette.by import By
 from marionette.marionette import Actions
 
@@ -30,6 +31,7 @@ class Homescreen(Base):
         import time
         time.sleep(1)
         self.marionette.switch_to_frame()
+        time.sleep(1)
         self.marionette.find_element('id', 'rocketbar-form').tap()
 
         from gaiatest.apps.homescreen.regions.search_panel import SearchPanel
@@ -87,6 +89,8 @@ class Homescreen(Base):
             if root_el.text == collection_name:
                 self.marionette.execute_script(
                     'arguments[0].scrollIntoView(false);', [root_el])
+                # TODO bug 1043293 introduced a timing/tap race issue here
+                time.sleep(0.5)
                 root_el.tap()
                 from gaiatest.apps.homescreen.regions.collections import Collection
                 return Collection(self.marionette)
@@ -110,6 +114,9 @@ class Homescreen(Base):
         return [self.InstalledApp(self.marionette, root_element)
                 for root_element in self.app_elements if root_element.is_displayed()]
 
+    def wait_for_number_of_apps(self, number_of_apps=1):
+        self.wait_for_condition(lambda m: len(self.app_elements) >= number_of_apps)
+
     def installed_app(self, app_name):
         for root_el in self.marionette.find_elements(*self._homescreen_all_icons_locator):
             if root_el.text == app_name:
@@ -130,7 +137,9 @@ class Homescreen(Base):
             self.marionette.execute_script(
                 'arguments[0].scrollIntoView(false);', [self.root_element])
 
-            self.root_element.tap()
+            # TODO bug 1043293 introduced a timing/tap race issue here
+            time.sleep(0.5)
+            self.root_element.tap(y=1)
             self.wait_for_condition(lambda m: self.apps.displayed_app.name.lower() == expected_name.lower())
             self.apps.switch_to_displayed_app()
 

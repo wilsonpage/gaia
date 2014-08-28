@@ -1,39 +1,20 @@
+'use strict';
+/* global require, suite, process, test, suiteSetup, teardown */
 var assert = require('chai').assert;
 var rmrf = require('rimraf').sync;
-var download = require('download');
-var async = require('async');
-var fs = require('fs');
 var path = require('path');
 var AdmZip = require('adm-zip');
 var helper = require('./helper');
 
 suite('multilocale Integration tests', function() {
-  var localesDir = 'tmplocales';
-  var localesFileObj = {};
+  var localesDir = 'build/test/resources/locales';
+  var localesFileObj = {'en-US': '', 'zh-CN': ''};
 
-  suiteSetup(function(done) {
+  suiteSetup(function() {
     rmrf('profile');
-    rmrf(localesDir);
-    fs.mkdirSync(localesDir);
-
-    var locales = ['en-US', 'zh-CN'];
-    var tasks = locales.map(function(locale) {
-      localesFileObj[locale] = '';
-      return function (callback) {
-        var dir = path.join(localesDir, locale);
-        fs.mkdirSync(dir);
-        var url = 'http://hg.mozilla.org/gaia-l10n/' + locale +
-          '/archive/tip.tar.gz';
-        var dl = download(url, dir, {extract: true, strip: 1});
-        dl.once('close', function() {
-          callback();
-        });
-      };
-    });
-    async.series(tasks, done);
   });
 
-  function makeWithMultilocale(localesFilePath, localesDir, inlineAndConcat, done) {
+  function makeHelper(localesFilePath, localesDir, inlineAndConcat, done) {
     var settingsZipPath = path.join(process.cwd(), 'profile', 'webapps',
       'settings.gaiamobile.org', 'application.zip');
     var cnPathInZip = 'locales-obj/zh-CN.json';
@@ -41,7 +22,6 @@ suite('multilocale Integration tests', function() {
     var cnTzIni = 'shared/locales/tz.ini';
     var langPathInZip = 'shared/resources/languages.json';
 
-    fs.writeFileSync(localesFilePath, JSON.stringify(localesFileObj));
     var command = 'LOCALES_FILE=' + localesFilePath +
       ' LOCALE_BASEDIR=' + localesDir +
       ' make';
@@ -54,6 +34,7 @@ suite('multilocale Integration tests', function() {
     // larger than the default maximum buffer size on Travis, so we explicitly
     // set a size here.  The default of 200kb is not enough.
     helper.exec(command, function(error, stdout, stderr) {
+
       helper.checkError(error, stdout, stderr);
       var zip = new AdmZip(settingsZipPath);
       if (inlineAndConcat) {
@@ -66,38 +47,42 @@ suite('multilocale Integration tests', function() {
           'ini file ' + cnTzIni + ' should exist');
       }
 
-      assert.deepEqual(JSON.parse(zip.readAsText(langPathInZip)), localesFileObj);
+      assert.deepEqual(JSON.parse(zip.readAsText(langPathInZip)),
+        localesFileObj);
+      var manifest =
+        JSON.parse(zip.readAsText(zip.getEntry('manifest.webapp')));
+      assert.equal(manifest.locales['en-US'].description, 'Gaia Settings');
       done();
     });
   }
 
-  test('make with relative l10n path', function(done) {
+  test('make with relative l10n path',
+    function(done) {
     var localesFilePath = path.join(localesDir, 'languages.json');
-    makeWithMultilocale(localesFilePath, localesDir, true, done);
+    makeHelper(localesFilePath, localesDir, true, done);
   });
 
-  test('make with absolute l10n path', function(done) {
+  test('make with absolute l10n path',
+    function(done) {
     var localesFilePath= path.join(process.cwd(), localesDir, 'languages.json');
     var absoluteLocalesDir = path.join(process.cwd(), localesDir);
-    makeWithMultilocale(localesFilePath, absoluteLocalesDir, true, done);
+    makeHelper(localesFilePath, absoluteLocalesDir, true, done);
   });
 
-  test('make with relative l10n path but without inline & concat', function(done) {
+  test('make with relative l10n path but without inline & concat',
+    function(done) {
     var localesFilePath = path.join(localesDir, 'languages.json');
-    makeWithMultilocale(localesFilePath, localesDir, false, done);
+    makeHelper(localesFilePath, localesDir, false, done);
   });
 
-  test('make with absolute l10n path but without inline & concat', function(done) {
+  test('make with absolute l10n path but without inline & concat',
+    function(done) {
     var localesFilePath= path.join(process.cwd(), localesDir, 'languages.json');
     var absoluteLocalesDir = path.join(process.cwd(), localesDir);
-    makeWithMultilocale(localesFilePath, absoluteLocalesDir, false, done);
+    makeHelper(localesFilePath, absoluteLocalesDir, false, done);
   });
 
   teardown(function() {
     rmrf('profile');
-  });
-
-  suiteTeardown(function() {
-    rmrf(localesDir);
   });
 });

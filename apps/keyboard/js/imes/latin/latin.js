@@ -83,44 +83,44 @@
   var autoCorrection;     // Correction to make if next input is space
   var revertTo;           // Revert to this on backspace after autocorrect
   var revertFrom;         // Revert away from this on backspace
-  var justAutoCorrected;  // Was last change an auto correction?
+  var disableOnRevert;    // Do we disable auto correction when reverting?
   var correctionDisabled; // Temporarily diabled after reverting?
 
   // Terminate the worker when the keyboard is inactive for this long.
-  const workerTimeout = 30000;  // 30 seconds of idle time
+  var WORKER_TIMEOUT = 30000;  // 30 seconds of idle time
 
   // If we get an autorepeating key is sent to us, don't offer suggestions
   // for this long, until we're pretty certain that the autorepeat
   // has stopped.
-  const autorepeatDelay = 250;
+  var AUTOREPEAT_DELAY = 250;
 
   // Some keycodes that we use
-  const SPACE = KeyEvent.DOM_VK_SPACE;
-  const BACKSPACE = KeyEvent.DOM_VK_BACK_SPACE;
-  const RETURN = KeyEvent.DOM_VK_RETURN;
-  const PERIOD = 46;
-  const QUESTION = 63;
-  const EXCLAMATION = 33;
-  const COMMA = 44;
-  const COLON = 58;
-  const SEMICOLON = 59;
+  var SPACE = KeyEvent.DOM_VK_SPACE;
+  var BACKSPACE = KeyEvent.DOM_VK_BACK_SPACE;
+  var RETURN = KeyEvent.DOM_VK_RETURN;
+  var PERIOD = 46;
+  var QUESTION = 63;
+  var EXCLAMATION = 33;
+  var COMMA = 44;
+  var COLON = 58;
+  var SEMICOLON = 59;
 
   // all whitespace characters
   // U+FFFC place holder is added to white space
   // this enables suggestions
   // when cursor is before place holder.
-  const WS = /^[\s\ufffc]+$/;
+  var WS = /^[\s\ufffc]+$/;
 
   // word separator characters
   // U+FFFC is the placeholder character for non-text object
-  const WORDSEP = /^[\s.,?!;:\ufffc]+$/;
+  var WORDSEP = /^[\s.,?!;:\ufffc]+$/;
 
-  const DOUBLE_SPACE_TIME = 700; // ms between spaces to convert to ". "
+  var DOUBLE_SPACE_TIME = 700; // ms between spaces to convert to ". "
 
   // Don't offer to autocorrect unless we're reasonably certain that the
   // user wants this correction. The first suggested word must be at least
   // this much more highly weighted than the second suggested word.
-  const AUTO_CORRECT_THRESHOLD = 1.30;
+  var AUTO_CORRECT_THRESHOLD = 1.30;
 
   /*
    * Since inputContext.sendKey is an async fuction that will return a promise,
@@ -130,11 +130,11 @@
    */
   var inputSequencePromise = Promise.resolve();
 
-
   // Flag to stop updating suggestions for selectionchange when we're going
   // to do some actions that will cause selectionchange, such as sendKey()
   // or replaceSurroundingText().
   var pendingSelectionChange = 0;
+  var inputContext = null;
 
   // keyboard.js calls this to pass us the interface object we need
   // to communicate with it
@@ -199,14 +199,15 @@
     correcting = (options.correct && inputMode !== 'verbatim');
 
     if (state.inputContext) {
-      state.inputContext.addEventListener('selectionchange', this);
+      inputContext = state.inputContext;
+      inputContext.addEventListener('selectionchange', this);
     }
 
     // Reset our state
     lastSpaceTimestamp = 0;
     autoCorrection = null;
     revertTo = revertFrom = '';
-    justAutoCorrected = false;
+    disableOnRevert = false;
     correctionDisabled = false;
 
     // The keyboard isn't idle anymore, so clear the timer
@@ -230,9 +231,13 @@
   }
 
   function deactivate() {
+    if (inputContext) {
+      inputContext.removeEventListener('selectionchange', this);
+    }
+
     if (!worker || idleTimer)
       return;
-    idleTimer = setTimeout(terminateWorker, workerTimeout);
+    idleTimer = setTimeout(terminateWorker, WORKER_TIMEOUT);
   }
 
   function terminateWorker() {
@@ -300,7 +305,7 @@
   }
 
   function displaysCandidates() {
-    return suggesting && worker;
+    return !!(suggesting && worker);
   }
 
   /*
@@ -368,7 +373,7 @@
       // previous changes that we would otherwise revert.
       if (keyCode !== BACKSPACE) {
         revertTo = revertFrom = '';
-        justAutoCorrected = false;
+        disableOnRevert = false;
       }
 
       var handler;
@@ -422,7 +427,6 @@
 
       lastSpaceTimestamp = (keyCode === SPACE) ? Date.now() : 0;
       pendingSelectionChange--;
-
     }, function() {
       // the previous sendKey or replaceSurroundingText has been rejected,
       // No need to update the state.
@@ -511,12 +515,12 @@
       return replaceBeforeCursor(revertFrom, revertTo).then(function() {
         // If the change we just reverted was an auto-correction then
         // temporarily disable auto correction until the next space
-        if (justAutoCorrected) {
+        if (disableOnRevert) {
           correctionDisabled = true;
         }
 
         revertFrom = revertTo = '';
-        justAutoCorrected = false;
+        disableOnRevert = false;
       });
     }
     else {
@@ -559,11 +563,10 @@
       // user types backspace
       revertTo = currentWord;
       revertFrom = newWord;
-      justAutoCorrected = true;
+      disableOnRevert = true;
     }).then(function() {
-      // Send the keycode as seperate key event because it may get canceled
+      // Send the keycode as separate key event because it may get canceled
       return handleKey(keycode).then(function() {
-        revertTo += String.fromCharCode(keycode);
         revertFrom += String.fromCharCode(keycode);
       });
     });
@@ -616,7 +619,7 @@
           // Remember this change so we can revert it on backspace
           revertTo = ' ' + String.fromCharCode(revertToKeycode || keycode);
           revertFrom = newtext;
-          justAutoCorrected = false;
+          disableOnRevert = false;
         });
     }
   }
@@ -632,6 +635,14 @@
     if (suggestions.length === 0 || wordBeforeCursor() !== input) {
       keyboard.sendCandidates([]); // Clear any displayed suggestions
       return;
+    }
+
+    // If input is ucase, then make all suggestions ucase as well.
+    // Ignore input.length of 1, it never gets autocorrected anyway
+    if (input.length > 1 && isUpperCase(input)) {
+      for (var ix = 0; ix < suggestions.length; ix++) {
+        suggestions[ix][0] = suggestions[ix][0].toUpperCase();
+      }
     }
 
     // See if the user's input is a valid word on the list of suggestions
@@ -699,26 +710,26 @@
   function select(word, data) {
     var oldWord = wordBeforeCursor();
 
-    // Replace the current word with the selected suggestion plus space
-    var newWord = data += ' ';
+    // Replace the current word with the selected suggestion.
+    // We used to also insert a space here for convenience but that
+    // made it hard to type compound words.
+    var newWord = data;
+
+    pendingSelectionChange++;
     return replaceBeforeCursor(oldWord, newWord).then(function() {
       // Remember the change we just made so we can revert it if the
-      // next key is a backspace. Note that it is not an autocorrection
-      // so we don't need to disable corrections.
+      // next key is a backspace. If the word is reverted we disable
+      // autocorrection for this word.
       revertFrom = newWord;
       revertTo = oldWord;
-      justAutoCorrected = false;
-
-      // We inserted a space after the selected word, so we're beginning
-      // a new word here, which means that if auto-correction was disabled
-      // we can re-enable it now.
-      correctionDisabled = false;
+      disableOnRevert = true;
 
       // Clear the suggestions
       keyboard.sendCandidates([]);
 
       // And update the keyboard capitalization state, if necessary
       updateCapitalization();
+      pendingSelectionChange--;
     });
   }
 
@@ -726,18 +737,12 @@
     // Clear the list of candidates
     keyboard.sendCandidates([]);
 
-    // Send a space
-    keyboard.sendKey(SPACE);
-    inputText = inputText.substring(0, cursor) + ' ' +
-      inputText.substring(cursor);
-    cursor++;
-
     // Get rid of any autocorrection that is pending and reset the rest
     // of our state, too.
     lastSpaceTimestamp = 0;
     autoCorrection = null;
     revertTo = revertFrom = '';
-    justAutoCorrected = false;
+    disableOnRevert = false;
     correctionDisabled = false;
   }
 
@@ -867,7 +872,7 @@
 
     // If we're still repeating, reset the repeat timer.
     if (repeat) {
-      suggestionsTimer = setTimeout(updateSuggestions, autorepeatDelay);
+      suggestionsTimer = setTimeout(updateSuggestions, AUTOREPEAT_DELAY);
       return;
     }
 
@@ -888,8 +893,12 @@
   function updateCapitalization() {
     // If either the input mode or the input type is one that doesn't
     // want capitalization, then don't alter the state of the keyboard.
+    // We however want to reset the shift key state triggered by the user,
+    // regardless of the layout page the user is currently on.
     if (!capitalizing) {
-      keyboard.resetUpperCase();
+      keyboard.setUpperCase({
+        isUpperCase: false
+      });
       return;
     }
 
@@ -898,31 +907,33 @@
     //
     // 1) If the cursor is at the start of the field: uppercase
     //
-    // 2) If there are two uppercase chars before the cursor: uppercase
-    //
-    // 3) If there is a non space character immediately before the cursor:
+    // 2) If there is a non space character immediately before the cursor:
     //    lowercase
     //
-    // 4) If the first non-space character before the cursor is . ? or !:
+    // 3) If the first non-space character before the cursor is . ? or !:
     //    uppercase
     //
-    // 5) Otherwise: lowercase
+    // 4) Otherwise: lowercase
     //
     if (cursor === 0) {
-      keyboard.setUpperCase(true);
-    }
-    else if (cursor >= 2 &&
-             isUpperCase(inputText.substring(cursor - 2, cursor))) {
-      keyboard.setUpperCase(true);
+      keyboard.setUpperCase({
+        isUpperCase: true
+      });
     }
     else if (!isWhiteSpace(inputText.substring(cursor - 1, cursor))) {
-      keyboard.setUpperCase(false);
+      keyboard.setUpperCase({
+        isUpperCase: false
+      });
     }
     else if (atSentenceStart()) {
-      keyboard.setUpperCase(true);
+      keyboard.setUpperCase({
+        isUpperCase: true
+      });
     }
     else {
-      keyboard.setUpperCase(false);
+      keyboard.setUpperCase({
+        isUpperCase: false
+      });
     }
   }
 
@@ -1005,15 +1016,15 @@
     switch (type) {
       case 'selectionchange':
       // We would get selectionchange event when the user type each char,
-      // or accept a word suggestion,so don't update suggestions in these
+      // or accept a word suggestion, so don't update suggestions in these
       // cases.
       if (cursor === evt.target.selectionStart ||
           pendingSelectionChange > 0) {
         return;
       }
 
-      var newText = evt.target.textBeforeCursor + evt.target.textAfterCursor;
-      inputText = newText;
+      //XXX: Don't update inputText here, since textBeforeCursor would only
+      // contain 100 chars at most.
       cursor = evt.target.selectionStart;
       if (evt.target.selectionEnd > evt.target.selectionStart) {
         selection = evt.target.selectionEnd;

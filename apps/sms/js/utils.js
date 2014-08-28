@@ -1,7 +1,7 @@
 /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- /
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
 
-/* globals ContactPhotoHelper, Notification, Promise, Threads*/
+/* globals ContactPhotoHelper, Notification, Promise, Threads, Settings */
 
 (function(exports) {
   'use strict';
@@ -9,6 +9,7 @@
   var rescape = /[.?*+^$[\]\\(){}|-]/g;
   var rparams = /([^?=&]+)(?:=([^&]*))?/g;
   var rnondialablechars = /[^,#+\*\d]/g;
+  var rmail = /[\w-]+@[\w\-]/;
   var downsamplingRefSize = {
     // Estimate average Thumbnail size:
     // 120 X 60 (max pixel) X 3 (full color) / 20 (average jpeg compress ratio)
@@ -37,7 +38,10 @@
     getFormattedHour: function ut_getFormattedHour(time) {
       this.date.shared.setTime(+time);
       return this.date.format.localeFormat(
-        this.date.shared, navigator.mozL10n.get('shortTimeFormat')
+        this.date.shared,
+        navigator.mozL10n.get(
+          navigator.mozHour12 ? 'shortTimeFormat12' : 'shortTimeFormat24'
+        )
       );
     },
     getDayDate: function re_getDayDate(time) {
@@ -162,6 +166,9 @@
      * 3. If for some reason a single contact has two phone numbers with the
      * same type and the same carrier then "type" and "phone number" will be
      * returned;
+     *
+     * note: The argument "tels" can actually contain "emails" too.
+     *
      */
     getPhoneDetails: function ut_getPhoneDetails(input, tels) {
       var length = tels.length;
@@ -221,6 +228,12 @@
       // String comparison starts here
       if (typeof a !== 'string' || typeof b !== 'string') {
         return false;
+      }
+
+      if (Settings.supportEmailRecipient &&
+          Utils.isEmailAddress(a) &&
+          Utils.isEmailAddress(b)) {
+        return a === b;
       }
 
       if (service && service.normalize) {
@@ -527,12 +540,18 @@
     getDisplayObject: function(theTitle, tel) {
       var number = tel.value;
       var type = tel.type && tel.type.length ? tel.type[0] : '';
-      return {
+      var data = {
         name: theTitle || number,
         number: number,
         type: type,
         carrier: tel.carrier || ''
-      };
+       };
+
+      if (Settings.supportEmailRecipient) {
+        data.email = number;
+        data.emailHTML = '';
+       }
+      return data;
     },
 
     /*
@@ -548,7 +567,12 @@
         };
       });
     },
-
+    /*
+       TODO: Email Address check.
+     */
+    isEmailAddress: function(email) {
+      return rmail.test(email);
+    },
     /*
       Helper function for removing notifications. It will fetch the notification
       using the current threadId or the parameter if provided, and close them
@@ -664,6 +688,34 @@
         cleanup();
         return Promise.reject(e);
       });
+    },
+
+    /**
+     * Returns a function that will call specified "func" function only after it
+     * stops being called for a specified wait time.
+     * @param {function} func Function to call.
+     * @param {number} waitTime Number of milliseconds to wait before calling
+     * actual "func" function once debounced function stops being called.
+     * @returns {function}
+     */
+    debounce: function(func, waitTime) {
+      var timeout, args, context;
+
+      var executeLater = function() {
+        func.apply(context, args);
+        timeout = context = args = null;
+      };
+
+      return function() {
+        context = this;
+        args = arguments;
+
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+
+        timeout = setTimeout(executeLater, waitTime);
+      };
     },
 
     /**

@@ -1,16 +1,17 @@
 'use strict';
-/* global ItemStore */
+/* global ItemStore, LazyLoader, Configurator */
 
 (function(exports) {
 
   // Hidden manifest roles that we do not show
-  const HIDDEN_ROLES = ['system', 'input', 'homescreen', 'search'];
+  const HIDDEN_ROLES = ['system', 'input', 'homescreen'];
 
   function App() {
+    window.dispatchEvent(new CustomEvent('moz-chrome-dom-loaded'));
     this.scrollable = document.querySelector('.scrollable');
     this.grid = document.getElementById('icons');
 
-    this.grid.addEventListener('gaiagrid-iconblobload', this);
+    this.grid.addEventListener('iconblobdecorated', this);
     this.grid.addEventListener('gaiagrid-iconbloberror', this);
     window.addEventListener('hashchange', this);
     window.addEventListener('gaiagrid-saveitems', this);
@@ -25,9 +26,14 @@
     window.addEventListener('context-menu-open', this);
     window.addEventListener('context-menu-close', this);
 
+    this.layoutReady = false;
+    window.addEventListener('gaiagrid-layout-ready', this);
+
     // some terrible glue to keep track of which icons failed to download
     // and should be retried when/if we come online again.
     this._iconsToRetry = [];
+
+    window.dispatchEvent(new CustomEvent('moz-chrome-interactive'));
   }
 
   App.prototype = {
@@ -66,17 +72,48 @@
      * Fetch all icons and render them.
      */
     init: function() {
-      this.itemStore = new ItemStore();
+      this.itemStore = new ItemStore((firstTime) => {
+        if (!firstTime) {
+          return;
+        }
+
+        LazyLoader.load(['shared/js/icc_helper.js',
+                         'shared/js/version_helper.js',
+                         'js/configurator.js'], function onLoad() {
+          exports.configurator = new Configurator();
+        });
+      });
+
       this.itemStore.all(function _all(results) {
         results.forEach(function _eachResult(result) {
           this.grid.add(result);
         }, this);
-        this.grid.render();
+
+        if (this.layoutReady) {
+          this.renderGrid();
+        } else {
+          window.addEventListener('gaiagrid-layout-ready', function onReady() {
+            window.removeEventListener('gaiagrid-layout-ready', onReady);
+            this.renderGrid();
+          }.bind(this));
+        }
+
+        window.dispatchEvent(new CustomEvent('moz-app-visually-complete'));
+        window.dispatchEvent(new CustomEvent('moz-content-interactive'));
 
         window.addEventListener('localized', this.onLocalized.bind(this));
+        LazyLoader.load(['shared/elements/gaia-header/dist/script.js',
+                         'js/contextmenu_handler.js',
+                         '/shared/js/homescreens/confirm_dialog_helper.js'],
+          function() {
+            window.dispatchEvent(new CustomEvent('moz-app-loaded'));
+          });
       }.bind(this));
+    },
 
+    renderGrid: function() {
       this.grid.setEditHeaderElement(document.getElementById('edit-header'));
+      this.grid.render();
     },
 
     start: function() {
@@ -93,7 +130,6 @@
      */
     onLocalized: function() {
       var items = this.grid.getItems();
-      var titles = [];
       items.forEach(function eachItem(item) {
         if(!item.name) {
           return;
@@ -103,18 +139,6 @@
         // the app. We just need to get it and set the content.
         var element = item.element.querySelector('.title');
         element.textContent = item.name;
-
-        // Bug 1022866 - Workaround for projected content nodes disappearing
-        // We need to hide and 'flash' the the element style.
-        element.style.display = 'none';
-
-        titles.push(element);
-      });
-
-      // Bug 1022866 - Recover from workaround, display titles afer a reflow.
-      document.body.clientTop;
-      titles.forEach(function eachItem(title) {
-        title.style.display = '';
       });
     },
 
@@ -132,13 +156,8 @@
      */
     handleEvent: function(e) {
       switch(e.type) {
-        case 'gaiagrid-iconblobload':
+        case 'iconblobdecorated':
           var item = e.detail;
-
-          // do not attempt to cache the app:// protocol icons
-          if (item.icon.startsWith('app://')) {
-            return;
-          }
 
           // XXX: sad naming... e.detail is a gaia grid GridItem interface.
           this.itemStore.saveItem(item.detail, () => {
@@ -167,9 +186,22 @@
           window.addEventListener('hashchange', this);
           break;
 
+        case 'gaiagrid-layout-ready':
+          this.layoutReady = true;
+          window.removeEventListener('gaiagrid-layout-ready', this);
+          break;
+
+        // A hashchange event means that the home button was pressed.
+        // The system app changes the hash of the homescreen iframe when it
+        // receives a home button press.
         case 'hashchange':
-          if (this.grid._grid.dragdrop.inEditMode) {
-            this.grid._grid.dragdrop.exitEditMode();
+          var _grid = this.grid._grid;
+
+          // Leave edit mode if the user is in edit mode.
+          // We do not lazy load dragdrop until after load, so the user can not
+          // take this path until libraries are loaded.
+          if (_grid.dragdrop && _grid.dragdrop.inEditMode) {
+            _grid.dragdrop.exitEditMode();
             return;
           }
 
@@ -204,6 +236,22 @@
     }
   };
 
+  // Dummy configurator
+  exports.configurator = {
+    getSingleVariantApp: function() {
+      return {};
+    },
+    get isSingleVariantReady() {
+      return true;
+    },
+    get isSimPresentOnFirstBoot() {
+      return false;
+    },
+    getItems: function(role) {
+      return {};
+    }
+  };
   exports.app = new App();
+  exports.app.init();
 
 }(window));

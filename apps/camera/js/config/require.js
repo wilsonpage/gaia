@@ -1,5 +1,8 @@
-require.config({
+requirejs.config({
   baseUrl: '/js',
+
+  // 'paths' lets us alias complex
+  // paths to something simpler.
   paths: {
     'l10n': '../shared/js/l10n',
     'asyncStorage': '../shared/js/async_storage',
@@ -15,15 +18,34 @@ require.config({
     'MediaFrame': '../shared/js/media/media_frame',
     'BlobView': '../shared/js/blobview',
     'CustomDialog': '../shared/js/custom_dialog',
-    'FontSizeUtils': '../shared/js/font_size_utils',
     'debug': '../bower_components/debug/index',
     'attach': '../bower_components/attach/index',
     'model': '../bower_components/model/index',
     'view': '../bower_components/view/index',
     'evt': '../bower_components/evt/index',
     'drag': '../bower_components/drag/index',
-    'device-orientation': '../bower_components/device-orientation/index'
+    'device-orientation': '../bower_components/device-orientation/index',
+    'StopRecordingEvent': '../shared/js/stop_recording_event'
   },
+
+  // If your package uses relative `require()` paths
+  // internally, then it needs to be defined as
+  // a 'package' so they are resolved correctly.
+  packages: [
+    {
+      name: 'gaia-header',
+      location: '../bower_components/gaia-header',
+      main: 'script'
+    },
+    {
+      name: 'gaia-icons',
+      location: '../bower_components/gaia-icons',
+      main: 'script'
+    }
+  ],
+
+  // 'shim' config lets us `require()` packages
+  // that don't have an AMD define call.
   shim: {
     'format': {
       exports: 'Format'
@@ -63,8 +85,8 @@ require.config({
     'CustomDialog': {
       exports: 'CustomDialog'
     },
-    'FontSizeUtils': {
-      exports: 'FontSizeUtils'
+    'StopRecordingEvent': {
+      exports: 'StopRecordingEvent'
     }
   }
 });

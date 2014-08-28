@@ -1,8 +1,10 @@
+/* global MocksHelper, UtilityTray, MockAppWindowManager */
+
 'use strict';
 
 requireApp('system/shared/test/unit/mocks/mock_lazy_loader.js');
 requireApp('system/test/unit/mock_app_window_manager.js');
-requireApp('system/test/unit/mock_system.js');
+require('/shared/test/unit/mocks/mock_system.js');
 
 var mocksHelperForUtilityTray = new MocksHelper([
   'AppWindowManager',
@@ -28,13 +30,15 @@ suite('system/UtilityTray', function() {
     return evt;
   }
 
-  function fakeTouches(start, end) {
-    UtilityTray.onTouchStart({ pageY: start });
+  function fakeTouches(start, end, target) {
+    target = target || UtilityTray.topPanel;
+
+    UtilityTray.onTouchStart({ target: target, pageX: 42, pageY: start });
     UtilityTray.screenHeight = 480;
 
     var y = start;
     while (y != end) {
-      UtilityTray.onTouchMove({ pageY: y });
+      UtilityTray.onTouchMove({ target: target, pageX: 42, pageY: y });
 
       if (y < end) {
         y++;
@@ -42,7 +46,7 @@ suite('system/UtilityTray', function() {
         y--;
       }
     }
-    UtilityTray.onTouchEnd();
+    UtilityTray.onTouchEnd({target: target, pageX: 42, pageY: y});
   }
 
   setup(function(done) {
@@ -61,6 +65,15 @@ suite('system/UtilityTray', function() {
     var screen = document.createElement('div');
     screen.style.cssText = 'height: 100px; display: block;';
 
+    var placeholder = document.createElement('div');
+    placeholder.style.cssText = 'height: 100px; display: block;';
+
+    var notifications = document.createElement('div');
+    notifications.style.cssText = 'height: 100px; display: block;';
+
+    var topPanel = document.createElement('div');
+    topPanel.style.cssText = 'height: 20px; display: block;';
+
     stubById = this.sinon.stub(document, 'getElementById', function(id) {
       switch (id) {
         case 'statusbar':
@@ -73,11 +86,20 @@ suite('system/UtilityTray', function() {
           return overlay;
         case 'screen':
           return screen;
+        case 'notifications-placeholder':
+          return placeholder;
+        case 'utility-tray-notifications':
+          return notifications;
+        case 'top-panel':
+          return topPanel;
         default:
           return null;
       }
     });
-    requireApp('system/js/utility_tray.js', done);
+    requireApp('system/js/utility_tray.js', function() {
+      UtilityTray.init();
+      done();
+    });
   });
 
   teardown(function() {
@@ -123,6 +145,23 @@ suite('system/UtilityTray', function() {
 
 
   suite('onTouch', function() {
+    suite('taping the left corner', function() {
+      test('should send a global search request', function(done) {
+        window.addEventListener('global-search-request', function gotIt() {
+          window.removeEventListener('global-search-request', gotIt);
+          assert.isTrue(true, 'got the event');
+          done();
+        });
+        fakeTouches(0, 2);
+      });
+
+      test('should hide the Utility tray', function() {
+        UtilityTray.show();
+        fakeTouches(0, 2);
+        assert.equal(UtilityTray.shown, false);
+      });
+    });
+
     suite('showing', function() {
       test('should not be shown by a tap', function() {
         fakeTouches(0, 5);
@@ -181,12 +220,12 @@ suite('system/UtilityTray', function() {
       });
 
       test('should not be hidden by a tap', function() {
-        fakeTouches(480, 475);
+        fakeTouches(480, 475, UtilityTray.grippy);
         assert.equal(UtilityTray.shown, true);
       });
 
       test('should be hidden by a drag from the bottom', function() {
-        fakeTouches(480, 380);
+        fakeTouches(480, 380, UtilityTray.grippy);
         assert.equal(UtilityTray.shown, false);
       });
     });
@@ -259,15 +298,54 @@ suite('system/UtilityTray', function() {
     });
   });
 
+  suite('handleEvent: accessibility-control', function() {
+    test('first swipe should show', function() {
+      UtilityTray.hide();
+      var evt = new CustomEvent('mozChromeEvent', {
+        detail: {
+          type: 'accessibility-control',
+          details: JSON.stringify({ eventType: 'edge-swipe-down' })
+        }
+      });
+      UtilityTray.handleEvent(evt);
+      assert.equal(UtilityTray.shown, true);
+    });
+
+    test('second swipe should hide', function() {
+      UtilityTray.show();
+      var evt = new CustomEvent('mozChromeEvent', {
+        detail: {
+          type: 'accessibility-control',
+          details: JSON.stringify({ eventType: 'edge-swipe-down' })
+        }
+      });
+      UtilityTray.handleEvent(evt);
+      assert.equal(UtilityTray.shown, false);
+    });
+  });
+
   suite('handleEvent: launchapp', function() {
     setup(function() {
-      fakeEvt = createEvent('launchapp');
       UtilityTray.show();
-      UtilityTray.handleEvent(fakeEvt);
     });
 
     test('should be hidden', function() {
+      fakeEvt = createEvent('launchapp', false, true, {
+        origin: 'app://otherApp'
+      });
+      UtilityTray.handleEvent(fakeEvt);
       assert.equal(UtilityTray.shown, false);
+    });
+
+    test('should not be hidden if the event is sent from background app',
+      function() {
+        var findMyDeviceOrigin =
+          window.location.origin.replace('system', 'findmydevice');
+        fakeEvt = createEvent('launchapp', false, true, {
+          origin: findMyDeviceOrigin
+        });
+        UtilityTray.handleEvent(fakeEvt);
+        assert.equal(UtilityTray.shown, true);
     });
   });
 
@@ -276,6 +354,10 @@ suite('system/UtilityTray', function() {
     setup(function() {
       fakeEvt = createEvent('touchstart', false, true);
       fakeEvt.touches = [0];
+    });
+
+    teardown(function() {
+      window.System.runningFTU = false;
     });
 
     test('onTouchStart is not called if LockScreen is locked', function() {
@@ -290,6 +372,20 @@ suite('system/UtilityTray', function() {
       var stub = this.sinon.stub(UtilityTray, 'onTouchStart');
       UtilityTray.statusbarIcons.dispatchEvent(fakeEvt);
       assert.ok(stub.calledOnce);
+    });
+
+    test('events on the topPanel are handled', function() {
+      window.System.locked = false;
+      var stub = this.sinon.stub(UtilityTray, 'onTouchStart');
+      UtilityTray.topPanel.dispatchEvent(fakeEvt);
+      assert.ok(stub.calledOnce);
+    });
+
+    test('onTouchStart is called when ftu is running', function() {
+      window.System.runningFTU = true;
+      var stub = this.sinon.stub(UtilityTray, 'onTouchStart');
+      UtilityTray.topPanel.dispatchEvent(fakeEvt);
+      assert.ok(stub.notCalled);
     });
 
     test('Dont preventDefault if the target is the overlay', function() {
@@ -383,6 +479,32 @@ suite('system/UtilityTray', function() {
       var defaultStub = this.sinon.stub(evt, 'preventDefault');
       UtilityTray._pdIMESwitcherShow(evt);
       assert.isTrue(defaultStub.notCalled);
+    });
+  });
+
+  suite('handle software button bar', function() {
+    test('enabling/disabling soft home updates the cached height', function() {
+      var adjustedHeight = UtilityTray.screenHeight - 50;
+      var stub = sinon.stub(
+          UtilityTray.overlay,
+          'getBoundingClientRect',
+          function() {
+            return {width: 100, height: adjustedHeight};
+          }
+      );
+
+      var sbEnabledEvt = createEvent('software-button-enabled');
+      UtilityTray.handleEvent(sbEnabledEvt);
+
+      assert.equal(UtilityTray.screenHeight, adjustedHeight);
+
+      adjustedHeight += 50;
+      var sbDisabledEvt = createEvent('software-button-disabled');
+      UtilityTray.handleEvent(sbDisabledEvt);
+
+      assert.equal(UtilityTray.screenHeight, adjustedHeight);
+
+      stub.restore();
     });
   });
 });

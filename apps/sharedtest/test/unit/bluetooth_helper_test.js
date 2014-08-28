@@ -37,6 +37,14 @@ suite('bluetooth helper', function() {
     assert.isTrue(MockBTAdapter.toggleCalls.calledTwice);
   });
 
+  ['enabled', 'adapteradded'].forEach(function(evtName) {
+    test('should get adapter once ' + evtName, function() {
+      sandbox.spy(MockMozBluetooth, 'getDefaultAdapter');
+      MockMozBluetooth.triggerEventListeners(evtName);
+      assert.isTrue(MockMozBluetooth.getDefaultAdapter.called);
+    });
+  });
+
   suite('public functions and setters', function() {
     setup(function() {
       MockMozBluetooth.triggerOnGetAdapterSuccess();
@@ -105,6 +113,12 @@ suite('bluetooth helper', function() {
       assert.equal(MockBTAdapter.onscostatuschanged, stubFunc);
     });
 
+    test('should set callback on onpairedstatuschanged', function() {
+      var stubFunc = this.sinon.stub();
+      subject.onpairedstatuschanged = stubFunc;
+      assert.equal(MockBTAdapter.onpairedstatuschanged, stubFunc);
+    });
+
     // pairing methods test
     test('should set pairing confirmation', function() {
       var address = '00:11:22:AA:BB:CC';
@@ -129,6 +143,30 @@ suite('bluetooth helper', function() {
       sandbox.spy(MockBTAdapter, 'setPasskey');
       subject.setPasskey(address, passkey);
       assert.isTrue(MockBTAdapter.setPasskey.calledWith(address, passkey));
+    });
+
+    // get device information test
+    test('should get paired devices', function() {
+      var stubDOMReq =
+        {result: [{name: 'device-01', address: '00:11:22:AA:BB:CC'},
+                  {name: 'device-02', address: '00:11:22:AA:BB:DD'}]};
+      sandbox.stub(MockBTAdapter, 'getPairedDevices').returns(stubDOMReq);
+
+      var cb = sinon.stub();
+      subject.getPairedDevices(cb);
+      stubDOMReq.onsuccess();
+      sinon.assert.calledOnce(cb);
+      sinon.assert.calledWithExactly(cb, stubDOMReq.result);
+    });
+
+    test('should get address', function() {
+      var mockAddress = '00:11:22:AA:BB:CC';
+      switchReadOnlyProperty(MockBTAdapter, 'address', mockAddress);
+
+      var cb = sinon.stub();
+      subject.getAddress(cb);
+      sinon.assert.calledOnce(cb);
+      sinon.assert.calledWithExactly(cb, mockAddress);
     });
   });
 });

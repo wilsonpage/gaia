@@ -3,6 +3,8 @@
 /* global HtmlImports */
 /* global FindMyDevice */
 /* global MockSettingsListener */
+/* global MockSettingsHelper */
+/* global IAC_API_WAKEUP_REASON_TRY_DISABLE */
 
 'use strict';
 
@@ -14,15 +16,18 @@ require('/shared/js/html_imports.js');
 
 require('/shared/test/unit/mocks/mocks_helper.js');
 require('/shared/test/unit/mocks/mock_settings_listener.js');
+require('/shared/test/unit/mocks/mock_settings_helper.js');
+require('/shared/js/findmydevice_iac_api.js');
 
 var mocksForFindMyDevice = new MocksHelper([
-  'SettingsListener'
+  'SettingsListener', 'SettingsHelper'
 ]).init();
 
 suite('Find My Device panel > ', function() {
   var MockMozId, realMozId;
   var realL10n, realLoadJSON, subject;
-  var signinSection, settingsSection, trackingSection, loginButton, checkbox;
+  var signinSection, settingsSection, trackingSection, login, loginButton,
+      checkbox, unverifiedError;
 
   mocksForFindMyDevice.attachTestHelpers();
 
@@ -32,7 +37,7 @@ suite('Find My Device panel > ', function() {
       once: function(callback) {
         callback();
       },
-      localize: function(element, id) {
+      setAttributes: function(element, id) {
       },
     };
 
@@ -42,6 +47,7 @@ suite('Find My Device panel > ', function() {
       onlogout: null,
       onready: null,
       onerror: null,
+      oncancel: null,
 
       watch: function(options) {
         this.onlogin = options.onlogin;
@@ -54,8 +60,8 @@ suite('Find My Device panel > ', function() {
         });
       },
 
-      request: function() {
-        // noop
+      request: function(options) {
+        this.oncancel = options.oncancel;
       },
     };
 
@@ -83,7 +89,10 @@ suite('Find My Device panel > ', function() {
       settingsSection = document.getElementById('findmydevice-settings');
       trackingSection = document.getElementById('findmydevice-tracking');
       checkbox = document.querySelector('#findmydevice-enabled input');
-      loginButton = document.getElementById('findmydevice-login');
+      login = document.getElementById('findmydevice-login');
+      loginButton = document.querySelector('#findmydevice-login > button');
+      unverifiedError = document.getElementById(
+        'findmydevice-fxa-unverified-error');
 
       // manually enable the loginButton
       loginButton.removeAttribute('disabled');
@@ -96,21 +105,32 @@ suite('Find My Device panel > ', function() {
   });
 
   test('prompt for login when logged out of FxA', function() {
-    MockMozId.onlogout();
+    MockSettingsListener.mCallbacks['findmydevice.logged-in'](false);
     assert.isFalse(signinSection.hidden);
     assert.isTrue(settingsSection.hidden);
   });
 
-  test('bug 1030597 - prompt for login if onerror fires', function() {
-    signinSection.hidden = true;
-    settingsSection.hidden = true;
-    MockMozId.onerror();
+  test('consider ourselves logged out if onerror fires when not offline',
+  function() {
+    MockMozId.onerror('{"name": "NOT_OFFLINE"}');
+    assert.isFalse(
+      MockSettingsHelper.instances['findmydevice.logged-in'].value);
+  });
+
+  test('persist panel if onerror fires due to being offline', function() {
+    MockSettingsListener.mCallbacks['findmydevice.logged-in'](true);
+    MockMozId.onerror('{"name": "OFFLINE"}');
+    assert.isFalse(settingsSection.hidden);
+    assert.isTrue(signinSection.hidden);
+
+    MockSettingsListener.mCallbacks['findmydevice.logged-in'](false);
+    MockMozId.onerror('{"name": "OFFLINE"}');
     assert.isTrue(settingsSection.hidden);
     assert.isFalse(signinSection.hidden);
   });
 
   test('show settings when logged in to FxA', function() {
-    MockMozId.onlogin();
+    MockSettingsListener.mCallbacks['findmydevice.logged-in'](true);
     assert.isFalse(settingsSection.hidden);
     assert.isTrue(signinSection.hidden);
   });
@@ -131,19 +151,33 @@ suite('Find My Device panel > ', function() {
 
   test('enable button after watch fires onerror', function() {
     loginButton.disabled = true;
-    MockMozId.onerror();
+    MockMozId.onerror('{"name": "NOT_OFFLINE"}');
     assert.isFalse(!!loginButton.disabled);
   });
 
-  test('auto-enable when logging in using the login button', function() {
+  test('auto-enable if not registered when logging in using the login button',
+  function(done) {
+    MockSettingsHelper('findmydevice.registered').set(false);
+
     MockMozId.onlogout();
     loginButton.click();
     MockMozId.onlogin();
 
-    var lock = MockSettingsListener.getSettingsLock().locks.pop();
-    assert.deepEqual({
-      'findmydevice.enabled': true
-    }, lock, 'check whether findmydevice.enabled was set automatically');
+    MockSettingsHelper('findmydevice.enabled').get(function(enabled) {
+      assert.isTrue(enabled);
+      done();
+    });
+  });
+
+  test('don\'t auto-enable if registered when logging in with the login button',
+  function() {
+    MockSettingsHelper('findmydevice.registered').set(true);
+
+    MockMozId.onlogout();
+    loginButton.click();
+    MockMozId.onlogin();
+
+    assert.isUndefined(MockSettingsHelper.instances['findmydevice.enabled']);
   });
 
   test('bug 997310 - don\'t disable on non-interactive login', function() {
@@ -158,14 +192,69 @@ suite('Find My Device panel > ', function() {
     MockSettingsListener.mCallbacks['findmydevice.enabled'](true);
     assert.isFalse(trackingSection.hidden);
 
-    this.sinon.spy(navigator.mozL10n, 'localize');
     MockSettingsListener.mCallbacks['findmydevice.tracking'](true);
-    assert.ok(navigator.mozL10n.localize.calledWith(
-        trackingSection, 'findmydevice-active-tracking'));
+    assert.equal(trackingSection.getAttribute('data-l10n-id'),
+                                              'findmydevice-active-tracking');
     MockSettingsListener.mCallbacks['findmydevice.tracking'](false);
-    assert.ok(navigator.mozL10n.localize.calledWith(
-        trackingSection, 'findmydevice-not-tracking'));
-    navigator.mozL10n.localize.reset();
+    assert.equal(trackingSection.getAttribute('data-l10n-id'),
+                                              'findmydevice-not-tracking');
+  });
+
+  test('prevent accidental auto-enable on FxA sign-in', function() {
+    MockMozId.onlogout();
+    loginButton.click();
+    assert.equal(true, window.FindMyDevice._interactiveLogin,
+      'ensure _interactiveLogin is true after login button is clicked');
+    MockMozId.oncancel();
+    assert.equal(false, window.FindMyDevice._interactiveLogin,
+      'ensure _interactiveLogin is false after FxA cancel');
+    MockMozId.onlogin();
+    assert.equal(0, MockSettingsListener.getSettingsLock().locks.length,
+      'ensure findmydevice.enabled was not set automatically on FxA login');
+  });
+
+  test('disallow changes when findmydevice.can-disable is false', function() {
+    MockSettingsListener.mCallbacks['findmydevice.can-disable'](false);
+    assert.isTrue(checkbox.disabled,
+      'checkbox is not disabled while findmydevice.can-disable is false');
+    MockSettingsListener.mCallbacks['findmydevice.can-disable'](true);
+    assert.isFalse(checkbox.disabled,
+      'checkbox is disabled while findmydevice.can-disable is true');
+  });
+
+  test('wake up find my device upon a disable attempt', function() {
+    this.sinon.stub(window, 'wakeUpFindMyDevice');
+    checkbox.checked = true;
+    checkbox.click();
+    assert.ok(window.wakeUpFindMyDevice.calledWith(
+        IAC_API_WAKEUP_REASON_TRY_DISABLE));
+    window.wakeUpFindMyDevice.reset();
+  });
+
+  test('display error message for unverified accounts', function() {
+    MockMozId.onerror('{"name": "UNVERIFIED_ACCOUNT"}');
+    assert.isFalse(unverifiedError.hidden);
+    assert.isTrue(login.hidden);
+  });
+
+  test('hide error message for unverified accounts on login',
+  function() {
+    unverifiedError.hidden = false;
+    login.hidden = true;
+
+    MockMozId.onlogin();
+    assert.isTrue(unverifiedError.hidden);
+    assert.isFalse(login.hidden);
+  });
+
+  test('hide error message for unverified accounts on logout',
+  function() {
+    unverifiedError.hidden = false;
+    login.hidden = true;
+
+    MockMozId.onlogout();
+    assert.isTrue(unverifiedError.hidden);
+    assert.isFalse(login.hidden);
   });
 
   suiteTeardown(function() {

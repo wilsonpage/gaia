@@ -14,7 +14,7 @@ class TestLaunchL10n(GaiaTestCase):
     test_apps = {'Clock': 'Horloge',
                  'Phone': u'Téléphone'}
 
-    def _test_launch_by_english_name_in_alternate_locale(self):
+    def test_launch_by_english_name_in_alternate_locale(self):
         '''
         Launch apps by English name in a different locale
         '''
@@ -26,7 +26,7 @@ class TestLaunchL10n(GaiaTestCase):
             self.apps.launch(app)
 
         for app in self.test_apps.values():
-            self.assertIn(app.lower(), [a.name.lower() for a in self.apps.running_apps])
+            self.assertIn(app.lower(), [a.name.lower() for a in self.apps.running_apps()])
 
     def test_launch_by_localised_name(self):
         '''
@@ -40,7 +40,7 @@ class TestLaunchL10n(GaiaTestCase):
             self.apps.launch(app)
 
         for app in self.test_apps.values():
-            self.assertIn(app.lower(), [a.name.lower() for a in self.apps.running_apps])
+            self.assertIn(app.lower(), [a.name.lower() for a in self.apps.running_apps()])
 
     def tearDown(self):
         # switch back to the default locale

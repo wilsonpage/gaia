@@ -1,5 +1,5 @@
-marionette_client==0.7.10
+marionette_client==0.8.2
 mozdevice>=0.34
-moztest>=0.3
-plivo==0.9.6
+moztest>=0.6
 requests
+treeherder-client>=1.0

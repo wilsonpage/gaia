@@ -1,7 +1,8 @@
 /*global mocha, MocksHelper, loadBodyHTML, MockL10n, ThreadListUI,
          MessageManager, WaitingScreen, Threads, Template, MockMessages,
          MockThreadList, MockTimeHeaders, Draft, Drafts, Thread, ThreadUI,
-         MockOptionMenu, Utils, Contacts, MockContact, Navigation, MockDialog
+         MockOptionMenu, Utils, Contacts, MockContact, Navigation, MockDialog,
+         MockSettings
          */
 
 'use strict';
@@ -17,10 +18,10 @@ requireApp('sms/js/threads.js');
 requireApp('sms/js/thread_list_ui.js');
 
 require('/shared/test/unit/mocks/mock_async_storage.js');
+require('/shared/test/unit/mocks/mock_l10n.js');
 requireApp('sms/test/unit/mock_contact.js');
 requireApp('sms/test/unit/mock_contacts.js');
 requireApp('sms/test/unit/mock_time_headers.js');
-requireApp('sms/test/unit/mock_l10n.js');
 requireApp('sms/test/unit/mock_message_manager.js');
 requireApp('sms/test/unit/mock_messages.js');
 requireApp('sms/test/unit/mock_utils.js');
@@ -34,6 +35,7 @@ requireApp('sms/test/unit/mock_action_menu.js');
 require('/shared/test/unit/mocks/mock_performance_testing_helper.js');
 require('/shared/test/unit/mocks/mock_sticky_header.js');
 require('/test/unit/mock_navigation.js');
+require('/test/unit/mock_settings.js');
 
 var mocksHelperForThreadListUI = new MocksHelper([
   'asyncStorage',
@@ -62,6 +64,9 @@ suite('thread_list_ui', function() {
     navigator.mozL10n = MockL10n;
     draftSavedBanner = document.getElementById('threads-draft-saved-banner');
     mainWrapper = document.getElementById('main-wrapper');
+
+    this.sinon.stub(MessageManager, 'on');
+
     ThreadListUI.init();
 
     // Clear drafts as leftovers in the profile might break the tests
@@ -173,13 +178,13 @@ suite('thread_list_ui', function() {
       assert.equal(optionItems[1].l10nId, 'cancel');
     });
 
-    test('show delete/settings/cancel options when list existed', function() {
+    test('show select/settings/cancel options when list existed', function() {
       ThreadListUI.setEmpty(false);
       ThreadListUI.showOptions();
 
       var optionItems = MockOptionMenu.calls[0].items;
       assert.equal(optionItems.length, 3);
-      assert.equal(optionItems[0].l10nId, 'deleteMessages-label');
+      assert.equal(optionItems[0].l10nId, 'selectThreads-label');
       assert.equal(optionItems[1].l10nId, 'settings');
       assert.equal(optionItems[2].l10nId, 'cancel');
     });
@@ -615,12 +620,12 @@ suite('thread_list_ui', function() {
       });
       suite('getMessages({ each: })', function() {
         setup(function() {
-          this.sinon.stub(MessageManager, 'deleteMessage');
+          this.sinon.stub(MessageManager, 'deleteMessages');
           // call the "each" function passed to getMessages with fake message
           MessageManager.getMessages.args[0][0].each({ id: 3 });
         });
-        test('MessageManager.deleteMessage called', function() {
-          assert.ok(MessageManager.deleteMessage.calledWith(3));
+        test('MessageManager.deleteMessages called', function() {
+          assert.ok(MessageManager.deleteMessages.calledWith(3));
         });
       });
       suite('first getMessages', function() {
@@ -670,6 +675,28 @@ suite('thread_list_ui', function() {
           });
         });
       });
+    });
+
+    test('onThreadsDeleted', function() {
+      var threadIds = [3, 4, 5];
+      this.sinon.stub(Threads, 'has', (id) => threadIds.indexOf(id) >= 0);
+
+      threadIds.forEach(function(threadId) {
+        var thread = Thread.create(MockMessages.sms({
+          threadId: threadId,
+          timestamp: +(new Date())
+        }));
+
+        ThreadListUI.appendThread(thread);
+
+        assert.ok(document.getElementById('thread-' + threadId));
+      });
+
+      MessageManager.on.withArgs('threads-deleted').yield({ ids: [3, 4, 6] });
+
+      assert.ok(!document.getElementById('thread-3'));
+      assert.ok(!document.getElementById('thread-4'));
+      assert.ok(document.getElementById('thread-5'));
     });
   });
 
@@ -800,22 +827,90 @@ suite('thread_list_ui', function() {
     });
   });
 
-  suite('onMessageReceived', function() {
-    var updateThreadSpy;
+  suite('onMessageReceived >', function() {
+    var firstMessage, secondMessage;
+
     setup(function() {
-      updateThreadSpy = this.sinon.spy(ThreadListUI, 'updateThread');
-      var message = MockMessages.sms();
-      ThreadListUI.onMessageReceived(message);
+      this.sinon.spy(ThreadListUI, 'updateThread');
+
+      firstMessage = MockMessages.sms({
+        id: 100,
+        threadId: 1
+      });
+
+      secondMessage = MockMessages.sms({
+        id: 200,
+        threadId: 1
+      });
     });
 
     teardown(function() {
-      updateThreadSpy = null;
+      Threads.clear();
     });
 
-    test(' updateThread is called when a new message is received', function() {
-      assert.ok(updateThreadSpy.called);
+    test('Thread is correctly updated', function() {
+      MessageManager.on.withArgs('message-received').yield({
+        message: firstMessage
+      });
+
+      sinon.assert.calledWith(ThreadListUI.updateThread, firstMessage, {
+        unread: true
+      });
     });
 
+    test('Thread is correctly marked as read', function() {
+      MessageManager.on.withArgs('message-received').yield({
+        message: firstMessage
+      });
+
+      sinon.assert.calledWith(ThreadListUI.updateThread, firstMessage, {
+        unread: true
+      });
+
+      // Moving to the thread panel
+      this.sinon.stub(Navigation, 'isCurrentPanel').returns(false);
+      Navigation.isCurrentPanel.withArgs('thread', {
+        id: firstMessage.threadId
+      }).returns(true);
+
+      MessageManager.on.withArgs('message-received').yield({
+        message: secondMessage
+      });
+
+      sinon.assert.calledWith(ThreadListUI.updateThread, secondMessage, {
+        unread: false
+      });
+    });
+  });
+
+  suite('onMessageSending >', function() {
+    var firstMessage, secondMessage;
+
+    setup(function() {
+      this.sinon.spy(ThreadListUI, 'updateThread');
+
+      firstMessage = MockMessages.sms({
+        id: 100,
+        threadId: 1
+      });
+
+      secondMessage = MockMessages.sms({
+        id: 200,
+        threadId: 1
+      });
+    });
+
+    teardown(function() {
+      Threads.clear();
+    });
+
+    test('Thread is correctly updated', function() {
+      MessageManager.on.withArgs('message-sending').yield({
+        message: firstMessage
+      });
+
+      sinon.assert.calledWith(ThreadListUI.updateThread, firstMessage);
+    });
   });
 
   suite('appendThread', function() {
@@ -915,9 +1010,44 @@ suite('thread_list_ui', function() {
         assert.isFalse(ThreadListUI.appendThread(thread));
       });
     });
+
+    suite('respects l10n lib readiness', function() {
+      setup(function() {
+        navigator.mozL10n.readyState = 'loading';
+        this.sinon.stub(navigator.mozL10n, 'once');
+      });
+
+      teardown(function() {
+        navigator.mozL10n.readyState = 'complete';
+      });
+
+      test('waits for l10n to render', function() {
+        var thread = Thread.create(MockMessages.sms({
+          threadId: 3,
+          timestamp: +(new Date(2013, 1, 2))
+        }));
+
+        var containerId = 'threadsContainer_' + thread.timestamp;
+
+        ThreadListUI.appendThread(thread);
+
+        var container = document.getElementById(containerId);
+
+        // Since mozL10n is not ready nothing should be rendered
+        assert.ok(!container);
+
+        navigator.mozL10n.readyState = 'complete';
+        navigator.mozL10n.once.yield();
+
+        container = document.getElementById(containerId);
+        assert.ok(container);
+        assert.equal(container.querySelector('li').id, 'thread-' + thread.id);
+      });
+    });
   });
 
   suite('renderThreads', function() {
+    var firstViewDone;
     setup(function() {
       this.sinon.spy(ThreadListUI, 'setEmpty');
       this.sinon.spy(ThreadListUI, 'prepareRendering');
@@ -929,6 +1059,9 @@ suite('thread_list_ui', function() {
       this.sinon.spy(ThreadListUI, 'setContact');
       this.sinon.spy(ThreadListUI, 'renderDrafts');
       this.sinon.spy(ThreadListUI.sticky, 'refresh');
+      firstViewDone = sinon.stub();
+
+      Threads.clear();
     });
 
     test('Rendering an empty screen', function(done) {
@@ -937,8 +1070,9 @@ suite('thread_list_ui', function() {
         options.done();
       });
 
-      ThreadListUI.renderThreads(function() {
+      ThreadListUI.renderThreads(firstViewDone ,function() {
         done(function checks() {
+          sinon.assert.called(firstViewDone);
           sinon.assert.called(ThreadListUI.renderDrafts);
           sinon.assert.called(ThreadListUI.sticky.refresh);
           sinon.assert.calledWith(ThreadListUI.finalizeRendering, true);
@@ -953,7 +1087,9 @@ suite('thread_list_ui', function() {
 
       this.sinon.stub(MessageManager, 'getThreads',
         function(options) {
-          var threadsMockup = new MockThreadList();
+          var threadsMockup = new MockThreadList({
+            fullList : true
+          });
 
           var each = options.each;
           var end = options.end;
@@ -961,6 +1097,14 @@ suite('thread_list_ui', function() {
 
           for (var i = 0; i < threadsMockup.length; i++) {
             each && each(threadsMockup[i]);
+
+            // When the returned threads reach first panel amount, firstViewDone
+            // shoule be call here instead of whole iteration finished.
+            if (i < 8) {
+              sinon.assert.notCalled(firstViewDone);
+            } else {
+              sinon.assert.calledOnce(firstViewDone);
+            }
 
             var threads = container.querySelectorAll(
                 '[data-last-message-type="sms"],' +
@@ -975,7 +1119,7 @@ suite('thread_list_ui', function() {
           done && done();
         });
 
-      ThreadListUI.renderThreads(function() {
+      ThreadListUI.renderThreads(firstViewDone, function() {
         done(function checks() {
           sinon.assert.calledWith(ThreadListUI.finalizeRendering, false);
           assert.isTrue(ThreadListUI.noMessages.classList.contains('hide'));
@@ -989,8 +1133,47 @@ suite('thread_list_ui', function() {
           );
 
           // Check that all threads have been properly inserted in the list
-          assert.equal(mmsThreads.length, 1);
-          assert.equal(smsThreads.length, 4);
+          assert.equal(mmsThreads.length, 2);
+          assert.equal(smsThreads.length, 8);
+        });
+      });
+    });
+
+    suite('Individual thread actions', function() {
+      var threadList;
+
+      setup(function() {
+        threadList = new MockThreadList();
+
+        this.sinon.stub(MessageManager, 'getThreads', (options) => {
+          threadList.forEach((thread) => options.each && options.each(thread));
+
+          options.end && options.end();
+          options.done && options.done();
+        });
+      });
+
+      test('Sets every thread to Threads object', function(done) {
+        ThreadListUI.renderThreads(() => {
+          done(function checks() {
+            threadList.forEach(
+              (thread) => assert.isTrue(Threads.has(thread.id))
+            );
+          });
+        });
+      });
+
+      test('Updates thread UI header if thread to render is currently active',
+      function(done) {
+        this.sinon.spy(ThreadUI, 'updateHeaderData');
+        this.sinon.stub(Navigation, 'isCurrentPanel').returns(false);
+        Navigation.isCurrentPanel.withArgs('thread', { id: threadList[0].id }).
+          returns(true);
+
+        ThreadListUI.renderThreads(() => {
+          done(function checks() {
+            sinon.assert.calledOnce(ThreadUI.updateHeaderData);
+          });
         });
       });
     });
@@ -1103,7 +1286,7 @@ suite('thread_list_ui', function() {
     var node, pictureContainer;
 
     setup(function() {
-      this.sinon.stub(Contacts, 'findByPhoneNumber');
+      this.sinon.stub(Contacts, 'findByAddress');
       var thread = {
         id: 1,
         participants: ['555'],
@@ -1129,7 +1312,7 @@ suite('thread_list_ui', function() {
 
       var contactInfo = MockContact.list();
       contactInfo[0].photo = [new Blob(['test'], { type: 'image/jpeg' })];
-      Contacts.findByPhoneNumber.yield(contactInfo);
+      Contacts.findByAddress.yield(contactInfo);
 
       var photo = node.querySelector('span[data-type=img]');
       assert.include(photo.style.backgroundImage, 'blob:');
@@ -1140,7 +1323,57 @@ suite('thread_list_ui', function() {
 
     test('display correctly a contact without a picture', function() {
       var contactInfo = MockContact.list();
-      Contacts.findByPhoneNumber.yield(contactInfo);
+      Contacts.findByAddress.yield(contactInfo);
+
+      var photo = node.querySelector('span[data-type=img]');
+      assert.isFalse(photo.style.backgroundImage.contains('blob:'));
+      assert.isTrue(pictureContainer.classList.contains('empty'));
+    });
+  });
+
+  suite('[Email]setContact', function() {
+    var node, pictureContainer;
+
+    setup(function() {
+      this.sinon.stub(Contacts, 'findByAddress');
+      var thread = {
+        id: 1,
+        participants: ['a@b.com'],
+        lastMessageType: 'mms',
+        body: 'Hello a@b.com',
+        timestamp: Date.now(),
+        unreadCount: 0
+      };
+
+      Threads.set(1, thread);
+      node = ThreadListUI.createThread(thread);
+      pictureContainer = node.querySelector('.pack-end');
+
+      ThreadListUI.setContact(node);
+    });
+
+    teardown(function() {
+      ThreadListUI.container.textContent = '';
+    });
+
+    test('[Email]display the picture of a contact', function() {
+      MockSettings.supportEmailRecipient = true;
+      pictureContainer.classList.add('empty');
+
+      var contactInfo = MockContact.list();
+      contactInfo[0].photo = [new Blob(['test'], { type: 'image/jpeg' })];
+      Contacts.findByAddress.yield(contactInfo);
+
+      var photo = node.querySelector('span[data-type=img]');
+      assert.include(photo.style.backgroundImage, 'blob:');
+      assert.isFalse(pictureContainer.classList.contains('empty'));
+      assert.include(node.dataset.photoUrl, 'blob:');
+    });
+
+    test('[Email]display correctly a contact without a picture', function() {
+      MockSettings.supportEmailRecipient = true;
+      var contactInfo = MockContact.list();
+      Contacts.findByAddress.yield(contactInfo);
 
       var photo = node.querySelector('span[data-type=img]');
       assert.isFalse(photo.style.backgroundImage.contains('blob:'));

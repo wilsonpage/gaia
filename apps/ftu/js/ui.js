@@ -16,8 +16,6 @@ var UIManager = {
   domSelectors: [
     'splash-screen',
     'activation-screen',
-    'progress-bar',
-    'progress-bar-state',
     'finish-screen',
     'update-screen',
     'nav-bar',
@@ -25,7 +23,7 @@ var UIManager = {
     // Unlock SIM Screen
     'unlock-sim-screen',
     'unlock-sim-header',
-    'unlock-sim-back',
+    'unlock-sim-action',
     // PIN Screen
     'pincode-screen',
     'pin-label',
@@ -111,12 +109,10 @@ var UIManager = {
   ],
 
   dataConnectionChangedByUsr: false,
+  timeZoneNeedsConfirmation: true,
 
   init: function ui_init() {
     _ = navigator.mozL10n.get;
-
-    // Preload the tutorial config
-    Tutorial.loadConfig();
 
     // Initialization of the DOM selectors
     this.domSelectors.forEach(function createElementRef(name) {
@@ -136,7 +132,7 @@ var UIManager = {
     this.skipPinButton.addEventListener('click', this);
     this.backSimButton.addEventListener('click', this);
     this.unlockSimButton.addEventListener('click', this);
-    this.unlockSimBack.addEventListener('click', this);
+    this.unlockSimAction.addEventListener('action', this);
     this.simInfoBack.addEventListener('click', this);
     this.simInfoForward.addEventListener('click', this);
 
@@ -217,9 +213,8 @@ var UIManager = {
       // Stop Wifi Manager
       WifiManager.finish();
 
-      // Tutorial config is probably preloaded by now, but init could be
-      // async if it is still loading
-      Tutorial.init(null, function onTutorialLoaded() {
+      // Play the tutorial steps as soon as config is done loading
+      Tutorial.start(function onTutorialLoaded() {
         UIManager.activationScreen.classList.remove('show');
         UIManager.updateScreen.classList.remove('show');
         UIManager.finishScreen.classList.remove('show');
@@ -311,7 +306,8 @@ var UIManager = {
     // Initialize the timezone selector, see /shared/js/tz_select.js
     var tzRegion = document.getElementById('tz-region');
     var tzCity = document.getElementById('tz-city');
-    tzSelect(tzRegion, tzCity, this.setTimeZone, this.setTimeZone);
+    tzSelect(tzRegion, tzCity,
+             this.setTimeZone.bind(this), this.setTimeZone.bind(this));
   },
 
   handleEvent: function ui_handleEvent(event) {
@@ -327,7 +323,7 @@ var UIManager = {
       case 'unlock-sim-button':
         SimManager.unlock();
         break;
-      case 'unlock-sim-back':
+      case 'unlock-sim-action':
         SimManager.simUnlockBack();
         break;
       case 'sim-info-forward':
@@ -507,7 +503,9 @@ var UIManager = {
     timeLabel.innerHTML = f.localeFormat(timeToSet, format);
   },
 
-  setTimeZone: function ui_stz(timezone) {
+  setTimeZone: function ui_stz(timezone, needsConfirmation) {
+    this.timeZoneNeedsConfirmation = !!needsConfirmation;
+
     var utcOffset = timezone.utcOffset;
     document.getElementById('time_zone_overlay').className =
       'UTC' + utcOffset.replace(/[+:]/g, '');

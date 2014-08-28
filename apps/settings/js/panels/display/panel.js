@@ -31,7 +31,7 @@ define(function(require) {
 
         wallpaperElements.wallpaper.addEventListener('click',
           wallpaper.selectWallpaper.bind(wallpaper));
-        loadJSON(['/resources/sensors.json'], function(data) {
+        loadJSON(['/resources/device-features.json'], function(data) {
           display.init(displayElements, data);
         });
       },
@@ -40,10 +40,11 @@ define(function(require) {
         wallpaper.observe('wallpaperSrc', function(newValue) {
           wallpaperElements.wallpaperPreview.src = newValue;
         });
+        wallpaperElements.wallpaperPreview.src = wallpaper.wallpaperSrc;
       },
 
       onBeforeHide: function dp_onBeforeHide() {
-        wallpaper.unobserve();
+        wallpaper.unobserve('wallpaperSrc');
       }
     });
   };

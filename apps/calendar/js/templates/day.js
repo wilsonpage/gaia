@@ -5,14 +5,15 @@
     hour: function() {
       var hour = this.h('hour');
       var l10n = '';
-      var displayHour;
       var isAllDay = hour === Calendar.Calc.ALLDAY;
 
       if (isAllDay) {
-        l10n = ' data-l10n-id="hour-allday" ';
-        displayHour = navigator.mozL10n.get('hour-allday');
+        l10n = 'data-l10n-id="hour-allday"';
       } else {
-        displayHour = this.h('displayHour');
+        var date = new Date();
+        date.setHours(hour, 0, 0, 0);
+        l10n = 'data-l10n-date-format="hour-format" ' +
+          'data-date="' + date + '"';
       }
 
       var classes = [
@@ -23,9 +24,9 @@
 
       return '<section class="' + classes + '" data-hour="' + hour + '">' +
           '<div class="hour-header">' +
-            (isAllDay ? '<i class="icon-allday"></i>' : '') +
-            '<span ' + l10n + 'class="display-hour">' +
-              displayHour +
+            (isAllDay ? '<i class="gaia-icon icon-calendar-allday"></i>' : '') +
+            '<span ' + l10n + ' class="display-hour">' +
+              this.h('displayHour') +
             '</span>' +
           '</div>' +
           // we add a wrapper to allday events to improve the scroll
@@ -54,8 +55,12 @@
       var containerClassName = 'container calendar-border-color ' +
         'calendar-id-' + calendarId;
 
+      var alarm = '';
+
       if (hasAlarm) {
         containerClassName += ' has-alarm';
+        alarm = '<i class="gaia-icon icon-calendar-alarm ' +
+          'calendar-text-color"></i>';
       }
 
       return '<section class="' + eventClassName + '" ' +
@@ -66,7 +71,7 @@
               this.h('location') +
             '</span>' +
           '</div>' +
-          (hasAlarm ? '<i class="icon-alarm calendar-text-color"></i>' : '') +
+          alarm +
         '</section>';
     }
   });

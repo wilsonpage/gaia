@@ -37,7 +37,11 @@
    * @event HomescreenWindow#homescreenopen
    */
   /**
-   * Fired when the homescreen window is cloing.
+   * Fired when the homescreen window is closed.
+   * @event HomescreenWindow#homescreenclosed
+   */
+  /**
+   * Fired when the homescreen window is closing.
    * @event HomescreenWindow#homescreenclosing
    */
   /**
@@ -102,6 +106,7 @@
   HomescreenWindow.SUB_COMPONENTS = {
     'transitionController': window.AppTransitionController,
     'modalDialog': window.AppModalDialog,
+    'valueSelector': window.ValueSelector,
     'authDialog': window.AppAuthenticationDialog,
     'childWindowFactory': window.ChildWindowFactory
   };
@@ -154,14 +159,14 @@
     }
   };
 
-  HomescreenWindow.prototype.kill = function hw_kill() {
-    this.destroy();
-    this.publish('terminated');
-  };
-
   HomescreenWindow.prototype.view = function hw_view() {
     return '<div class="appWindow homescreen" id="homescreen">' +
+              '<div class="titlebar">' +
+              ' <div class="statusbar-shadow titlebar-maximized"></div>' +
+              ' <div class="statusbar-shadow titlebar-minimized"></div>' +
+              '</div>' +
               '<div class="fade-overlay"></div>' +
+              '<div class="browser-container"></div>' +
            '</div>';
   };
 

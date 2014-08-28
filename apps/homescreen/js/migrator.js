@@ -1,6 +1,7 @@
 'use strict';
 
-/* global HomeState, GridItemsFactory, CollectionsDatabase, BookmarksDatabase */
+/* global HomeState, GridItemsFactory, CollectionsDatabase, BookmarksDatabase,
+          verticalPreferences */
 
 (function(exports) {
 
@@ -18,13 +19,23 @@
         return;
       }
 
-      this.migrating = this.iterating = true;
-      this.pendingItems = 0;
-      HomeState.openDB(HomeState.getGrid.bind(undefined,
-                          this.iteratePage.bind(this),
-                          this.onHomeStateSuccess.bind(this),
-                          this.onHomeStateError.bind(this)),
-                          this.onHomeStateError.bind(this));
+      this.migrating = true;
+
+      verticalPreferences.get('grid.layout').then((gridLayout) => {
+        if (gridLayout) {
+          // Migration was performed
+          return;
+        }
+
+        this.grid = [];
+        this.iterating = true;
+        this.pendingItems = 0;
+        HomeState.openDB(HomeState.getGrid.bind(undefined,
+                         this.iteratePage.bind(this),
+                         this.onHomeStateSuccess.bind(this),
+                         this.onHomeStateError.bind(this)),
+                         this.onHomeStateError.bind(this));
+      });
     },
 
     /**
@@ -36,6 +47,7 @@
 
       var types = GridItemsFactory.TYPE;
       var onItemMigrated = this.onItemMigrated.bind(this);
+      var section = [];
       page.icons.forEach(function(icon) {
         var type = icon.type;
 
@@ -52,16 +64,43 @@
           database = BookmarksDatabase;
         }
 
+        var record = {
+          role: type
+        };
+
         if (!database) {
+          record = {
+            name: icon.name,
+            manifestURL: icon.manifestURL,
+            icon: icon.icon
+          };
+
+          if (icon.entry_point) {
+            record.entry_point = icon.entry_point;
+          }
+
+          section.push(record);
           return;
         }
+
+        icon.record = record;
+        section.push(icon.record);
 
         ++this.pendingItems;
         // We are going to propagate the bookmark/collection to datastore
         GridItemsFactory.create(icon).getDescriptor(function(descriptor) {
-          database.add(descriptor).then(onItemMigrated, onItemMigrated);
+          icon.record.id = descriptor.type === types.COLLECTION ?
+                           descriptor.id : descriptor.url;
+          if (descriptor.skipMigration) {
+            onItemMigrated();
+          } else {
+            console.debug('Migrated to datastore', JSON.stringify(descriptor));
+            database.add(descriptor).then(onItemMigrated, onItemMigrated);
+          }
         });
       }.bind(this));
+
+      this.grid.push(section);
     },
 
     onConnection: function(connectionRequest) {
@@ -77,9 +116,13 @@
     /**
      * This method is performed when the migration finishes.
      */
-    onFinish: function() {
+    onFinish: function(msg) {
       this.migrating = this.iterating = false;
-      this.port.postMessage('Done');
+      verticalPreferences.put('grid.layout', {
+        grid: this.grid
+      }).then(function saved() {
+        this.port.postMessage(msg);
+      }.bind(this));
     },
 
     /**
@@ -94,15 +137,17 @@
      */
     onHomeStateSuccess: function() {
       this.iterating = false;
-      this.pendingItems === 0 && this.onFinish();
+      this.pendingItems === 0 && this.onFinish('Done');
     },
 
     /**
      * This method is performed when an error happens loading indexedDB.
      */
     onHomeStateError: function(error) {
-      this.migrating = this.iterating = false;
-      this.port.postMessage('Failed');
+      // Because verticalHomescreen could be waiting for 'grid.layout'
+      // updated event we ever update verticalPreferences, even in case
+      // that an error has ocurred
+      this.onFinish('Failed');
       console.error('Bookmarks & collections migration failed', error);
     }
   };

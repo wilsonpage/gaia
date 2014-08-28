@@ -4,11 +4,15 @@
 requireApp('system/test/unit/mock_app_window_manager.js');
 requireApp('system/test/unit/mock_layout_manager.js');
 requireApp('system/test/unit/mock_system_dialog_manager.js');
+requireApp('system/test/unit/mock_keyboard_manager.js');
+requireApp('system/test/unit/mock_statusbar.js');
 
 var mocksForSystemSimPinDialog = new MocksHelper([
   'AppWindowManager',
   'LayoutManager',
-  'SystemDialogManager'
+  'SystemDialogManager',
+  'KeyboardManager',
+  'StatusBar'
 ]).init();
 
 suite('system/SimPinSystemDialog', function() {

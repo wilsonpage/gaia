@@ -56,7 +56,7 @@ var Settings = {
       hash = '#' + hash;
     }
 
-    if (hash == this._currentPanel) {
+    if (hash === this._currentPanel) {
       return;
     }
 
@@ -75,12 +75,12 @@ var Settings = {
       PerformanceTestingHelper.dispatch('start-wifi-list-test');
     }
 
+    // take off # first
     var panelID = hash;
     if (panelID.startsWith('#')) {
       panelID = panelID.substring(1);
     }
 
-    this._currentPanel = hash;
     this.SettingsService.navigate(panelID);
   },
 
@@ -93,22 +93,20 @@ var Settings = {
       return;
     }
 
+    this.SettingsUtils = options.SettingsUtils;
     this.SettingsService = options.SettingsService;
     this.PageTransitions = options.PageTransitions;
     this.ScreenLayout = options.ScreenLayout;
-    this.Connectivity = options.Connectivity;
 
     // register web activity handler
     navigator.mozSetMessageHandler('activity', this.webActivityHandler);
 
-    this.currentPanel = 'root';
+    this.currentPanel = '#root';
 
-    // init connectivity when we get a chance
     navigator.mozL10n.once(function loadWhenIdle() {
       var idleObserver = {
         time: 3,
         onidle: function() {
-          this.Connectivity.init();
           navigator.removeIdleObserver(idleObserver);
         }.bind(this)
       };
@@ -175,6 +173,10 @@ var Settings = {
       delete currentPanel.dataset.dialog;
     }
     delete document.body.dataset.filterBy;
+
+    // Re-run the header title centering logic
+    var header = document.getElementById('main-header');
+    this.SettingsUtils.runHeaderFontFit(header);
   },
 
   visibilityHandler: function settings_visibilityHandler(evt) {
@@ -212,6 +214,9 @@ var Settings = {
           var filterBy = activityRequest.source.data.filterBy;
           if (filterBy) {
             document.body.dataset.filterBy = filterBy;
+            // Re-run the header title centering logic
+            var header = document.getElementById('main-header');
+            Settings.SettingsUtils.runHeaderFontFit(header);
           }
         }
 

@@ -25,10 +25,11 @@ Rocketbar.clientOptions = {
     'dom.w3c_touch_events.enabled': 1
   },
   settings: {
+    'homescreen.manifestURL':
+      'app://verticalhome.gaiamobile.org/manifest.webapp',
     'ftu.manifestURL': null,
     'keyboard.ftu.enabled': false,
-    'lockscreen.enabled': false,
-    'rocketbar.enabled': true
+    'lockscreen.enabled': false
   }
 };
 
@@ -71,6 +72,19 @@ Rocketbar.prototype = {
   },
 
   /**
+   * Focuses the rocketbar from the homescreen.
+   * This is a temporary method while the homescreen search trigger lives in
+   * the homescreen app. If we move it to the system app we can remove this.
+   */
+  homescreenFocus: function() {
+    var HomeLib = require(
+      '../../../../../apps/verticalhome/test/marionette/lib/home2');
+    var homeLib = new HomeLib(this.client);
+    homeLib.waitForLaunch();
+    homeLib.focusRocketBar();
+  },
+
+  /**
    * Send keys to the Rocketbar (needs to be focused first).
    */
   enterText: function(text) {
@@ -88,10 +102,21 @@ Rocketbar.prototype = {
   },
 
   /**
+   * Switches to a search browser frame.
+   * The URL of a search provider will generally contain '{searchTerms}', so
+   * we replace that with the search text.
+   */
+  switchToSearchFrame: function(url, text) {
+    url = url.replace('{searchTerms}', '');
+    return this.switchToBrowserFrame(url);
+  },
+
+  /**
    * Switch to a browser window frame which matches the given URL.
    */
   switchToBrowserFrame: function(url) {
-    var browserFrame = this.client.findElement('iframe[src="' + url + '"]');
+    url = url.replace(/\s+/g, '%20');
+    var browserFrame = this.client.findElement('iframe[src*="' + url + '"]');
     this.client.switchToFrame(browserFrame);
   },
 

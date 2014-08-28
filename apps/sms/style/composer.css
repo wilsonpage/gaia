@@ -1,12 +1,24 @@
 
 #composer-container {
-  position: relative
+  position: relative;
+}
+
+.new #composer-container {
+  background: #e1f0ec;
+}
+
+.new .article-list {
+  z-index: 5;
+
+  padding: 0;
+
+  text-align: left;
 }
 
 /*
  * Flex layout is wrapped by 'flex-composer'. Our flex layout has
  * 2 well differentiated:
- * - 'composer-messages-container'
+ * - 'messages-container'
  * - 'messages-compose-form'
  */
 
@@ -22,15 +34,18 @@
 
 .new .flex-composer {
   position: relative;
-  top: 5.5rem; /* 5.5rem is the default size of the recipient panel */
-               /* In Bug 1015841 this should be able to change depending on the
-                * recipients panel height
-                * Should the recipients panel be part of the composer ? */
+  top: 4rem;   /* 4rem is the default size of the recipient panel */
+
+  height: calc(100% - 4rem);
+}
+
+.multiline-recipients-mode.new .flex-composer {
+  top: 5.5rem;
 
   height: calc(100% - 5.5rem);
 }
 
-#composer-messages-container {
+#messages-container {
   /* We'll set flex-basis with a shrink factor of 0 to do min-height.
    * formula: flex-basis = a % + b)
    * a = (gap2 - gap1) / keyboard_height
@@ -52,9 +67,10 @@
    * information
    */
   flex: 1 0 calc(15.4% + 5.38rem);
+  overflow: auto;
 }
 
-.new #composer-messages-container {
+.new #messages-container {
   flex-basis: 0;
 }
 
@@ -181,12 +197,6 @@ form[role="search"] button[type="submit"]:after {
   content: attr(data-placeholder);
 }
 
-#messages-container {
-  height: 100%;
-
-  overflow: auto;
-}
-
 /*
  * 'message-complete' contains Subject & Body
  */
@@ -194,8 +204,7 @@ form[role="search"] button[type="submit"]:after {
   flex: auto;
   position: relative;
   min-height: 4rem;
-
-  margin-left: 1.5rem;
+  min-width: 0;
 }
 
 .subject-input-visible .composer-message-complete:before {
@@ -218,10 +227,10 @@ form[role="search"] button[type="submit"]:after {
 }
 
 #messages-send-button {
-  height: 4.5rem;
+  height: 4rem;
   overflow: visible;
-  background-image: url(images/icons/actionicon_sms_send_30x90.png);
-  background-position: center -4.5rem;
+  background: #fff url(images/icons/actionicon_sms_send_30x30.png)
+              no-repeat center center / 3rem;
 }
 
 #messages-send-button:after {
@@ -229,7 +238,8 @@ form[role="search"] button[type="submit"]:after {
 }
 
 #messages-send-button[disabled] {
-  background-position: center 0;
+  background-blend-mode: luminosity;
+  opacity: 0.625;
 }
 
 #messages-input.ignoreEvents {
@@ -240,15 +250,13 @@ form[role="search"] button[type="submit"]:after {
   box-sizing: border-box;
   position: relative;
 
-  right: 1rem;
   left: 0;
   height: 0;
-  padding: 0 1.5rem;
 
   color: #575757;
   font-size: 0;
   font-weight: normal;
-  text-align: left;
+  text-align: center;
 }
 
 [data-message-type='mms'] #messages-counter-label {
@@ -275,7 +283,8 @@ form[role="search"] button[type="submit"]:after {
   position: absolute;
 
   top: 0;
-  left: 1.5rem;
+  left: 0;
+  width: 100%;
 
   color: #575757;
   font-size: 1.4rem;
@@ -290,3 +299,57 @@ form[role="search"] button[type="submit"]:after {
   top: 3rem;
 }
 
+#messages-attach-button {
+  align-self: flex-end;
+  flex: none;
+
+  box-sizing: content-box;
+  width: 3rem;
+  margin: 0;
+  padding: 0 1rem 0 0.5rem;
+
+  background: transparent
+              url('images/icons/actionicon_sms_add_attachment_30x30.png')
+              no-repeat center / 3rem;
+}
+
+/*
+  DSDS
+*/
+
+.sim-indication {
+  position: absolute;
+  top: 0.3rem;
+  right: 1.9rem;
+
+  display: none;
+  line-height: 1;
+
+  color: black;
+  font-size: 1.3rem;
+  font-style: normal;
+  opacity: 0.5;
+}
+
+button[disabled] .sim-indication {
+  color: inherit;
+}
+
+.has-preferred-sim .sim-indication {
+  display: block;
+}
+
+.has-preferred-sim #messages-send-button:before {
+  position: absolute;
+  top: 1rem;
+  left: 0;
+  right: 0;
+
+  content: '...';
+  display: block;
+  width: 100%;
+
+  color: #b2b2b2;
+  text-align: center;
+  font-size: 1.8rem;
+}

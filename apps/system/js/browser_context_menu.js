@@ -1,4 +1,4 @@
-/* global MozActivity, AppWindow */
+/* global MozActivity, IconsHelper, LazyLoader */
 
 (function(window) {
   'use strict';
@@ -104,10 +104,15 @@
       return;
     }
 
+    var items = this._listItems(detail);
+
+    if (!items.length) {
+      return;
+    }
+
     // Notify the embedder we are handling the context menu
     evt.preventDefault();
-
-    this.showMenu(this._listItems(detail));
+    this.showMenu(items);
   };
 
   BrowserContextMenu.prototype.showMenu = function(menu) {
@@ -191,14 +196,14 @@
   };
 
   BrowserContextMenu.prototype.openUrl = function(url) {
-    // We dont use an activity as that will open the url
-    // in this frame, we want to ensure a new window is opened
-    var app = new AppWindow({
-      oop: true,
-      useAsyncPanZoom: true,
-      url: url
+    /*jshint -W031 */
+    new MozActivity({
+      name: 'view',
+      data: {
+        type: 'url',
+        url: url
+      }
     });
-    app.requestOpen();
   };
 
   BrowserContextMenu.prototype.shareUrl = function(url) {
@@ -222,7 +227,6 @@
     if (icon) {
       data.icon = icon;
     }
-    console.log(JSON.stringify(data));
     new MozActivity({
       name: 'save-bookmark',
       data: data
@@ -231,7 +235,7 @@
 
   BrowserContextMenu.prototype.generateSystemMenuItem = function(item) {
 
-    var nodeName = item.nodeName;
+    var nodeName = item.nodeName.toUpperCase();
     var uri = item.data.uri;
 
     switch (nodeName) {
@@ -248,6 +252,10 @@
         //   label: _('add-link-to-home-screen'),
         //   callback: this.bookmarkUrl.bind(this, [item.data.uri])
         // }, {
+          id: 'save-link',
+          label: _('save-link'),
+          callback: this.app.browser.element.download.bind(this, uri)
+        }, {
           id: 'share-link',
           label: _('share-link'),
           callback: this.shareUrl.bind(this, uri)
@@ -282,15 +290,18 @@
   };
 
   BrowserContextMenu.prototype.showDefaultMenu = function() {
+    var favicons = this.app.favicons;
     var config = this.app.config;
-    var icon = ('favicon' in config) ? config.favicon.href : null;
-    this.showMenu([{
-      label: _('add-to-home-screen'),
-      callback: this.bookmarkUrl.bind(this, config.url, this.app.title, icon)
-    }, {
-      label: _('share'),
-      callback: this.shareUrl.bind(this, config.url)
-    }]);
+    LazyLoader.load('shared/js/icons_helper.js', (function() {
+      var icon = IconsHelper.getBestIcon(favicons);
+      this.showMenu([{
+        label: _('add-to-home-screen'),
+        callback: this.bookmarkUrl.bind(this, config.url, this.app.title, icon)
+      }, {
+        label: _('share'),
+        callback: this.shareUrl.bind(this, config.url)
+      }]);
+    }).bind(this));
   };
 
 }(this));

@@ -218,7 +218,7 @@ var icc = {
     var timeout = timeInterval;
     switch (timeUnit) {
       case this._iccManager.STK_TIME_UNIT_MINUTE:
-        timeout *= 3600000;
+        timeout *= 60000;
         break;
       case this._iccManager.STK_TIME_UNIT_SECOND:
         timeout *= 1000;
@@ -247,21 +247,24 @@ var icc = {
     viewId.style.marginTop = StatusBar.height + 'px';
     this.keyboardChangedEvent(viewId);
     window.addEventListener('keyboardchange',
-      this.keyboardChangedEvent.bind(undefined, viewId));
+      this.keyboardChangedEvent.bind(undefined, viewId, false));
     window.addEventListener('keyboardhide',
-      this.keyboardChangedEvent.bind(undefined, viewId));
+      this.keyboardChangedEvent.bind(undefined, viewId, true));
   },
 
-  keyboardChangedEvent: function(viewId) {
-    var keyboardHeight = KeyboardManager.getHeight();
+  keyboardChangedEvent: function(viewId, hidden) {
+    var keyboardHeight = 0;
+    if (!hidden) {
+      keyboardHeight = KeyboardManager.getHeight() || 0;
+    }
     var form = viewId.getElementsByTagName('form');
     viewId.style.height =
       (window.innerHeight - keyboardHeight - StatusBar.height) + 'px';
     if (form && viewId.clientHeight > 0) {
       var input = viewId.getElementsByTagName('input')[0];
-      var header = viewId.getElementsByTagName('header')[0];
-      var headerSubtitle = viewId.getElementsByTagName('h2')[0];
-      var menu = viewId.getElementsByTagName('menu')[1];
+      var header = viewId.getElementsByTagName('gaia-header')[0];
+      var headerSubtitle = viewId.getElementsByTagName('gaia-subheader')[0];
+      var menu = viewId.getElementsByTagName('menu')[0];
       form[0].style.height = viewId.clientHeight -
         (header.clientHeight + headerSubtitle.clientHeight) -
         menu.clientHeight + 'px';
@@ -445,6 +448,17 @@ var icc = {
      * @param {Integer} maxLen      Maximum length required of the input.
      */
     function checkInputLengthValid(inputLen, minLen, maxLen) {
+      // Update input counter
+      var charactersLeft = maxLen - inputLen;
+      self.icc_input_btn.textContent = _('ok') + ' (' + charactersLeft + ')';
+      // Input box full feedback
+      if (charactersLeft === 0) {
+        self.icc_input_box.classList.add('full');
+        navigator.vibrate([500]);
+      } else {
+        self.icc_input_box.classList.remove('full');
+      }
+
       return (inputLen >= minLen) && (inputLen <= maxLen);
     }
     function clearInputTimeout() {
@@ -474,7 +488,7 @@ var icc = {
       this.icc_input_btn = document.getElementById('icc-input-btn');
       this.icc_input_btn_yes = document.getElementById('icc-input-btn_yes');
       this.icc_input_btn_no = document.getElementById('icc-input-btn_no');
-      this.icc_input_btn_back = document.getElementById('icc-input-btn_back');
+      this.icc_input_header = document.getElementById('icc-input-header');
       this.icc_input_btn_close = document.getElementById('icc-input-btn_close');
       this.icc_input_btn_help = document.getElementById('icc-input-btn_help');
       this.setupView(this.icc_input);
@@ -524,9 +538,6 @@ var icc = {
         self.icc_input_btn.disabled = !checkInputLengthValid(
           self.icc_input_box.value.length, options.minLength,
           options.maxLength);
-        if (self.icc_input_box.value.length == options.maxLength) {
-          self.icc_input_btn.focus();
-        }
       };
       this.icc_input_btn.onclick = function() {
         clearInputTimeout();
@@ -555,12 +566,12 @@ var icc = {
     this.icc_view.classList.add('visible');
 
     // STK Default response (BACK, CLOSE and HELP)
-    this.icc_input_btn_back.onclick = function() {
+    this.icc_input_header.addEventListener('action', function() {
       clearInputTimeout();
       self.hideViews();
       self.backResponse(stkMessage);
       callback(null);
-    };
+    });
     this.icc_input_btn_close.onclick = function() {
       clearInputTimeout();
       self.hideViews();

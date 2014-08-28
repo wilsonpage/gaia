@@ -5,12 +5,15 @@
          SecureWindowManager, HomescreenLauncher,
          FtuLauncher, SourceView, ScreenManager, Places, Activities,
          DeveloperHUD, DialerAgent, RemoteDebugger, HomeGesture,
-         VisibilityManager, Storage, InternetSharing, TaskManager,
+         VisibilityManager, UsbStorage, InternetSharing, TaskManager,
          TelephonySettings, SuspendingAppPriorityManager, TTLView,
          MediaRecording, AppWindowFactory, SystemDialogManager,
          applications, Rocketbar, LayoutManager, PermissionManager,
-         HomeSearchbar, SoftwareButtonManager, Accessibility,
-         TextSelectionDialog, InternetSharing, SleepMenu */
+         SoftwareButtonManager, Accessibility, NfcUtils, ShrinkingUI,
+         TextSelectionDialog, InternetSharing, SleepMenu, AppUsageMetrics,
+         LockScreenNotifications, LockScreenPasscodeValidator, NfcManager,
+         ExternalStorageMonitor, LockScreenNotificationBuilder,
+         BrowserSettings, AppMigrator */
 'use strict';
 
 
@@ -31,14 +34,11 @@ var Shortcuts = {
 };
 
 window.addEventListener('load', function startup() {
-
   /**
    * Register global instances and constructors here.
    */
   function registerGlobalEntries() {
     /** @global */
-    window.appWindowFactory = new AppWindowFactory();
-    window.appWindowFactory.start();
     window.activityWindowManager = new ActivityWindowManager();
     window.activityWindowManager.start();
     /** @global */
@@ -56,6 +56,11 @@ window.addEventListener('load', function startup() {
 
     /** @global */
     window.lockScreenWindowManager = new window.LockScreenWindowManager();
+    window.lockScreenWindowManager.start();
+
+    // To initilaize it after LockScreenWindowManager to block home button
+    // when the screen is locked.
+    window.AppWindowManager.init();
 
     /** @global */
     window.textSelectionDialog = new TextSelectionDialog();
@@ -67,7 +72,13 @@ window.addEventListener('load', function startup() {
       FtuLauncher.retrieve();
     });
     /** @global */
-    window.homescreenLauncher = new HomescreenLauncher().start();
+    if (!window.homescreenLauncher) {
+      // We may have application.ready = true while reloading at firefox nightly
+      // browser. In this case, the window.homescreenLauncher haven't been
+      // created. We should create it and start it in this case.
+      window.homescreenLauncher = new HomescreenLauncher();
+    }
+    window.homescreenLauncher.start();
   }
 
   if (applications.ready) {
@@ -104,36 +115,65 @@ window.addEventListener('load', function startup() {
   window.activities = new Activities();
   window.accessibility = new Accessibility();
   window.accessibility.start();
-  window.developerHUD = new DeveloperHUD().start();
-  window.dialerAgent = new DialerAgent().start();
-  window.homeGesture = new HomeGesture().start();
-  window.homeSearchbar = new HomeSearchbar();
+  window.appMigrator = new AppMigrator();
+  window.appMigrator.start();
+  window.appUsageMetrics = new AppUsageMetrics();
+  window.appUsageMetrics.start();
+  window.appWindowFactory = new AppWindowFactory();
+  window.appWindowFactory.start();
+  window.developerHUD = new DeveloperHUD();
+  window.developerHUD.start();
+  window.dialerAgent = new DialerAgent();
+  window.dialerAgent.start();
+  window.externalStorageMonitor = new ExternalStorageMonitor();
+  window.externalStorageMonitor.start();
+  window.homeGesture = new HomeGesture();
+  window.homeGesture.start();
+  if (!window.homescreenLauncher) {
+    // If application.ready is true, we already create homescreenLauncher in
+    // safelyLaunchFTU(). We should use it. If it is false, we should create it
+    // here.
+    window.homescreenLauncher = new HomescreenLauncher();
+  }
   window.internetSharing = new InternetSharing();
   window.internetSharing.start();
-  window.layoutManager = new LayoutManager().start();
+  window.lockScreenNotifications = new LockScreenNotifications();
+  window.lockScreenPasscodeValidator = new LockScreenPasscodeValidator();
+  window.lockScreenPasscodeValidator.start();
+  window.lockScreenNotificationBuilder = new LockScreenNotificationBuilder();
+  window.layoutManager = new LayoutManager();
+  window.layoutManager.start();
+  window.nfcUtils = new NfcUtils();
+  window.nfcManager = new NfcManager();
+  window.nfcManager.start();
   window.permissionManager = new PermissionManager();
   window.permissionManager.start();
   window.places = new Places();
   window.places.start();
   window.remoteDebugger = new RemoteDebugger();
   window.rocketbar = new Rocketbar();
+  window.shrinkingUI = new ShrinkingUI();
+  window.shrinkingUI.start();
   window.sleepMenu = new SleepMenu();
   window.sleepMenu.start();
-  window.softwareButtonManager = new SoftwareButtonManager().start();
+  window.softwareButtonManager = new SoftwareButtonManager();
+  window.softwareButtonManager.start();
   window.sourceView = new SourceView();
   window.taskManager = new TaskManager();
   window.taskManager.start();
   window.telephonySettings = new TelephonySettings();
   window.telephonySettings.start();
   window.ttlView = new TTLView();
-  window.visibilityManager = new VisibilityManager().start();
+  window.visibilityManager = new VisibilityManager();
+  window.visibilityManager.start();
   window.wallpaperManager = new window.WallpaperManager();
   window.wallpaperManager.start();
 
   // unit tests call init() manually
   if (navigator.mozL10n) {
     navigator.mozL10n.once(function l10n_ready() {
-      window.mediaRecording = new MediaRecording().start();
+      window.mediaRecording = new MediaRecording();
+      window.mediaRecording.start();
     });
   }
 
@@ -153,33 +193,18 @@ window.addEventListener('load', function startup() {
   window.dispatchEvent(evt);
 });
 
-window.storage = new Storage();
+window.usbStorage = new UsbStorage();
 
 // Define the default background to use for all homescreens
 window.addEventListener('wallpaperchange', function(evt) {
   document.getElementById('screen').style.backgroundImage =
+    'linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1)),' +
     'url(' + evt.detail.url + ')';
 });
 
-// Use a setting in order to be "called" by settings app
-navigator.mozSettings.addObserver(
-  'clear.remote-windows.data',
-  function clearRemoteWindowsData(setting) {
-    var shouldClear = setting.settingValue;
-    if (!shouldClear) {
-      return;
-    }
+window.browserSettings = new BrowserSettings();
+window.browserSettings.start();
 
-    // Delete all storage and cookies from our content processes
-    var request = navigator.mozApps.getSelf();
-    request.onsuccess = function() {
-      request.result.clearBrowserData();
-    };
-
-    // Reset the setting value to false
-    var lock = navigator.mozSettings.createLock();
-    lock.set({'clear.remote-windows.data': false});
-  });
 
 /* === XXX Bug 900512 === */
 // On some devices touching the hardware home button triggers

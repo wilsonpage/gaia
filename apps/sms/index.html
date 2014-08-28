@@ -3,6 +3,7 @@
   <head>
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1">
     <meta charset="utf-8">
+    <meta name="theme-color" content="#00b7b7">
     <title>Messages</title>
     <!--App Style root.css-->
     <link rel="stylesheet" type="text/css" href="style/root.css">
@@ -31,64 +32,71 @@
     <link rel="resource" type="application/l10n" href="shared/locales/date.ini">
     <link rel="resource" type="application/l10n" href="shared/locales/sim_picker.ini">
     <!-- Shared code -->
-    <script defer src="shared/js/async_storage.js"></script>
     <script defer src="shared/js/l10n.js"></script>
     <script defer src="shared/js/l10n_date.js"></script>
+    <!-- Should be removed while gecko support navigator.mozHour12 API -->
+    <script defer src="shared/js/date_time_helper.js"></script>
+    <script defer src="shared/js/template.js"></script>
+    <script defer src="shared/js/performance_testing_helper.js"></script>
+    <script defer src="shared/js/async_storage.js"></script>
+    <script defer src="shared/js/lazy_loader.js"></script>
+    <script defer src="shared/js/sticky_header.js"></script>
+    <script defer src="shared/js/contact_photo_helper.js"></script>
+    <script defer src="shared/js/fb/fb_request.js"></script>
+    <script defer src="shared/js/fb/fb_data_reader.js"></script>
+    <script defer src="shared/js/fb/fb_reader_utils.js"></script>
+    <script defer src="js/navigation.js"></script>
+    <script defer src="js/event_dispatcher.js"></script>
+    <script defer src="js/time_headers.js"></script>
+    <script defer src="js/contacts.js"></script>
+    <script defer src="js/drafts.js"></script>
+    <script defer src="js/threads.js"></script>
+    <script defer src="js/thread_list_ui.js"></script>
+    <script defer src="js/utils.js"></script>
+    <script defer src="js/settings.js"></script>
+    <script defer src="js/message_manager.js"></script>
+    <script defer src="js/app.js"></script>
+    <script defer src="js/startup.js"></script>
+    <!-- Lazy load scripts
     <script defer src="shared/js/notification_helper.js"></script>
     <script defer src="shared/js/gesture_detector.js"></script>
     <script defer src="shared/js/settings_url.js"></script>
-    <script defer src="shared/js/template.js"></script>
     <script defer src="shared/js/mime_mapper.js"></script>
-    <script defer src="shared/js/contact_photo_helper.js"></script>
     <script defer src="shared/js/mobile_operator.js"></script>
     <script defer src="shared/js/settings_listener.js"></script>
     <script defer src="shared/js/sim_picker.js"></script>
     <script defer src="shared/js/multi_sim_action_button.js"></script>
+    <script defer src="js/errors.js"></script>
     <script defer src="js/shared_components.js"></script>
-    <script defer src="js/navigation.js"></script>
     <script defer src="js/dialog.js"></script>
+    <script defer src="js/error_dialog.js"></script>
     <script defer src="js/task_runner.js"></script>
     <script defer src="js/silent_sms.js"></script>
-    <script defer src="js/contacts.js"></script>
-    <script defer src="js/drafts.js"></script>
     <script defer src="js/recipients.js"></script>
-    <script defer src="js/threads.js"></script>
-    <script defer src="js/message_manager.js"></script>
     <script defer src="js/attachment.js"></script>
     <script defer src="js/attachment_renderer.js"></script>
     <script defer src="js/attachment_menu.js"></script>
-    <script defer src="js/thread_list_ui.js"></script>
     <script defer src="js/thread_ui.js"></script>
     <script defer src="js/compose.js"></script>
     <script defer src="js/waiting_screen.js"></script>
-    <script defer src="js/utils.js"></script>
-    <script defer src="js/time_headers.js"></script>
     <script defer src="js/activity_picker.js"></script>
     <script defer src="js/wbmp.js"></script>
     <script defer src="js/smil.js"></script>
     <script defer src="js/link_helper.js"></script>
     <script defer src="js/action_menu.js"></script>
     <script defer src="js/link_action_handler.js"></script>
-    <script defer src="js/settings.js"></script>
     <script defer src="js/notify.js"></script>
     <script defer src="js/activity_handler.js"></script>
     <script defer src="js/contact_renderer.js"></script>
     <script defer src="js/information.js"></script>
-    <script defer src="shared/js/fb/fb_request.js"></script>
-    <script defer src="shared/js/fb/fb_data_reader.js"></script>
-    <script defer src="shared/js/fb/fb_reader_utils.js"></script>
-    <script defer src="shared/js/lazy_loader.js"></script>
     <script defer src="shared/js/font_size_utils.js"></script>
-    <script defer src="shared/js/performance_testing_helper.js"></script>
-    <script defer src="shared/js/sticky_header.js"></script>
-    <script defer src="js/app.js"></script>
-    <script defer src="js/startup.js"></script>
+    -->
     <!-- Elements -->
     <link rel="import" href="/shared/elements/sim_picker.html">
   </head>
 
   <body role="application" class="skin-comms">
-    <article id="main-wrapper" class="wrapper">
+    <article id="main-wrapper" class="wrapper" data-position='right'>
       <section id="thread-list" class="panel" role="region">
         <header class="view-header regular-header">
           <menu type="toolbar">
@@ -118,18 +126,13 @@
                 <span data-l10n-id="cancel" class="icon icon-close">close</span>
               </button>
               <menu type="toolbar">
-                <button id="threads-delete-button" data-l10n-id="delete">delete</button>
+                <button id="threads-check-uncheck-all-button" class="edit-button" data-l10n-id="select-all"></button>
               </menu>
-              <h1 id="threads-edit-mode" data-l10n-id="deleteMessages-title">Delete messages</h1>
+              <h1 id="threads-edit-mode" data-l10n-id="selectThreads-title">Select</h1>
             </header>
           </section>
           <menu>
-            <button id="threads-uncheck-all-button" disabled class="edit-button" data-l10n-id="deselect-all">
-              None
-            </button>
-            <button id="threads-check-all-button" class="edit-button" data-l10n-id="select-all">
-              All
-            </button>
+            <button id="threads-delete-button" data-l10n-id="delete">delete</button>
           </menu>
         </form>
 
@@ -149,9 +152,6 @@
             <span class="icon icon-close"></span>
           </a>
           <menu type="toolbar">
-            <a id="messages-attach-button">
-              <span class="icon icon-attachment"></span>
-            </a>
             <a id="messages-options-icon">
               <span class="icon icon-options"></span>
             </a>
@@ -226,7 +226,7 @@
             <p class="type"></p>
             <p class="subject"></p>
           </div>
-          <div div class="sent-detail">
+          <div class="sent-detail">
             <p class="datetime l10n-contains-date"></p>
             <div class="status-container">
               <span class="status"></span>
@@ -256,11 +256,9 @@
         </article>
         <article id="composer-container" class="view-body">
           <div class="flex-composer">
-            <div id="composer-messages-container">
-              <div id="messages-container" data-type="list" class="article-list">
-              </div>
-            </div>
+            <div id="messages-container" data-type="list" class="article-list"></div>
             <form id="messages-compose-form" role="search" class="bottom" data-message-type="sms">
+              <button id="messages-attach-button" aria-label="Add attachment" data-l10n-id="attach-button" type="button"></button>
               <div class="composer-message-complete">
                 <div id="messages-subject-input" contentEditable="true" class="placeholder js-l10n-placeholder" data-max-length="40">
                 </div>
@@ -269,8 +267,10 @@
                 <div class="message-divider"></div>
               </div>
               <div class="composer-button-container">
-                <span id="messages-counter-label" data-counter="">MMS</span>
-                <button id="messages-send-button" class="icon" aria-label="send" data-l10n-id="send" type="submit"></button>
+                <span id="messages-counter-label" data-counter="" data-l10n-id="mms-label">MMS</span>
+                <button id="messages-send-button" class="icon" aria-label="send" data-l10n-id="send" type="submit">
+                  <div class="js-sim-indication sim-indication" data-l10n-id="send-button-sim-indication"></div>
+                </button>
               </div>
             </form>
           </div>
@@ -282,20 +282,18 @@
                 <span data-l10n-id="cancel" class="icon icon-close">close</span>
               </button>
               <menu type="toolbar">
-                <button id="messages-delete-button" data-l10n-id="delete">delete</button>
+                <button id="messages-check-uncheck-all-button" class="edit-button" data-l10n-id="select-all"></button>
               </menu>
               <h1 id="messages-edit-mode" data-l10n-id="deleteMessages-title">Delete Messages</h1>
             </header>
           </section>
           <menu>
-            <button id="messages-uncheck-all-button" disabled class="edit-button" data-l10n-id="deselect-all">
-              None
-            </button>
-            <button id="messages-check-all-button" class="edit-button" data-l10n-id="select-all">
-              All
-            </button>
+            <button id="messages-delete-button" data-l10n-id="delete">delete</button>
           </menu>
         </form>
+        <section id="messages-recipient-suggestions" class="article-list hide" data-type="list">
+          <ul class="contact-list"></ul>
+        </section>
       </section>
     </article>
 
@@ -370,7 +368,7 @@
 
     <div id="contact-photo-tmpl" class="hide">
       <!--
-      <aside class="pack-end">
+      <aside role="img" data-l10n-id="contact-photo" aria-label="Contact photo" class="pack-end">
         <span class="contact-photo" data-type="img"></span>
       </aside>
       -->
@@ -396,14 +394,16 @@
         <span data-l10n-id="message-delivered"></span>
         <span class="l10n-contains-date" data-l10n-id="${deliveryL10n}"
               data-l10n-date="${deliveryTimestamp}"
-              data-l10n-date-format="${messageL10nDateFormat}"
+              data-l10n-date-format12="${messageL10nDateFormat12}"
+              data-l10n-date-format24="${messageL10nDateFormat24}"
               >${deliveryDateL10n}</span>
       </p>
       <p class="${readClass}">
         <span data-l10n-id="message-read-title"></span>
         <span class="l10n-contains-date" data-l10n-id="${readL10n}"
               data-l10n-date="${readTimestamp}"
-              data-l10n-date-format="${messageL10nDateFormat}"
+              data-l10n-date-format12="${messageL10nDateFormat12}"
+              data-l10n-date-format24="${messageL10nDateFormat24}"
               >${readDateL10n}</span>
       </p>
       -->
@@ -450,28 +450,40 @@
           </aside>
           <div class="message-body">
             <p>${bodyHTML}</p>
-            <time data-time-update="true" data-time-only="true" data-time="${timestamp}"></time>
+            <div class="message-details">
+              ${simInformationHTML}
+              <time data-time-update="true" data-time-only="true" data-time="${timestamp}"></time>
+            </div>
           </div>
         </div>
       </section>
       -->
     </div>
 
+    <div id="messages-message-sim-information-tmpl" class="hide">
+      <!--
+      <span class="message-sim-information"
+        data-l10n-id="sim-id-label"
+        data-l10n-args="${simNumberL10nArgs}">
+      </span>
+      -->
+    </div>
+
     <div id="messages-thread-tmpl" class="hide">
       <!--
-      <label class="pack-checkbox danger">
+      <label class="pack-checkbox negative">
         <input type="checkbox" value="${id}" data-mode="${mode}">
         <span></span>
       </label>
       <a href="${hash}">
-        <aside class="icon icon-unread icon-draft">icon</aside>
-        <aside class="pack-end empty">
+        <aside role="note" data-l10n-id="${iconLabel}" class="icon icon-unread icon-draft"></aside>
+        <aside role="img" data-l10n-id="contact-photo" aria-label="Contact photo" class="pack-end empty">
           <span data-type="img"></span>
         </aside>
         <p class="name">${number}</p>
         <p class="summary">
           <time data-time-update="true" data-time-only="true" data-time="${timestamp}"></time>
-          <span class="mms-icon">MMS</span>
+          <span class="mms-icon" data-l10n-id="mms-label">MMS</span>
           <span class="body-text">${bodyHTML}</span>
         </p>
       </a>

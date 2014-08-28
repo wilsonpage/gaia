@@ -32,12 +32,6 @@
     pending: [],
 
     /**
-     * The ID of the next permission request. This is incremented by one
-     * on every request, modulo some large number to prevent overflow problems.
-     */
-    nextRequestID: 0,
-
-    /**
      * The ID of the request currently visible on the screen. This has the value
      * "undefined" when there is no request visible on the screen.
      */
@@ -78,6 +72,7 @@
       });
 
       window.addEventListener('mozChromeEvent', this);
+      window.addEventListener('attentionscreenshow', this);
       /* On home/holdhome pressed, discard permission request.
        * XXX: We should make permission dialog be embededd in appWindow
        * Gaia bug is https://bugzilla.mozilla.org/show_bug.cgi?id=853711
@@ -86,6 +81,15 @@
       this.discardPermissionRequest = this.discardPermissionRequest.bind(this);
       window.addEventListener('home', this.discardPermissionRequest);
       window.addEventListener('holdhome', this.discardPermissionRequest);
+
+      /* If an application that is currently running needs to get killed for
+       * whatever reason we want to discard it's request for permissions.
+       */
+      window.addEventListener('appterminated', (function(evt) {
+        if (evt.detail.origin == this.currentOrigin) {
+          this.discardPermissionRequest();
+        }
+      }).bind(this));
 
       // Ensure that the focus is not stolen by the permission overlay, as
       // it may appears on top of a <select> element, and just cancel it.
@@ -110,7 +114,6 @@
 
       this.responseStatus = null;
       this.pending = [];
-      this.nextRequestID = null;
       this.currentRequestId = null;
 
       this.overlay = null;
@@ -131,6 +134,7 @@
       this.no = null;
 
       window.removeEventListener('mozChromeEvent', this);
+      window.removeEventListener('attentionscreenshow',this);
       window.removeEventListener('home', this);
       window.removeEventListener('holdhome', this);
     },
@@ -245,6 +249,12 @@
           this.handleFullscreenOriginChange(detail);
           break;
       }
+
+      switch (evt.type) {
+        case 'attentionscreenshow':
+          this.discardPermissionRequest();
+          break;
+      }
     },
 
     /**
@@ -293,7 +303,8 @@
         var message =
           _('fullscreen-request', { 'origin': detail.fullscreenorigin });
         this.fullscreenRequest =
-          this.requestPermission(detail.origin, detail.permission, message, '',
+          this.requestPermission(detail.id, detail.origin, detail.permission,
+                                 message, '',
                                               /* yesCallback */ null,
                                               /* noCallback */ function() {
                                                 document.mozCancelFullScreen();
@@ -340,7 +351,7 @@
 
       var moreInfoText = _(permissionID + '-more-info');
       var self = this;
-      this.requestPermission(detail.origin, this.permissionType,
+      this.requestPermission(detail.id, detail.origin, this.permissionType,
         message, moreInfoText,
         function pm_permYesCB() {
           self.dispatchResponse(detail.id, 'permission-allow',
@@ -440,8 +451,10 @@
       var callback = null;
       if (evt.target === this.yes && this.yes.callback) {
         callback = this.yes.callback;
+        this.responseStatus = 'permission-allow';
       } else if (evt.target === this.no && this.no.callback) {
         callback = this.no.callback;
+        this.responseStatus = 'permission-deny';
       } else if (evt.target === this.moreInfoLink ||
                  evt.target === this.hideInfoLink) {
         this.toggleInfo();
@@ -466,12 +479,9 @@
      * Queue or show the permission prompt
      * @memberof PermissionManager.prototype
      */
-    requestPermission: function pm_requestPermission(origin, permission,
+    requestPermission: function pm_requestPermission(id, origin, permission,
                                      msg, moreInfoText,
                                      yescallback, nocallback) {
-      var id = this.nextRequestID;
-      this.nextRequestID = (this.nextRequestID + 1) % 1000000;
-
       if (this.currentRequestId !== undefined) {
         // There is already a permission request being shown, queue this one.
         this.pending.push({

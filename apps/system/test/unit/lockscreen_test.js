@@ -1,7 +1,8 @@
 'use strict';
 
-requireApp('system/test/unit/mock_l10n.js');
+require('/shared/test/unit/mocks/mock_l10n.js');
 requireApp('system/shared/test/unit/mocks/mock_settings_listener.js');
+requireApp('system/shared/test/unit/mocks/mock_navigator_moz_settings.js');
 requireApp('system/shared/test/unit/mocks/mock_navigator_moz_telephony.js');
 requireApp('system/test/unit/mock_ftu_launcher.js');
 requireApp('system/test/unit/mock_app_window_manager.js');
@@ -50,6 +51,7 @@ suite('system/LockScreen >', function() {
   var realOrientationManager;
   var realFtuLauncher;
   var realSettingsListener;
+  var realMozSettings;
   var domPasscodePad;
   var domEmergencyCallBtn;
   var domOverlay;
@@ -58,12 +60,22 @@ suite('system/LockScreen >', function() {
   var domCamera;
   var stubById;
   var domMessage;
+  var mockGetAllElements;
   mocksForLockScreen.attachTestHelpers();
 
   setup(function() {
     stubById = sinon.stub(document, 'getElementById');
     stubById.returns(document.createElement('div'));
+    mockGetAllElements = function() {
+      ['area', 'areaCamera', 'areaUnlock', 'altCameraButton', 'iconContainer',
+       'overlay', 'clockTime', 'date'].forEach(function(name) {
+          subject[name] = document.createElement('div');
+      });
+    };
 
+    window.lockScreenNotifications = {
+      bindLockScreen: function() {}
+    };
     window.LockScreenConnInfoManager = function() {
       this.updateConnStates = function() {};
     };
@@ -88,6 +100,9 @@ suite('system/LockScreen >', function() {
     realSettingsListener = window.SettingsListener;
     window.SettingsListener = window.MockSettingsListener;
 
+    realMozSettings = navigator.mozSettings;
+    navigator.mozSettings = window.MockNavigatorSettings;
+
     subject = new window.LockScreen();
 
     domCamera = document.createElement('div');
@@ -105,6 +120,7 @@ suite('system/LockScreen >', function() {
     subject.message = domMessage;
 
     var mockClock = {
+      start: function() {},
       stop: function() {}
     };
     subject.overlay = domOverlay;
@@ -112,6 +128,27 @@ suite('system/LockScreen >', function() {
     subject.clock = mockClock;
     subject.camera = domCamera;
     subject.lock();
+  });
+
+  test('Emergency call: should disable when has no telephony', function() {
+    navigator.mozTelephony = null;
+    var stubGetAll = this.sinon.stub(subject, 'getAllElements',
+                      mockGetAllElements);
+    var spyEmergencyCallEvents = this.sinon.spy(subject,
+                                  'initEmergencyCallEvents');
+    subject.init();
+    assert.isTrue(domEmergencyCallBtn.classList.contains('disabled'));
+    assert.isFalse(spyEmergencyCallEvents.calledOnce);
+  });
+
+  test('Emergency call: should enable when has telephony', function() {
+    var stubGetAll = this.sinon.stub(subject, 'getAllElements',
+                      mockGetAllElements);
+    var spyEmergencyCallEvents = this.sinon.spy(subject,
+                                  'initEmergencyCallEvents');
+    subject.init();
+    assert.isFalse(domEmergencyCallBtn.classList.contains('disabled'));
+    assert.isTrue(spyEmergencyCallEvents.calledOnce);
   });
 
   test('Emergency call: should disable emergency-call button',
@@ -135,11 +172,9 @@ suite('system/LockScreen >', function() {
   });
 
   test('Lock: can actually lock', function() {
-    var mockLO = sinon.stub(screen, 'mozLockOrientation');
     subject.overlay = domOverlay;
     subject.lock();
     assert.isTrue(subject.locked);
-    mockLO.restore();
   });
 
   test('Unlock: can actually unlock', function() {
@@ -148,21 +183,15 @@ suite('system/LockScreen >', function() {
     assert.isFalse(subject.locked);
   });
 
-  test('Passcode: enter passcode can unlock the screen', function() {
-    subject.passCodeEntered = '0000';
-    subject.passCode = '0000';
-    subject.passcodeCode = domPasscodeCode;
+  test('Passcode: enter passcode should fire the validation event', function() {
+    var stubDispatchEvent = this.sinon.stub(window, 'dispatchEvent');
+    subject.passCodeEntered = 'foobar';
     subject.checkPassCode();
-    assert.equal(subject.overlay.dataset.passcodeStatus, 'success');
-  });
-
-  test('Passcode: enter passcode can unlock the screen', function() {
-    subject.passCodeEntered = '0000';
-    subject.passCode = '3141';
-
-    subject.passcodeCode = domPasscodeCode;
-    subject.checkPassCode();
-    assert.equal(subject.overlay.dataset.passcodeStatus, 'error');
+    assert.isTrue(stubDispatchEvent.calledWithMatch(function(event) {
+      return 'lockscreen-request-passcode-validate' === event.type &&
+        'foobar' === event.detail.passcode;
+    }),
+    'it did\'t fire the correspond event to validate the passcode');
   });
 
   test('Handle event: when screen changed,' +
@@ -206,6 +235,15 @@ suite('system/LockScreen >', function() {
         stubDispatch.restore();
       });
 
+  test('Handle event: when timeformat changed,' +
+      'would fire event to refresh the clock',
+      function() {
+        var stubRefreshClock = this.sinon.stub(subject, 'refreshClock');
+        subject.handleEvent(new CustomEvent('timeformatchange'));
+        assert.isTrue(stubRefreshClock.called,
+          'the refreshClock wasn\'t called even after the time format changed');
+      });
+
   test('Handle event: when lock,' +
       'would fire event to turn secure mode on',
       function() {
@@ -244,6 +282,13 @@ suite('system/LockScreen >', function() {
     assert.equal(subject.message.hidden, true);
   });
 
+  test('Lock when asked via lock-immediately setting', function() {
+    window.MockNavigatorSettings.mTriggerObservers(
+      'lockscreen.lock-immediately', {settingValue: true});
+    assert.isTrue(subject.locked,
+      'it didn\'t lock after the lock-immediately setting got changed');
+  });
+
   // XXX: Test 'Screen off: by proximity sensor'.
 
   teardown(function() {
@@ -253,11 +298,13 @@ suite('system/LockScreen >', function() {
     window.OrientationManager = window.realOrientationManager;
     window.FtuLauncher = realFtuLauncher;
     window.SettingsListener = realSettingsListener;
+    navigator.mozSettings = realMozSettings;
 
     document.body.removeChild(domPasscodePad);
     subject.passcodePad = null;
 
     window.MockSettingsListener.mTeardown();
+    window.MockNavigatorSettings.mTeardown();
     stubById.restore();
   });
 });

@@ -26,7 +26,11 @@
     urlTemplate: 'https://www.google.com/search?q={searchTerms}',
 
     searchResults: document.getElementById('search-results'),
-    newTabPage: document.getElementById('newtab-page'),
+
+    offlineMessage: document.getElementById('offline-message'),
+    settingsConnectivity: document.getElementById('settings-connectivity'),
+    suggestionsWrapper: document.getElementById('suggestions-wrapper'),
+    loadingElement: document.getElementById('loading'),
 
     suggestionsEnabled: false,
 
@@ -88,6 +92,7 @@
       }.bind(this));
 
       this.initNotice();
+      this.initConnectivityCheck();
 
       // Fire off a dummy geolocation request so the prompt can be responded
       // to before the user starts typing
@@ -96,6 +101,14 @@
       }
 
       this.contextmenu = new Contextmenu();
+      window.addEventListener('resize', this.resize);
+    },
+
+    resize: function() {
+      var grid = document.getElementById('icons');
+      if (grid && grid.render) {
+        grid.render({rerender: true});
+      }
     },
 
     /**
@@ -105,13 +118,6 @@
       if (!(provider.name in this.providers)) {
         this.providers[provider.name] = provider;
       }
-    },
-
-    /**
-     * Removes a search provider
-     */
-    removeProvider: function(provider) {
-      delete this.providers[provider.name];
     },
 
     /**
@@ -135,33 +141,7 @@
       var input = msg.data.input;
       var providers = this.providers;
 
-      this.maybeShowNotice(input);
       this.clear();
-
-      var collectionCount = 0;
-      var numProviders = Object.keys(this.providers).length;
-
-      /**
-       * Handles the display for the offline message. Displays the offline
-       * message once we process results for all providers, and if there are no
-       * results. Also called when the device comes online to hide the message.
-       */
-      function maybeShowOffline() {
-        if (navigator.isOnline) {
-          return;
-        }
-
-        var offlineMessage = document.getElementById('offline-message');
-        offlineMessage.textContent = '';
-
-        collectionCount++;
-        if (collectionCount >= numProviders) {
-          offlineMessage.textContent = navigator.mozL10n.get(
-            'offline-webresults', {
-            searchQuery: input
-          });
-        }
-      }
 
       this.changeTimeout = setTimeout(() => {
         this.dedupe.reset();
@@ -171,14 +151,24 @@
 
           // If suggestions are disabled, only use local providers
           if (this.suggestionsEnabled || !provider.remote) {
+
+            if (provider.remote) {
+              this.loadingElement.classList.add('loading');
+            }
+
             provider.search(input).then((results) => {
-              if (!results.length) {
-                maybeShowOffline();
+              if (provider.name === 'Suggestions') {
+                var shown = (input.length > 2 &&
+                             results.length &&
+                             this.toShowNotice);
+                this.suggestionNotice.hidden = !shown;
               }
 
               this.collect(provider, results);
-            }, () => {
-              maybeShowOffline();
+            }).catch((err) => {
+              if (provider.remote) {
+                this.loadingElement.classList.remove('loading');
+              }
             });
           }
         });
@@ -193,23 +183,19 @@
 
       var confirm = document.getElementById('suggestions-notice-confirm');
 
-      confirm.addEventListener('click', this.discardNotice.bind(this));
+      confirm.addEventListener('click', this.discardNotice.bind(this, true));
 
       asyncStorage.getItem(this.NOTICE_KEY, function(value) {
         this.toShowNotice = !value;
       }.bind(this));
     },
 
-    discardNotice: function() {
+    discardNotice: function(focus) {
       this.suggestionNotice.hidden = true;
       this.toShowNotice = false;
       asyncStorage.setItem(this.NOTICE_KEY, true);
-      this._port.postMessage({'action': 'focus'});
-    },
-
-    maybeShowNotice: function(msg) {
-      if (msg.length > 2 && this.toShowNotice) {
-        this.suggestionNotice.hidden = false;
+      if (focus) {
+        this._port.postMessage({'action': 'focus'});
       }
     },
 
@@ -229,6 +215,11 @@
      * @param {Array} results The results of the provider search.
      */
     collect: function(provider, results) {
+
+      if (provider.remote) {
+        this.loadingElement.classList.remove('loading');
+      }
+
       if (!provider.dedupes) {
         provider.render(results);
         return;
@@ -236,6 +227,15 @@
 
       results = this.dedupe.reduce(results, provider.dedupeStrategy);
       provider.render(results);
+
+      if (provider.grid) {
+        var childNodes = provider.grid.childNodes;
+        if (childNodes.length) {
+          var item = childNodes[childNodes.length - 1];
+          var rect = item.getBoundingClientRect();
+          provider.grid.style.height = rect.bottom + 'px';
+        }
+      }
     },
 
     /**
@@ -243,9 +243,7 @@
      */
     submit: function(msg) {
 
-      if (!this.suggestionNotice.hidden) {
-        this.discardNotice();
-      }
+      this.discardNotice();
 
       var input = msg.data.input;
 
@@ -282,34 +280,13 @@
         this.providers[i].clear();
       }
 
-      var offlineMessage = document.getElementById('offline-message');
-      offlineMessage.textContent = '';
-    },
-
-    showBlank: function() {
-      if (this.searchResults) {
-        this.newTabPage.classList.add('hidden');
-        this.searchResults.classList.add('hidden');
-      }
-    },
-
-    /**
-     * Called when the user displays the task manager
-     */
-    showTaskManager: function() {
-      this.showBlank();
+      this.suggestionNotice.hidden = true;
     },
 
     showSearchResults: function() {
       if (this.searchResults) {
         this.searchResults.classList.remove('hidden');
-        this.newTabPage.classList.add('hidden');
       }
-    },
-
-    showNewTabPage: function() {
-      this.searchResults.classList.add('hidden');
-      this.newTabPage.classList.remove('hidden');
     },
 
     /**
@@ -333,22 +310,9 @@
     /**
      * Opens a browser to a URL
      * @param {String} url The url to navigate to
-     * @param {Object} config Optional configuration.
      */
-    navigate: function(url, config) {
-      var activity = new window.MozActivity({name: 'view', data: {
-        type: 'url',
-        url: url
-      }});
-      // Keep jshint happy
-      activity.onsuccess = function() {};
-    },
-
-    requestScreenshot: function(url) {
-      this._port.postMessage({
-        'action': 'request-screenshot',
-        'url': url
-      });
+    navigate: function(url) {
+      window.open(url, '_blank', 'remote=true');
     },
 
     /**
@@ -360,6 +324,42 @@
         'input': input
       });
       this.expandSearch(input);
+    },
+
+    initConnectivityCheck: function() {
+      var self = this;
+      function onConnectivityChange() {
+        if (navigator.onLine) {
+          self.searchResults.classList.remove('offline');
+        } else {
+          self.searchResults.classList.add('offline');
+        }
+      }
+
+      this.settingsConnectivity.addEventListener(
+        'click', function() {
+          var activity = new window.MozActivity({
+            name: 'configure',
+            data: {
+              target: 'device',
+              section: 'root',
+              filterBy: 'connectivity'
+            }
+          });
+          activity.onsuccess = function() {
+            /*
+            XXX: Since this activity inmediately returns
+            success, we cannot go back to the search bar.
+            Keeping a reference of the activity once this
+            is fixed.
+            */
+          };
+        }
+      );
+
+      window.addEventListener('offline', onConnectivityChange);
+      window.addEventListener('online', onConnectivityChange);
+      onConnectivityChange();
     }
   };
 

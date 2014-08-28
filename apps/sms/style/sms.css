@@ -25,29 +25,8 @@ form[data-type="confirm"] .phone-details .phone-number {
   display: inline;
 }
 
-
-/* Override Building Block [Header] styles */
-section[role="region"] > header:first-child .icon.icon-clear {
-  background-image: url(images/icons/clear.png);
-  background-position: center calc(50% + 0.1rem);
-  background-size: 3rem;
-  width: 2rem;
-  margin: 0;
-  padding: 0 2rem;
-  position: absolute;
-  top: 0;
-  right: 0;
-}
-
 section[role="region"] > header:first-child form {
   display: none;
-}
-
-/* TODO: Move this into the shared building block
- * if we use the icon in more places
- */
-section[role="region"] > header:first-child .icon.icon-attachment {
-  background-image: url(images/icons/attachments.png);
 }
 
 /* Override Building Block [Imput areas] styles */
@@ -128,7 +107,7 @@ form[role="dialog"][data-type="edit"] > menu {
 }
 
 #threads-container[data-type="list"] ul {
-  padding: 0 1.5rem;
+  padding: 0 1.0rem;
   background-color: #fff;
 }
 
@@ -153,11 +132,17 @@ form[role="dialog"][data-type="edit"] > menu {
 
 [data-type="list"] aside.icon-unread {
   margin: 0;
-  width: 1.5rem;
+  width: 1.9rem;
+  visibility: hidden;
+}
+
+[data-type="list"] aside.pack-end {
+  margin: 0 5px 0 0.5px;
 }
 
 [data-type="list"] .unread aside.icon-unread {
   background: url("../style/images/unread.png") no-repeat left center / 1rem;
+  visibility: visible;
 }
 
 [data-type="list"] .threadlist-item a * {
@@ -165,7 +150,8 @@ form[role="dialog"][data-type="edit"] > menu {
 }
 
 [data-type="list"] .draft .icon-draft {
-  background: url("../style/images/draft.png") no-repeat left center / 1rem;
+  background: url("../style/images/draft.png") no-repeat left center / 1.2rem;
+  visibility: visible;
 }
 
 [data-type="list"] .is-draft .pack-end {
@@ -186,33 +172,40 @@ form[role="dialog"][data-type="edit"] > menu {
 }
 
 /* Lists: edit mode */
+.edit [data-type="list"] li > a {
+  transform: translateX(-1.5rem);
+}
+
 .edit [data-type="list"] li > label {
   opacity: 1;
   pointer-events: auto;
-  left: -1.4rem;
+  transform: translateX(2rem);
+}
+
+.edit [data-type="list"] .danger {
+  transform: translateX(2.5rem);
 }
 
 .edit [data-type="list"] li > .pack-checkbox input ~ span:after {
   opacity: 1;
-  transform: translateX(4.5rem);
-  left: -2.2rem;
+  transform: translateX(2.5rem);
 }
 
 .edit [data-type="list"] li > a > aside.icon-unread {
-  opacity: 0;
+  transform: translateX(5rem);
 }
 
 .edit [data-type="list"] li > a > p {
-  transform: translateX(3.5rem);
-  margin-right: 3.5rem;
+  transform: translateX(5.0rem);
+  margin-right: 3.4rem;
 }
 
-.edit #threads-container[data-type="list"] aside.pack-end {
-  margin: 0 0 0 -3rem;
+.edit [data-type="list"] li[data-photo-url*="blob:"] > a > p {
+  margin-right: 10rem;
 }
 
 .edit #threads-container[data-type="list"] aside.pack-end span {
-  transform: translateX(7.5rem);
+  transform: translateX(1.5rem);
 }
 
 /* Panel handling */
@@ -241,10 +234,6 @@ form[role="dialog"][data-type="edit"] > menu {
 
 #main-wrapper[data-position='left'] .panel {
   transform: translateX(-100%);
-}
-
-#main-wrapper[data-position='right'] .panel {
-  transform: translateX(0%);
 }
 
 #threads-container, #thread-messages {
@@ -401,10 +390,6 @@ section[role="region"].new > header:first-child form {
   display: block;
 }
 
-#messages-container {
-  background: #fff;
-}
-
 #messages-container .messages-date-group-header {
   position: sticky;
   top: 0;
@@ -433,15 +418,6 @@ section[role="region"].new > header:first-child form {
 /* TODO: check whether we need this rule */
 #messages-container .messages-date-group-header.hidden {
   display: none;
-}
-
-.new .article-list {
-  z-index: 5;
-
-  padding: 0;
-
-  background: none repeat scroll 0 0 #fff;
-  text-align: left;
 }
 
 .article-list[data-type="list"] .message {
@@ -490,8 +466,8 @@ section[role="region"].new > header:first-child form {
   Styles for Edit mode in Messages Container
 */
 
-.edit #composer-messages-container {
-  margin-bottom: 4.0rem;
+.edit #messages-container {
+  margin-bottom: 7rem;
 }
 
 .edit .article-list[data-type="list"] .message {
@@ -532,51 +508,10 @@ section[role="region"].new > header:first-child form {
   display: none;
 }
 
-.edit #composer-messages-container {
-  margin-bottom: 7rem;
-}
-
 /* Add a margin at the end of the last thread or message node to avoid overlay
  * with the edit mode menu */
 .edit .edit-container {
   padding-bottom: 7rem;
-}
-
-/*
-  DSDS
-*/
-
-.js-sim-indication {
-  position: absolute;
-  top: 0.2rem;
-  left: 0;
-
-  display: none;
-  line-height: 1;
-  width: 100%;
-
-  font-size: 1.3rem;
-  opacity: 0.5;
-}
-
-.has-preferred-sim .js-sim-indication {
-  display: block;
-}
-
-
-.has-preferred-sim #messages-send-button:after {
-  position: absolute;
-  top: 1.2rem;
-  left: 0;
-  right: 0;
-
-  content: '...';
-  display: block;
-  width: 100%;
-
-  color: #b2b2b2;
-  text-align: center;
-  font-size: 1.8rem;
 }
 
 /*
@@ -611,7 +546,6 @@ section[role="region"].new > header:first-child form {
 #threads-no-messages {
   background-image: url('images/SMS_200x200_bubble.png');
   background-repeat: no-repeat;
-  background-attachment: fixed;
   background-position: center;
   background-size: 20rem;
   overflow-y: auto;
@@ -646,6 +580,8 @@ section[role="region"].new .subheader {
 
 #messages-to-field {
   position: relative;
+  /* To be above .article-list's with z-index = 5 */
+  z-index: 6;
 
   display: none;
   min-height: 5.5rem;
@@ -655,6 +591,10 @@ section[role="region"].new .subheader {
   font-size: 1.465rem;
   background-color: #f2f2f2;
   transition: transform 0.2s ease-in-out 0s;
+  transform: translateY(calc(-100% + 4rem));
+}
+
+.multiline-recipients-mode #messages-to-field {
   transform: translateY(calc(-100% + 5.5rem));
 }
 
@@ -683,6 +623,7 @@ section[role="region"].new #messages-to-field.multiline {
 
 #messages-recipients-list-container {
   min-height: 4rem;
+  min-width: 0;
   box-sizing: border-box;
 
   flex-grow: 1;
@@ -704,8 +645,9 @@ Do not remove.
 
 #messages-recipients-list.multiline {
   /* max-height = viewport - header - minimum composer - list margin */
-  max-height: calc(100vh - 5rem - 3.7rem - 0.6rem);
+  max-height: calc(100vh - 5rem - 4rem - 0.6rem);
   margin-bottom: 0.6rem;
+  padding-bottom: 0;
 
   overflow-y: scroll;
 }
@@ -723,6 +665,11 @@ Do not remove.
 
   display: block;
   float: left;
+}
+
+.recipient[contenteditable].email {
+  padding-right: 3.8rem;
+  background: white url(images/icons/icon_sms_compose_email.png) calc(100% - 1.5rem) center no-repeat;
 }
 
 /* Disable padding and margin on empty contenteditable recipients when they do
@@ -750,15 +697,35 @@ Do not remove.
   background: none;
 }
 
-.article-list[data-type="list"] ul.contact-list {
+#messages-recipient-suggestions {
   position: absolute;
-  width: calc(100% - 3.1rem);
-  z-index: 5;
+  /* 9rem (5 rem from app header + 4rem from "To" panel heights) */
+  top: 9rem;
+
   overflow-y: auto;
+
+  max-height: calc(100% - 9rem);
+  width: 100%;
+}
+
+.multiline-recipients-mode #messages-recipient-suggestions {
+  top: 10.5rem;
+
+  max-height: calc(100% - 10.5rem);
+}
+
+#messages-recipient-suggestions li:first-child {
+  margin-top: 0;
+}
+
+.article-list[data-type="list"] ul.contact-list {
   overflow-x: hidden;
-  max-height: calc(100% - 5rem);
+  overflow-y: auto;
+
+  width: calc(100% - 3.1rem);
   padding: 0 1.5rem;
-  background: white;
+
+  background: #fff;
 }
 
 body[role="application"] form[role="dialog"][data-type="action"] > section:first-child{
@@ -851,7 +818,6 @@ section[role="region"].new .article-list[data-type="list"]  li {
 
 /* Elements related to information view */
 section[role="region"][class$='information'] #messages-options-icon,
-section[role="region"][class$='information'] #messages-attach-button,
 section[role="region"][class$='information'] #messages-subheader,
 section[role="region"][class$='information'] #messages-container,
 section[role="region"][class$='information'] #messages-compose-form {
@@ -863,7 +829,7 @@ section[role="region"].report-information > header .icon-back {
   background-image: url(/shared/style/headers/images/icons/close.png);
 }
 
-#messages-back-button:hover:after {
+#messages-back-button:hover {
   background-color: transparent;
 }
 
@@ -872,11 +838,15 @@ section[role="region"].report-information > header .icon-back {
   display: none;
 }
 
-.request-activity-mode #messages-close-button {
+.request-activity-mode #messages-close-button,
+.request-activity-mode .report-information #messages-back-button,
+.request-activity-mode .participants-information #messages-back-button {
   display: block;
 }
 
-.request-activity-mode #messages-back-button {
+.request-activity-mode #messages-back-button,
+.request-activity-mode .report-information #messages-close-button,
+.request-activity-mode .participants-information #messages-close-button {
   display: none;
 }
 

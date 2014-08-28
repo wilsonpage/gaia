@@ -1,9 +1,9 @@
-/* global app, IccHelper, verticalPreferences */
+/* global IccHelper, verticalPreferences, VersionHelper */
 /* exported configurator */
 
 'use strict';
 
-var configurator = (function() {
+(function(exports) {
 
   // We're going to use the mcc_mnc as a semaphore as well as to store its
   // value during the singleVariant file's processing time.
@@ -18,8 +18,6 @@ var configurator = (function() {
   // Keeps the list of single variant apps, indexed by manifestURL
   var singleVariantApps = {};
   var simPresentOnFirstBoot = true;
-
-  var gaiaGridLayoutReady = false;
 
   function loadFile(file, success, error) {
     try {
@@ -121,8 +119,12 @@ var configurator = (function() {
 
     function loadSVConfFileError(e) {
       singleVariantApps = {};
-      console.error('Failed parsing singleVariant configuration file [' +
-                    SINGLE_VARIANT_CONF_FILE + ']: ', e);
+      if (e.name === 'NS_ERROR_FILE_NOT_FOUND') {
+        console.log('No single variant configuration file found');
+      } else {
+        console.error('Failed parsing singleVariant configuration file [' +
+                      SINGLE_VARIANT_CONF_FILE + ']: ', e);
+      }
       dispatchSVReadyEvent();
     }
 
@@ -145,29 +147,24 @@ var configurator = (function() {
     }
   }
 
-  var gridLayoutReady = function(evt) {
-    window.removeEventListener('gaiagrid-layout-ready', gridLayoutReady);
-    app.init();
-  };
-
   function onLoadInitJSON(loadedData) {
     conf = loadedData;
-    setup();
-    if (!gaiaGridLayoutReady) {
-      window.removeEventListener('gaiagrid-layout-ready', globalHandleEvent);
-      window.addEventListener('gaiagrid-layout-ready', gridLayoutReady);
-    } else {
-      app.init();
-    }
+    setupColumns();
+    window.dispatchEvent(new CustomEvent('configuration-ready'));
     loadSingleVariantConf();
   }
 
-  function setup() {
-    var colsByDefault = conf.preferences['grid.cols'];
-    if (colsByDefault) {
+  /**
+   * Sets up the default columns.
+   */
+  function setupColumns() {
+    var defaultCols = conf && conf.preferences &&
+                          conf.preferences['grid.cols'] || undefined;
+
+    if (defaultCols) {
       verticalPreferences.get('grid.cols').then(function(cols) {
         // Set the number of cols by default in preference's datastore
-        !cols && verticalPreferences.put('grid.cols', colsByDefault);
+        !cols && verticalPreferences.put('grid.cols', defaultCols);
       });
     }
   }
@@ -175,43 +172,67 @@ var configurator = (function() {
   function onErrorInitJSON(e) {
     conf = {};
     console.error('Failed parsing homescreen configuration file:' + e);
-    if (!gaiaGridLayoutReady) {
-      window.removeEventListener('gaiagrid-layout-ready', globalHandleEvent);
-      window.addEventListener('gaiagrid-layout-ready', gridLayoutReady);
-    } else {
-      app.init();
-    }
+    window.dispatchEvent(new CustomEvent('configuration-ready'));
     loadSingleVariantConf();
   }
 
-  /**
-   * General event handler.
-   */
-  var globalHandleEvent = function(e) {
-    switch(e.type) {
-      case 'gaiagrid-layout-ready':
-      gaiaGridLayoutReady = true;
-      window.removeEventListener('gaiagrid-layout-ready', globalHandleEvent);
-      break;
+  function handlerGridLayout(evt) {
+    switch(evt.type) {
+      case 'updated':
+        if (evt.target.name === 'grid.layout') {
+          verticalPreferences.removeEventListener('updated', handlerGridLayout);
+          onLoadInitJSON(evt.target.value);
+        }
+        break;
     }
-  };
+  }
 
   function load() {
     conf = {};
-    gaiaGridLayoutReady = false;
-    window.addEventListener('gaiagrid-layout-ready', globalHandleEvent);
-    loadFile('js/init.json', onLoadInitJSON, onErrorInitJSON);
+
+    VersionHelper.getVersionInfo().then(function(verInfo) {
+      if (verInfo.isUpgrade()) {
+        verticalPreferences.get('grid.layout').then(function(grid) {
+          if (!grid) {
+            verticalPreferences.addEventListener('updated', handlerGridLayout);
+          } else {
+            onLoadInitJSON(grid);
+          }
+        });
+      } else {
+        loadFile('js/init.json', onLoadInitJSON, onErrorInitJSON);
+      }
+    }, function(err) {
+      console.error('VersionHelper failed to lookup version settings, ' +
+                    'asumming no version upgrade.\n');
+    });
   }
 
-  load();
+  function Configurator() {
+    load();
+  }
 
-  return {
+  Configurator.prototype = {
     getSection: function(section) {
       return conf[section];
     },
 
     getGrid: function() {
       return conf.grid;
+    },
+
+    getItems: function(role) {
+      var items = {};
+
+      conf.grid.forEach(function forEachSection(section) {
+        section.forEach(function forEachItem(item) {
+          if (item.role === role) {
+            items[item.id] = item;
+          }
+        });
+      });
+
+      return items;
     },
 
     getSingleVariantApp: function(manifestURL) {
@@ -236,4 +257,6 @@ var configurator = (function() {
     loadSettingSIMPresent: loadSettingSIMPresent
   };
 
-}());
+  exports.Configurator = Configurator;
+
+}(window));

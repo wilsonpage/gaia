@@ -17,7 +17,10 @@ $('edit-crop-button').onclick = setEditTool.bind(null, 'crop');
 $('edit-effect-button').onclick = setEditTool.bind(null, 'effect');
 $('edit-enhance-button').onclick = setEditTool.bind(null, 'enhance');
 $('edit-crop-none').onclick = undoCropHandler;
-$('edit-cancel-button').onclick = function() { exitEditMode(false); };
+$('edit-header').addEventListener('action', function() {
+  exitEditMode(false);
+});
+
 $('edit-save-button').onclick = saveEditedImage;
 editOptionButtons.forEach(function(b) { b.onclick = editOptionsHandler; });
 
@@ -107,7 +110,16 @@ function editPhoto(n) {
 
     // Set the background for all of the image buttons
     editedPhotoURL = URL.createObjectURL(blob);
-    var backgroundImage = 'url(' + editedPhotoURL + ')';
+
+    // Use #-moz-samplesize media fragment to downsample images
+    // so the resulting images are smaller and fits 5 image buttons
+    // Here we assume image buttons are 50px high
+    var scale = window.innerWidth / 5 * window.devicePixelRatio *
+                window.devicePixelRatio * 50 /
+                (metadata.width * metadata.height);
+    var sampleSize = Downsample.areaNoMoreThan(scale);
+
+    var backgroundImage = 'url(' + editedPhotoURL + sampleSize + ')';
     editBgImageButtons.forEach(function(b) {
       b.style.backgroundImage = backgroundImage;
     });
@@ -155,16 +167,27 @@ var exposureSlider = (function() {
   var slider = document.getElementById('exposure-slider');
   var bar = document.getElementById('sliderline');
   var thumb = document.getElementById('sliderthumb');
-
+  var currentExposure; // will be set by the initial setExposure call
+  var dragStart = null;
   // prepare gesture detector for slider
   var gestureDetector = new GestureDetector(thumb);
   gestureDetector.startDetecting();
 
-  thumb.addEventListener('pan', sliderDrag);
+  thumb.addEventListener('pan', function(e) {
+    var delta = e.detail.absolute.dx;
+    var exposureDelta = delta / parseInt(bar.clientWidth, 10) * 6;
+    // For the firt time of pan event triggered
+    // set start value to current value.
+    if (!dragStart)
+      dragStart = currentExposure;
+
+    setExposure(dragStart + exposureDelta);
+    e.preventDefault();
+  });
   thumb.addEventListener('swipe', function(e) {
-    // when stopping we init the start to be at the current level
+    // when stopping we init the dragStart to be null
     // this way we avoid a 'panstart' event
-    sliderStartExposure = currentExposure;
+    dragStart = null;
     e.preventDefault();
   });
   thumb.addEventListener('touchstart', function(e) {
@@ -173,16 +196,6 @@ var exposureSlider = (function() {
   thumb.addEventListener('touchend', function(e) {
     thumb.classList.remove('active');
   });
-
-  var currentExposure; // will be set by the initial setExposure call
-  var sliderStartExposure = 0;
-
-  function sliderDrag(e) {
-    var delta = e.detail.absolute.dx;
-    var exposureDelta = delta / parseInt(bar.clientWidth, 10) * 6;
-    setExposure(sliderStartExposure + exposureDelta);
-    e.preventDefault();
-  }
 
   function resize() {
     forceSetExposure(currentExposure);

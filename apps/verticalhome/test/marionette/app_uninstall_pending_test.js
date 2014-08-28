@@ -34,16 +34,26 @@ marionette('Vertical - App uninstall while pending', function() {
     actions = new Actions(client);
     home = new Home2(client);
     system = new System(client);
-    system.waitForStartup();
 
     // ensure that the zip file does not get sent
     server.cork(server.applicationZipUri);
 
-    // begin installing a packaged app
-    appInstall.install(server.packageManifestURL);
-
+    // wait for the system app to be running
+    system.waitForStartup();
     client.apps.launch(Home2.URL);
     home.waitForLaunch();
+
+    // install the app
+    client.switchToFrame();
+    appInstall.installPackage(server.packageManifestURL);
+
+    // switch to the homescreen
+    client.switchToFrame(system.getHomescreenIframe());
+
+    // this helps marionette finding the icon: Bug 1046706
+    var icon = home.getIcon(server.packageManifestURL);
+    home.moveIconToIndex(icon, 0);
+
     home.enterEditMode();
   });
 
@@ -60,10 +70,12 @@ marionette('Vertical - App uninstall while pending', function() {
     });
 
     // remove the icon
-    remove.click();
+    remove.tap();
     // confirm the dialog to ensure it was removed.
+    client.switchToFrame();
     home.confirmDialog('remove');
     // ensure the icon disappears
+    client.switchToFrame(system.getHomescreenIframe());
     client.helper.waitForElementToDisappear(icon);
 
     home.restart();

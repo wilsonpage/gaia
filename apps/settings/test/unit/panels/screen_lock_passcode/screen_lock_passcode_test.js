@@ -10,6 +10,8 @@ suite('ScreenLockPasscode > ', function() {
   var realSettingsService;
 
   suiteSetup(function(done) {
+    navigator.addIdleObserver = sinon.spy();
+
     var modules = [
       'shared_mocks/mock_navigator_moz_settings',
       'shared_mocks/mock_settings_listener',
@@ -140,6 +142,10 @@ suite('ScreenLockPasscode > ', function() {
       this.sinon.stub(screenLockPasscode, '_backToScreenLock');
     });
 
+    teardown(function() {
+      window.navigator.mozSettings.mTeardown();
+    });
+
     suite('create/new lock > ', function() {
       suite('with right passcode', function() {
         setup(function() {
@@ -188,6 +194,11 @@ suite('ScreenLockPasscode > ', function() {
             preventDefault: function() {}
           });
         });
+        test('passcode is turned off', function() {
+          assert.deepEqual(window.navigator.mozSettings.mSettings, {
+            'lockscreen.passcode-lock.enabled': false
+          });
+        });
         test('we would back to screenLock', function() {
           assert.ok(screenLockPasscode._backToScreenLock.called);
         });
@@ -204,6 +215,9 @@ suite('ScreenLockPasscode > ', function() {
             charCode: 48,
             preventDefault: function() {}
           });
+        });
+        test('passcode is not turned off', function() {
+          assert.deepEqual(window.navigator.mozSettings.mSettings, {});
         });
         test('we would reset passcodeBuffer', function() {
           assert.equal(screenLockPasscode._passcodeBuffer, '');
@@ -224,6 +238,12 @@ suite('ScreenLockPasscode > ', function() {
             preventDefault: function() {}
           });
         });
+        test('passcode and lockscreen are turned off', function() {
+          assert.deepEqual(window.navigator.mozSettings.mSettings, {
+            'lockscreen.enabled': false,
+            'lockscreen.passcode-lock.enabled': false
+          });
+        });
         test('we would back to screenLock', function() {
           assert.ok(screenLockPasscode._backToScreenLock.called);
         });
@@ -240,6 +260,9 @@ suite('ScreenLockPasscode > ', function() {
             charCode: 48,
             preventDefault: function() {}
           });
+        });
+        test('passcode and lockscreen are not turned off', function() {
+          assert.deepEqual(window.navigator.mozSettings.mSettings, {});
         });
         test('we would reset passcodeBuffer', function() {
           assert.equal(screenLockPasscode._passcodeBuffer, '');

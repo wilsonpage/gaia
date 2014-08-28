@@ -1,10 +1,12 @@
 /* globals BluetoothHelper, CallScreen, Contacts, HandledCall, KeypadManager,
-           LazyL10n, SimplePhoneMatcher, TonePlayer, Utils */
+           LazyL10n, SimplePhoneMatcher, TonePlayer, Utils,
+           AudioCompetingHelper */
 
 'use strict';
 
 /* globals BluetoothHelper, CallScreen, Contacts, FontSizeManager, HandledCall,
-           KeypadManager, LazyL10n, SimplePhoneMatcher, TonePlayer, Utils */
+           KeypadManager, LazyL10n, SimplePhoneMatcher, TonePlayer, Utils,
+           AudioCompetingHelper */
 
 var CallsHandler = (function callsHandler() {
   // Changing this will probably require markup changes
@@ -70,6 +72,9 @@ var CallsHandler = (function callsHandler() {
 
     navigator.mozSetMessageHandler('headset-button', handleHSCommand);
     navigator.mozSetMessageHandler('bluetooth-dialer-command', handleBTCommand);
+
+    AudioCompetingHelper.clearListeners();
+    AudioCompetingHelper.addListener('mozinterruptbegin', onMozInterrupBegin);
   }
 
   /* === Handled calls === */
@@ -165,10 +170,7 @@ var CallsHandler = (function callsHandler() {
     CallScreen.insertCall(hc.node);
 
     if (call.state === 'incoming') {
-      // This is the initial incoming call, need to ring !
-      if (handledCalls.length === 1) {
-        handleFirstIncoming(call);
-      }
+      turnScreenOn(call);
     }
 
     if (handledCalls.length > 1) {
@@ -179,6 +181,7 @@ var CallsHandler = (function callsHandler() {
 
       // User performed another outgoing call. show its status.
       } else {
+        updatePlaceNewCall();
         hc.show();
       }
     } else {
@@ -227,7 +230,7 @@ var CallsHandler = (function callsHandler() {
     }
   }
 
-  function handleFirstIncoming(call) {
+  function turnScreenOn(call) {
     screenLock = navigator.requestWakeLock('screen');
 
     call.addEventListener('statechange', function callStateChange() {
@@ -252,9 +255,8 @@ var CallsHandler = (function callsHandler() {
 
       if (!number) {
         CallScreen.incomingNumber.textContent = _('withheld-number');
-        FontSizeManager.adaptToSpace(
-          FontSizeManager.CALL_WAITING, CallScreen.incomingNumber,
-          CallScreen.fakeIncomingNumber, false, 'end');
+        FontSizeManager.adaptToSpace(FontSizeManager.SECOND_INCOMING_CALL,
+          CallScreen.incomingNumber, false, 'end');
         return;
       }
 
@@ -271,14 +273,19 @@ var CallsHandler = (function callsHandler() {
           CallScreen.incomingInfo.classList.add('additionalInfo');
           CallScreen.incomingNumber.textContent = contact.name;
           CallScreen.incomingNumberAdditionalInfo.textContent =
-            Utils.getPhoneNumberAdditionalInfo(matchingTel);
+            Utils.getPhoneNumberAndType(matchingTel);
         } else {
           CallScreen.incomingNumber.textContent = number;
           CallScreen.incomingNumberAdditionalInfo.textContent = '';
         }
+
         FontSizeManager.adaptToSpace(
-          FontSizeManager.CALL_WAITING, CallScreen.incomingNumber,
-          CallScreen.fakeIncomingNumber, false, 'end');
+          FontSizeManager.SECOND_INCOMING_CALL, CallScreen.incomingNumber,
+          false, 'end');
+        if (contact && contact.name) {
+          FontSizeManager.ensureFixedBaseline(
+            FontSizeManager.SECOND_INCOMING_CALL, CallScreen.incomingNumber);
+        }
       });
     });
 
@@ -301,14 +308,6 @@ var CallsHandler = (function callsHandler() {
         closeWindow();
       }
     });
-  }
-
-  function updateKeypadEnabled() {
-    if (telephony.active) {
-      CallScreen.enableKeypad();
-    } else {
-      CallScreen.disableKeypad();
-    }
   }
 
   function exitCallScreen(animate) {
@@ -652,7 +651,7 @@ var CallsHandler = (function callsHandler() {
       telephony.speakerEnabled = false;
     }
 
-    if (!doNotConnect) {
+    if (!doNotConnect && displayed) {
       // add a btHelper.isConnected() check before calling disconnectSco
       // once bug 929376 lands.
       btHelper.connectSco();
@@ -781,6 +780,45 @@ var CallsHandler = (function callsHandler() {
     telephony.conferenceGroup.add(telephony.active);
   }
 
+  /* === Telephony audio channel competing functions ===*/
+
+  /**
+   * Helper function. Force the callscreen app to win the competion for the use
+   * of the telephony audio channel.
+   */
+  function forceAnAudioCompetitionWin() {
+    AudioCompetingHelper.leaveCompetition();
+    AudioCompetingHelper.compete();
+  }
+
+  /**
+   * onmozinterrupbegin event handler.
+   */
+  function onMozInterrupBegin() {
+    var openLines =
+      telephony.calls.length + (telephony.conferenceGroup.calls.length ? 1 : 0);
+
+    // If there are multiple calls handled by the callscreen app and it is
+    // interrupted by another app which uses the telephony audio channel the
+    // callscreen wins.
+    if (openLines !== 1) {
+     forceAnAudioCompetitionWin();
+      return;
+    }
+    holdOrResumeSingleCall();
+  }
+
+  function updatePlaceNewCall() {
+    var isEstablishing = telephony.calls.some(function (call) {
+      return call.state == 'dialing' || call.state == 'alerting';
+    });
+    if (telephony.calls && isEstablishing) {
+      CallScreen.disablePlaceNewCall();
+    } else {
+      CallScreen.enablePlaceNewCall();
+    }
+  }
+
   return {
     setup: setup,
 
@@ -790,7 +828,6 @@ var CallsHandler = (function callsHandler() {
     toggleCalls: toggleCalls,
     ignore: ignore,
     end: end,
-    updateKeypadEnabled: updateKeypadEnabled,
     toggleMute: toggleMute,
     toggleSpeaker: toggleSpeaker,
     unmute: unmute,
@@ -802,6 +839,7 @@ var CallsHandler = (function callsHandler() {
     mergeActiveCallWith: mergeActiveCallWith,
     mergeConferenceGroupWithActiveCall: mergeConferenceGroupWithActiveCall,
     updateAllPhoneNumberDisplays: updateAllPhoneNumberDisplays,
+    updatePlaceNewCall: updatePlaceNewCall,
 
     get activeCall() {
       return activeCall();

@@ -22,7 +22,6 @@ module.exports = function(app) { return new PreviewGalleryController(app); };
 module.exports.PreviewGalleryController = PreviewGalleryController;
 
 function PreviewGalleryController(app) {
-  debug('initializing');
   bindAll(this);
   this.app = app;
   this.settings = app.settings;
@@ -63,10 +62,7 @@ PreviewGalleryController.prototype.openPreview = function() {
     return;
   }
 
-  // Check whether the MediaFrame should limit the pixel size.
-  var maxPreviewSize =
-    this.settings.previewGallery.get('limitMaxPreviewSize') ?
-    window.CONFIG_MAX_IMAGE_PIXEL_SIZE : 0;
+  var maxPreviewSize = window.CONFIG_MAX_IMAGE_PIXEL_SIZE;
 
   this.view = new PreviewGalleryView();
   this.view.maxPreviewSize = maxPreviewSize;
@@ -78,13 +74,14 @@ PreviewGalleryController.prototype.openPreview = function() {
   this.view.on('click:back', this.closePreview);
   this.view.on('swipe', this.handleSwipe);
   this.view.on('click:options', this.onOptionsClick);
+  this.view.on('loadingvideo', this.app.firer('busy'));
+  this.view.on('playingvideo', this.app.firer('ready'));
 
   // If lockscreen is locked, hide all control buttons
   var secureMode = this.app.inSecureMode;
   this.view.set('secure-mode', secureMode);
   this.view.open();
 
-  this.app.set('previewGalleryOpen', true);
   this.previewItem();
   this.app.emit('previewgallery:opened');
 };
@@ -104,7 +101,6 @@ PreviewGalleryController.prototype.closePreview = function() {
     this.view = null;
   }
 
-  this.app.set('previewGalleryOpen', false);
   this.app.emit('previewgallery:closed');
 };
 
@@ -138,7 +134,6 @@ PreviewGalleryController.prototype.onOptionsClick = function() {
 
   this.view.showOptionsMenu();
 };
-
 
 PreviewGalleryController.prototype.shareCurrentItem = function() {
   if (this.app.inSecureMode) {
@@ -336,7 +331,7 @@ PreviewGalleryController.prototype.previewItem = function() {
  * @param  {Object} filepath
  */
 PreviewGalleryController.prototype.onItemDeleted = function(data) {
-  
+
   // Check if this event is being stopped such as in the case
   // of resizing an image for a share activity.
   if (this.stopItemDeletedEvent) {

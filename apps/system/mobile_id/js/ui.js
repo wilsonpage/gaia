@@ -4,11 +4,14 @@
 
 (function(exports) {
   'use strict';
-  var allowButton, closeButton, verificationCodeButton,
+  var initialized;
+
+  var allowButton, header, verificationCodeButton,
       multistateButton, panelsContainer,
       verificationCodeInput, msisdnInput,
       msisdnAutomaticOptions, typeMSISDNButton,
       selectAutomaticOptionsButton, msisdnContainer,
+      legend, legendParent,
       countryCodesSelect, verificationPanel,
       msisdnSelectionPanel, verificationCodeTimer,
       stepsExplanation, verificationExplanation,
@@ -20,7 +23,7 @@
   var isTimeoutOver = false;
   var isManualMSISDN = false;
   var buttonCurrentStatus;
-  
+
   var appName, identity;
 
   var verificationInterval, verificationIntervalSteps = 0,
@@ -127,33 +130,65 @@
     element.classList.add('error');
   }
 
-  function _fillCountryCodesList() {
+  function _fillCountryCodesList(callback) {
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function fileLoaded() {
       if (xhr.readyState === 4) {
         if (xhr.status === 0 || xhr.status === 200) {
           // Cache the CC
           countryCodes = xhr.response;
+
+          var sortedObject = _sortCountriesByFullName();
           // Clean the <select> element
           countryCodesSelect.innerHTML = '';
-          // Per country, we show it CC
+          // Per country, we show its country name (`full`)
           var ccFragment = document.createDocumentFragment();
-          Object.keys(countryCodes).forEach(function(country) {
+          var added = {};
+          sortedObject.forEach(function(country) {
+            var mcc = country[0];
+            // Do not re-add countries (like USA, which has more than one mcc)
+            if (added[countryCodes[mcc].code]) {
+              return;
+            }
             var option = document.createElement('option');
-            option.textContent = countryCodes[country].prefix;
-            option.value = country;
+            option.textContent = countryCodes[mcc].full + ' (' +
+              countryCodes[mcc].prefix + ')';
+            option.value = mcc;
+            added[countryCodes[mcc].code] = true;
             ccFragment.appendChild(option);
           });
 
           countryCodesSelect.appendChild(ccFragment);
+
+          // Once we have the country code list we can default to the current
+          // MCC if available.
+          var conn = window.navigator.mozMobileConnections ?
+                     window.navigator.mozMobileConnections[0] : null;
+          if (conn && conn.voice && conn.voice.network) {
+            countryCodesSelect.value = conn.voice.network.mcc;
+            legend.innerHTML = countryCodes[countryCodesSelect.value].prefix;
+          }
+          callback();
         } else {
           console.error('Failed to fetch file: ', xhr.statusText);
+          callback();
         }
       }
     };
-    xhr.open('GET', ' resources/mcc.json', true);
+    xhr.open('GET', ' /shared/resources/mcc.json', true);
     xhr.responseType = 'json';
     xhr.send();
+  }
+
+  function _sortCountriesByFullName() {
+    var sorted = [];
+    for (var mcc in countryCodes) {
+      sorted.push([mcc, countryCodes[mcc].full]);
+    }
+    sorted = sorted.sort(function compareFunction(a, b) {
+      return a[1] > b[1];
+    });
+    return sorted;
   }
 
   function _getIdentitySelected() {
@@ -197,7 +232,7 @@
     // Remove the progress bar
     verificationCodeTimer.classList.remove('show');
     // Update the string
-    navigator.mozL10n.localize(
+    navigator.mozL10n.setAttributes(
       successExplanation,
       'successMessage',
       {
@@ -214,10 +249,118 @@
     _setPanelsStep('done');
   }
 
+  function _addEventListeners() {
+    header.addEventListener(
+      'action',
+      function onClose() {
+        Controller.postCloseAction(isVerified);
+      }
+    );
+
+    typeMSISDNButton.addEventListener(
+      'click',
+      function onManualMSISDN() {
+        _msisdnContainerTranslate(1);
+      }
+    );
+
+    selectAutomaticOptionsButton.addEventListener(
+      'click',
+      function onAutomaticMSISDN() {
+        _msisdnContainerTranslate(0);
+      }
+    );
+
+    allowButton.addEventListener(
+      'click',
+      function onAllow() {
+        // Send to controller the identity selected
+        identity = _getIdentitySelected();
+        // Check if is a valid identity
+        if (identity.mcc &&
+            (!identity.phoneNumber ||
+             isNaN(identity.phoneNumber)
+            )) {
+          _fieldErrorDance(msisdnInput);
+          return;
+        }
+        // Disable to avoid any action while requesting the server
+        _disablePanel('msisdn');
+        // Update the status of the button
+        _setMultibuttonStep('sending');
+        // Post identity
+        Controller.postIdentity(identity);
+      }
+    );
+
+    verificationCodeButton.addEventListener(
+      'click',
+      function onVerify() {
+        // In the case is not verified yet
+        if (!isVerified) {
+          // Was the tap done in the 'resend'?
+          if (verificationCodeButton.classList.contains('state-resend')) {
+            Controller.requestCode();
+            verificationCodeInput.value = '';
+            // Disable the panel
+            _enablePanel('verification');
+            // We udpate the button
+            _setMultibuttonStep('sending');
+            // As we are resending, we reset the conditions
+            isVerifying = false;
+            isTimeoutOver = false;
+          } else {
+            var code = _getCode();
+            if (!code.length || isNaN(code) || code.length < 6) {
+              _fieldErrorDance(verificationCodeInput);
+              return;
+            }
+            // If we are in the proccess of verifying, we need
+            // first to send the code to the server
+            Controller.postVerificationCode(_getCode());
+            // Disable the panel
+            _disablePanel('verification');
+            // We udpate the button
+            _setMultibuttonStep('verifying');
+            // As we are verifying, we udpate the flag
+            isVerifying = true;
+          }
+          return;
+        }
+        // If the identity posted to the server and/or the verification
+        // code is accepted, we are ready to close the flow.
+        Controller.postCloseAction(isVerified);
+      }
+    );
+
+    countryCodesSelect.addEventListener(
+      'blur',
+      function onSelectBlur() {
+        countryCodesSelect.hidden = true;
+        legend.innerHTML = countryCodes[countryCodesSelect.value].prefix;
+        return;
+      }
+    );
+
+    legendParent.addEventListener(
+      'click',
+      function onLegendClick() {
+        countryCodesSelect.click();
+        countryCodesSelect.focus();
+        countryCodesSelect.hidden = false;
+        return;
+      }
+    );
+  }
+
   var UI = {
     init: function ui_init(params) {
+      var callback = params && params.callback ?
+                     params.callback :
+                     function() {};
+
+      header = document.getElementById('header');
       allowButton = document.getElementById('allow-button');
-      closeButton = document.getElementById('close-button');
       verificationCodeButton = document.getElementById('verify-button');
       multistateButton = document.getElementById('msb');
       panelsContainer = document.getElementById('panels-container');
@@ -228,6 +371,8 @@
       selectAutomaticOptionsButton =
         document.getElementById('do-automatic-msisdn');
       msisdnContainer = document.querySelector('.msisdn-selection-wrapper');
+      legend = document.getElementById('legend');
+      legendParent = document.getElementById('legend-parent');
       countryCodesSelect = document.getElementById('country-codes-select');
       verificationPanel = document.querySelector('.verification-panel');
       msisdnSelectionPanel = document.querySelector('.msisdn-selection-panel');
@@ -240,98 +385,31 @@
         document.getElementById('verification-code-explanation');
       successExplanation =
         document.getElementById('success-explanation');
-      
+
       // Fill the country code list
-      _fillCountryCodesList();
-
-      closeButton.addEventListener(
-        'click',
-        function onClose() {
-          Controller.postCloseAction(isVerified);
+      _fillCountryCodesList(function() {
+        // Avoid adding duplicated listeners if init is called more than once.
+        if (initialized) {
+          callback();
+          return;
         }
-      );
+        initialized = true;
+        _addEventListeners();
+        callback();
+      });
 
-      typeMSISDNButton.addEventListener(
-        'click',
-        function onManualMSISDN() {
-          _msisdnContainerTranslate(1);
-        }
-      );
-
-      selectAutomaticOptionsButton.addEventListener(
-        'click',
-        function onAutomaticMSISDN() {
-          _msisdnContainerTranslate(0);
-        }
-      );
-
-      allowButton.addEventListener(
-        'click',
-        function onAllow() {
-          // Send to controller the identity selected
-          identity = _getIdentitySelected();
-          // Check if is a valid identity
-          if (identity.mcc &&
-              (!identity.phoneNumber ||
-               isNaN(identity.phoneNumber)
-              )) {
-            _fieldErrorDance(msisdnInput);
-            return;
-          }
-          // Disable to avoid any action while requesting the server
-          _disablePanel('msisdn');
-          // Update the status of the button
-          _setMultibuttonStep('sending');
-          // Post identity
-          Controller.postIdentity(identity);
-        }
-      );
-
-      verificationCodeButton.addEventListener(
-        'click',
-        function onVerify() {
-          // In the case is not verified yet
-          if (!isVerified) {
-            // Was the tap done in the 'resend'?
-            if (verificationCodeButton.classList.contains('state-resend')) {
-              Controller.requestCode();
-              verificationCodeInput.value = '';
-              // Disable the panel
-              _enablePanel('verification');
-              // We udpate the button
-              _setMultibuttonStep('verify');
-              // As we are resending, we reset the conditions
-              isVerifying = false;
-              isTimeoutOver = false;
-            } else {
-              var code = _getCode();
-              if (!code.length || isNaN(code) || code.length < 6) {
-                _fieldErrorDance(verificationCodeInput);
-                return;
-              }
-              // If we are in the proccess of verifying, we need
-              // first to send the code to the server
-              Controller.postVerificationCode(_getCode());
-              // Disable the panel
-              _disablePanel('verification');
-              // We udpate the button
-              _setMultibuttonStep('verifying');
-              // As we are verifying, we udpate the flag
-              isVerifying = true;
-            }
-            return;
-          }
-          // If the identity posted to the server and/or the verification
-          // code is accepted, we are ready to close the flow.
-          Controller.postCloseAction(isVerified);
-        }.bind(this)
-      );
+      // HACK: We must reposition the gaia-header
+      // text once we know the dialog is visible.
+      window.addEventListener('shown', function() {
+        var title = header.querySelector('h1');
+        title.textContent = title.textContent;
+      });
     },
     localize: function ui_localize(name) {
       // Cache the name of the app
       appName = name;
       // Let's localize the explanation
-      navigator.mozL10n.localize(
+      navigator.mozL10n.setAttributes(
         stepsExplanation,
         'mobileIDExplanation',
         {
@@ -420,7 +498,7 @@
       } else {
         _showVerificationPanel(phoneNumber);
       }
-      
+
     },
     onVerificationCode: function ui_onVerificationCode(params) {
       isVerificationCode = true;
@@ -431,14 +509,14 @@
       _enablePanel('verification');
 
       // Update the string
-      navigator.mozL10n.localize(
+      navigator.mozL10n.setAttributes(
         verificationExplanation,
         'verificationCodeExplanation',
         {
           phone_number: identity.phoneNumber
         }
       );
-     
+
       // Timer UI
 
       // Update the params we need

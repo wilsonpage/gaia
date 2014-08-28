@@ -7,6 +7,7 @@ from marionette.by import By
 from gaiatest import GaiaTestCase
 from gaiatest.apps.homescreen.app import Homescreen
 from gaiatest.apps.homescreen.regions.confirm_install import ConfirmInstall
+from gaiatest.apps.system.app import System
 
 
 class TestLaunchApp(GaiaTestCase):
@@ -37,6 +38,11 @@ class TestLaunchApp(GaiaTestCase):
             confirm_install = ConfirmInstall(self.marionette)
             confirm_install.tap_confirm()
 
+            # Wait for the notification to disappear
+            system = System(self.marionette)
+            system.wait_for_system_banner_displayed()
+            system.wait_for_system_banner_not_displayed()
+
         self.apps.switch_to_displayed_app()
         self.homescreen.wait_for_app_icon_present(self.APP_NAME)
 
@@ -47,5 +53,4 @@ class TestLaunchApp(GaiaTestCase):
 
         # Click icon and wait for h1 element displayed
         self.homescreen.installed_app(self.APP_NAME).tap_icon()
-        self.wait_for_element_displayed(*self._header_locator, timeout=20)
         self.assertEqual(self.marionette.find_element(*self._header_locator).text, self.TITLE)

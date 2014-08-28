@@ -18,6 +18,10 @@ marionette('show Keyboard APP', function() {
     apps: apps,
     prefs: {
       'focusmanager.testmode': true
+    },
+    settings: {
+      'lockscreen.enabled': false,
+      'ftu.manifestURL': null
     }
   });
 
@@ -62,8 +66,8 @@ marionette('show Keyboard APP', function() {
   test('Touching the status bar should not dismiss keyboard', function() {
     // Click on the status bar
     client.switchToFrame();
-    var statusbar = client.findElement('#statusbar');
-    statusbar.click();
+    var topPanel = client.findElement('#top-panel');
+    topPanel.click();
 
     client.helper.wait(3000);
 

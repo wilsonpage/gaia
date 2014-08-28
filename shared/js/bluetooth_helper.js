@@ -43,7 +43,7 @@ var BluetoothHelper = function() {
     };
   };
 
-  if (_bluetooth) {
+  var _getAdapter = function() {
     var req = _bluetooth.getDefaultAdapter();
     req.onsuccess = function() {
       _isReady = true;
@@ -58,6 +58,12 @@ var BluetoothHelper = function() {
       // We can do nothing without default adapter.
       console.log('BluetoothHelper(): connot get default adapter!!!');
     };
+  };
+
+  if (_bluetooth) {
+    _bluetooth.addEventListener('enabled', _getAdapter);
+    _bluetooth.addEventListener('adapteradded', _getAdapter);
+    _getAdapter();
   }
 
   return {
@@ -99,6 +105,19 @@ var BluetoothHelper = function() {
       });
     },
 
+    getPairedDevices: function(cb) {
+      _ready(function() {
+        _handleRequest(_adapter.getPairedDevices(), cb);
+      });
+    },
+
+    getAddress: function(cb) {
+      _ready(function() {
+        var address = _adapter.address;
+        cb(address);
+      });
+    },
+
     setPairingConfirmation: function(address, confirmed) {
       _ready(function() {
         _adapter.setPairingConfirmation(address, confirmed);
@@ -126,6 +145,12 @@ var BluetoothHelper = function() {
     set onscostatuschanged(callback) {
       _ready(function() {
         _adapter.onscostatuschanged = callback;
+      });
+    },
+
+    set onpairedstatuschanged(callback) {
+      _ready(function() {
+        _adapter.onpairedstatuschanged = callback;
       });
     }
   };

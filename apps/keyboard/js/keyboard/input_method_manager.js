@@ -1,6 +1,6 @@
 'use strict';
 
-/* global Promise */
+/* global IMEngineSettings, Promise, KeyEvent */
 
 /*
  * InputMethodManager manages life cycle of input methods.
@@ -96,16 +96,11 @@
  *      Allows the IM to switch between default and symbol layouts on the
  *      keyboard. Used by the latin IM.
  *
- *    setUpperCase(upperCase, upperCaseLocked):
+ *    setUpperCase(state):
  *      Allows the IM to switch between uppercase and lowercase layout on the
  *      keyboard. Used by the latin IM.
- *        - upperCase: to enable the upper case or not.
- *        - upperCaseLocked: to change the caps lock state.
- *
- *    resetUpperCase():
- *      Allows the IM to reset the upperCase to lowerCase without knowing the
- *      internal states like caps lock and current layout page while keeping
- *      setUpperCase simple as it is.
+ *        - state.isUpperCase: to enable the upper case or not.
+ *        - state.isUpperCaseLocked: to change the caps lock state.
  *
  *    getNumberOfCandidatesPerRow():
  *      Allow the IM to know how many candidates the Render need in one row so
@@ -146,32 +141,67 @@ InputMethodGlue.prototype.init = function(app, imEngineName) {
 };
 
 InputMethodGlue.prototype.sendCandidates = function(candidates) {
-  this.app.sendCandidates(candidates);
+  this.app.candidatePanelManager.updateCandidates(candidates);
 };
 
 InputMethodGlue.prototype.setComposition = function(symbols, cursor) {
-  this.app.setComposition(symbols, cursor);
+  if (!this.app.inputContext) {
+    console.warn('InputMethodGlue: call setComposition() when ' +
+      'inputContext does not exist.');
+    return;
+  }
+  cursor = cursor || symbols.length;
+  this.app.inputContext.setComposition(symbols, cursor);
 };
 
 InputMethodGlue.prototype.endComposition = function(text) {
-  this.app.endComposition(text);
+  if (!this.app.inputContext) {
+    console.warn('InputMethodGlue: call endComposition() when ' +
+      'inputContext does not exist.');
+    return;
+  }
+  text = text || '';
+  this.app.inputContext.endComposition(text);
 };
 
 InputMethodGlue.prototype.sendKey = function(keyCode, isRepeat) {
-  return this.app.sendKey(keyCode, isRepeat);
+  if (!this.app.inputContext) {
+    console.warn('InputMethodGlue: call sendKey() when ' +
+      'inputContext does not exist.');
+    return Promise.reject();
+  }
+
+  var promise;
+
+  switch (keyCode) {
+    case KeyEvent.DOM_VK_BACK_SPACE:
+      promise = this.app.inputContext.sendKey(keyCode, 0, 0, isRepeat);
+      break;
+
+    case KeyEvent.DOM_VK_RETURN:
+      promise = this.app.inputContext.sendKey(keyCode, 0, 0);
+      break;
+
+    default:
+      promise = this.app.inputContext.sendKey(0, keyCode, 0);
+      break;
+  }
+
+  return promise;
 };
 
 // XXX deprecated
 InputMethodGlue.prototype.sendString = function(str) {
   for (var i = 0; i < str.length; i++) {
-    this.app.sendKey(str.charCodeAt(i));
+    this.sendKey(str.charCodeAt(i));
   }
 };
 
 // Set the current rendered layout to a specific named layout
 // XXX deprecated; overwrite alternative/symbol layout instead.
 InputMethodGlue.prototype.alterKeyboard = function(layoutName) {
-  this.app.setForcedModifiedLayout(layoutName);
+  this.app.layoutManager.updateForcedModifiedLayout(layoutName);
+  this.app.layoutRenderingManager.updateLayoutRendering();
 };
 
 InputMethodGlue.prototype.setLayoutPage = function(newpage) {
@@ -182,21 +212,25 @@ InputMethodGlue.prototype.setLayoutPage = function(newpage) {
   this.app.setLayoutPage(newpage);
 };
 
-InputMethodGlue.prototype.setUpperCase = function(upperCase, upperCaseLocked) {
-  this.app.setUpperCase(upperCase, upperCaseLocked);
-};
-InputMethodGlue.prototype.resetUpperCase = function() {
-  this.app.resetUpperCase();
+InputMethodGlue.prototype.setUpperCase = function(state) {
+  this.app.upperCaseStateManager.switchUpperCaseState(state);
 };
 
 InputMethodGlue.prototype.isCapitalized = function() {
-  return this.app.isCapitalized();
+  return this.app.upperCaseStateManager.isUpperCase;
 };
 
 InputMethodGlue.prototype.replaceSurroundingText = function(text, offset,
                                                             length) {
-  return this.app.replaceSurroundingText(text, offset, length);
+  if (!this.app.inputContext) {
+    console.warn('InputMethodGlue: call replaceSurroundingText() when ' +
+      'inputContext does not exist.');
+    return Promise.reject();
+  }
+
+  return this.app.inputContext.replaceSurroundingText(text, offset, length);
 };
+
 InputMethodGlue.prototype.getNumberOfCandidatesPerRow = function() {
   return this.app.getNumberOfCandidatesPerRow();
 };
@@ -280,9 +314,63 @@ InputMethodManager.prototype.start = function() {
   this.loader = new InputMethodLoader(this.app);
   this.loader.start();
 
+  this.imEngineSettings = new IMEngineSettings();
+  this.imEngineSettings.promiseManager = this.app.settingsPromiseManager;
+  this.imEngineSettings.initSettings().catch(function rejected() {
+    console.error('Fatal Error! Failed to get initial imEngine settings.');
+  });
+
   this.currentIMEngine = this.loader.getInputMethod('default');
 
   this._switchStateId = 0;
+  this._inputContextData = null;
+};
+
+/*
+ * When the inputcontext is ready, the layout might not be ready yet so it's
+ * not known which IMEngine we should switch to.
+ * However, before that, updateInputContextData() can be called to update
+ * the data needs to activate the IMEngine.
+ */
+InputMethodManager.prototype.updateInputContextData = function() {
+  // Do nothing if there is already a promise or there is no inputContext
+  if (!this.app.inputContext || this._inputContextData) {
+    return;
+  }
+
+  // Save inputContext as a local variable;
+  // It is important that the promise is getting the inputContext
+  // it calls getText() on when resolved/rejected.
+  var inputContext = this.app.inputContext;
+
+  var p = inputContext.getText().then(function(value) {
+    this.app.perfTimer.printTime('updateInputContextData:promise resolved');
+
+    // Resolve to this object containing information of inputContext
+    return {
+      type: inputContext.inputType,
+      inputmode: inputContext.inputMode,
+      selectionStart: inputContext.selectionStart,
+      selectionEnd: inputContext.selectionEnd,
+      value: value,
+      inputContext: inputContext
+    };
+  }.bind(this), function(error) {
+    console.warn('InputMethodManager: inputcontext.getText() was rejected.');
+
+    // Resolve to this object containing information of inputContext
+    // With empty string as value.
+    return {
+      type: inputContext.inputType,
+      inputmode: inputContext.inputMode,
+      selectionStart: inputContext.selectionStart,
+      selectionEnd: inputContext.selectionEnd,
+      value: '',
+      inputContext: inputContext
+    };
+  }.bind(this));
+
+  this._inputContextData = p;
 };
 
 /*
@@ -293,15 +381,22 @@ InputMethodManager.prototype.start = function() {
  * Before the promise resolves (when the IM is active), the currentIMEngine
  * will be the default IMEngine so we won't block keyboard rendering.
  *
- * The actual IMEngine will not be switched and activated until dataPromise
- * resolves, if it has an activate method.
- *
  */
-InputMethodManager.prototype.switchCurrentIMEngine = function(imEngineName,
-                                                              dataPromise) {
+InputMethodManager.prototype.switchCurrentIMEngine = function(imEngineName) {
   var switchStateId = ++this._switchStateId;
 
-  dataPromise = dataPromise || Promise.resolve();
+  // dataPromise is the one we previously created with updateInputContextData()
+  var dataPromise = this._inputContextData;
+
+  // Unset the used promise so it will get filled when
+  // updateInputContextData() is called.
+  this._inputContextData = null;
+
+  if (!dataPromise && imEngineName !== 'default') {
+    console.warn('InputMethodManager: switchCurrentIMEngine() called ' +
+      'without calling updateInputContextData() first.');
+  }
+
   // Deactivate and switch the currentIMEngine to 'default' first.
   if (this.currentIMEngine && this.currentIMEngine.deactivate) {
     this.currentIMEngine.deactivate();
@@ -311,30 +406,31 @@ InputMethodManager.prototype.switchCurrentIMEngine = function(imEngineName,
   // Create our own promise by resolving promise from loader and the passed
   // dataPromise, then do our things.
   var loaderPromise = this.loader.getInputMethodAsync(imEngineName);
+  var settingsPromise = this.imEngineSettings.initSettings();
 
-  var p = Promise.all([loaderPromise, dataPromise]).then(function(values) {
+  var p = Promise.all([loaderPromise, dataPromise, settingsPromise])
+  .then(function(values) {
     if (switchStateId !== this._switchStateId) {
       console.log('InputMethodManager: ' +
-        'Promise is resolved after another switchCurrentIMEngine() call. ' +
-        'Reject the promise instead.');
+        'Promise is resolved after another switchCurrentIMEngine() call.');
 
-      return Promise.reject(new Error(
-        'InputMethodManager: switchCurrentIMEngine() is called again before ' +
-        'resolving.'));
+      return Promise.reject();
     }
 
     var imEngine = values[0];
-    var dataValues = values[1];
-
     if (typeof imEngine.activate === 'function') {
-      imEngine.activate.apply(imEngine, dataValues);
+      var dataValues = values[1];
+      var settingsValues = values[2];
+      imEngine.activate(
+        this.app.layoutManager.currentModifiedLayout.autoCorrectLanguage,
+        dataValues,
+        {
+          suggest: settingsValues.suggestionsEnabled,
+          correct: settingsValues.correctionsEnabled
+        }
+      );
     }
     this.currentIMEngine = imEngine;
-
-    // resolve to undefined
-    return;
-  }.bind(this), function(error) {
-    return Promise.reject(error);
   }.bind(this));
 
   return p;

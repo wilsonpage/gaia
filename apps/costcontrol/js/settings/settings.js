@@ -1,5 +1,6 @@
 /* global BalanceView, LazyLoader, AutoSettings, BalanceLowLimitView,
-          ViewManager, dataLimitConfigurer, Formatting */
+          ViewManager, dataLimitConfigurer, Formatting, PerformanceTestingHelper
+*/
 /* exported debug, sendBalanceThresholdNotification */
 /*
  * Settings is in charge of setup the setting section. It uses an AutoSettings
@@ -29,7 +30,7 @@ var debug = window.parent.debug;
 
 var Settings = (function() {
 
-  var costcontrol, vmanager, initialized;
+  var costcontrol, vmanager, initialized, endLoadSettingsNotified;
   var plantypeSelector, phoneActivityTitle, phoneActivitySettings;
   var balanceTitle, balanceSettings, reportsTitle;
   var balanceView;
@@ -276,7 +277,7 @@ var Settings = (function() {
         var textReportsTitle = (mode === 'POSTPAID') ?
           'phone-and-internet-data-report' : 'internet-data-report';
 
-        reportsTitle.querySelector('h2').textContent = _(textReportsTitle);
+        reportsTitle.querySelector('span').textContent = _(textReportsTitle);
 
         balanceLowLimitView.disabled = (mode !== 'PREPAID');
         plantypeSelector.setAttribute('aria-hidden', hidePlantypeSelector);
@@ -305,6 +306,10 @@ var Settings = (function() {
                           settings.lastTelephonyReset);
           break;
       }
+      if (endLoadSettingsNotified) {
+        PerformanceTestingHelper.dispatch('end-load-settings');
+        endLoadSettingsNotified = true;
+      }
     });
   }
 
@@ -318,10 +323,16 @@ var Settings = (function() {
     data = Formatting.roundData(datausage.wifi.total);
     wifiUsage.textContent = Formatting.formatData(data);
 
+    updateDataUsageTimestamp(lastCompleteDataReset, datausage.timestamp);
+  }
+
+  var dataUsagePeriod = { begin: null, end: null };
+  function updateDataUsageTimestamp(begin, end) {
+    dataUsagePeriod.begin = begin;
+    dataUsagePeriod.end = end;
     var timestamp = document.querySelector('#wifi-data-usage + .meta');
     timestamp.innerHTML = '';
-    timestamp.appendChild(Formatting.formatTimeHTML(lastCompleteDataReset,
-                                                    datausage.timestamp));
+    timestamp.appendChild(Formatting.formatTimeHTML(begin, end));
   }
 
   // Update balance view on settings
@@ -343,18 +354,28 @@ var Settings = (function() {
       value: activity.smscount,
       unit: 'SMS'
     });
+    updateTelephonyTimestamp(lastTelephonyReset, activity.timestamp);
+  }
+
+  var telephonyPeriod = { begin: null, end: null };
+  function updateTelephonyTimestamp(begin, end) {
+    telephonyPeriod.begin = begin;
+    telephonyPeriod.end = end;
     var timestamp = document.getElementById('telephony-timestamp');
     timestamp.innerHTML = '';
-    timestamp.appendChild(Formatting.formatTimeHTML(
-      lastTelephonyReset,
-      activity.timestamp
-    ));
+    timestamp.appendChild(Formatting.formatTimeHTML(begin, end));
   }
+
+  window.addEventListener('timeformatchange', function () {
+    updateTelephonyTimestamp(telephonyPeriod.begin, telephonyPeriod.end);
+    updateDataUsageTimestamp(dataUsagePeriod.begin, dataUsagePeriod.end);
+  });
 
   return {
     initialize: function() {
       var SCRIPTS_NEEDED = [
         'js/utils/toolkit.js',
+        'shared/js/date_time_helper.js',
         'js/utils/formatting.js',
         'js/views/BalanceLowLimitView.js',
         'js/settings/limitdialog.js',

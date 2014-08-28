@@ -3,37 +3,27 @@
     [
       ["apps", "communications", "dialer"],
       ["apps", "sms"],
-      ["apps", "communications", "contacts"]
+      ["apps", "communications", "contacts"],
+      ["apps", "search"],
+      ["apps", "marketplace.firefox.com"],
+      ["apps", "camera"]
     ], [
       ["apps/collection/collections", "social"],
       ["apps/collection/collections", "games"],
-      ["apps/collection/collections", "music"],
-      ["apps/collection/collections", "showbiz"]
+      ["apps/collection/collections", "music"]
     ], [
-      ["apps", "camera"],
       ["apps", "gallery"],
+      ["apps", "music"],
+      ["apps", "video"],
       ["apps", "fm"],
       ["apps", "settings"],
-      ["apps", "marketplace.firefox.com"],
-      ["apps", "calendar"],
       ["apps", "clock"],
-      ["apps", "costcontrol"],
       ["apps", "email"],
-      ["apps", "music"],
-      ["apps", "video"]
+      ["apps", "calendar"],
+      ["apps", "costcontrol"]
     ]
   ],
   "preferences": {
     "grid.cols": 3
-  },
-  "bookmarks": [
-    {
-      "name": "Browser",
-      "url": "http://mozilla.org",
-      "icon": "app://homescreen.gaiamobile.org/style/icons/Aurora.png",
-      "iconable": false,
-      "features": "rocketbarstartpage",
-      "removable": false
-    }
-  ]
+  }
 }

@@ -42,9 +42,9 @@ function setTone(settings, config, settingsKey, dir, name) {
 }
 
 function setMediatone(settings, config) {
-  // Grab ac_classic_clock_alarm.opus and convert it into a base64 string
+  // Grab notifier_firefox.opus and convert it into a base64 string
   let mediatone_name = 'shared/resources/media/notifications/' +
-    'notifier_bop.opus';
+    'notifier_firefox.opus';
   let mediatone = utils.resolve(mediatone_name,
     config.GAIA_DIR);
 
@@ -52,9 +52,9 @@ function setMediatone(settings, config) {
 }
 
 function setAlarmtone(settings, config) {
-  // Grab ac_classic_clock_alarm.opus and convert it into a base64 string
+  // Grab ac_awake.opus and convert it into a base64 string
   let alarmtone_name = 'shared/resources/media/alarms/' +
-    'ac_classic_clock_alarm.opus';
+    'ac_awake.opus';
   let alarmtone = utils.resolve(alarmtone_name,
     config.GAIA_DIR);
 
@@ -62,16 +62,16 @@ function setAlarmtone(settings, config) {
 }
 
 function setRingtone(settings, config) {
-  // Grab ringer_classic_courier.opus and convert it into a base64 string
+  // Grab ringer_firefox.opus and convert it into a base64 string
   let ringtone_dir = 'shared/resources/media/ringtones/';
-  let ringtone_name = 'ringer_classic_courier.opus';
+  let ringtone_name = 'ringer_firefox.opus';
   setTone(settings, config, 'dialer.ringtone', ringtone_dir, ringtone_name);
 }
 
 function setNotification(settings, config) {
-  // Grab notifier_bell.opus and convert it into a base64 string
+  // Grab notifier_firefox.opus and convert it into a base64 string
   let notification_dir = 'shared/resources/media/notifications/';
-  let notification_name = 'notifier_bell.opus';
+  let notification_name = 'notifier_firefox.opus';
   setTone(settings, config, 'notification.ringtone', notification_dir,
           notification_name);
 }
@@ -186,8 +186,10 @@ function setHomescreenURL(settings, config) {
 function writeSettings(settings, config) {
   // Finally write the settings file
   let settingsFile = utils.getFile(config.STAGE_DIR, 'settings_stage.json');
+  utils.log('settings.js', 'Writing settings file: ' + settingsFile.path);
   let content = JSON.stringify(settings);
   utils.writeContent(settingsFile, content + '\n');
+  utils.log('settings.js', 'Settings file has been written');
 }
 
 function execute(config) {
@@ -221,11 +223,9 @@ function execute(config) {
   settings['rocketbar.searchAppURL'] = utils.gaiaOriginURL('search',
     config.GAIA_SCHEME, config.GAIA_DOMAIN, config.GAIA_PORT) + '/index.html';
 
-  if (config.HAIDA) {
-    settings['rocketbar.enabled'] = true;
-    settings['edgesgesture.enabled'] = true;
-    settings['in-app-sheet.enabled'] = true;
-  }
+  // Set the new tab-page URL
+  settings['rocketbar.newTabAppURL'] = utils.gaiaOriginURL('search',
+    config.GAIA_SCHEME, config.GAIA_DOMAIN, config.GAIA_PORT) + '/index.html';
 
   settings['debugger.remote-mode'] = config.REMOTE_DEBUGGER ? 'adb-only'
                                                             : 'disabled';
@@ -233,6 +233,13 @@ function execute(config) {
   if (config.PRODUCTION === '1') {
     settings['feedback.url'] = 'https://input.mozilla.org/api/v1/feedback/';
     settings['debugger.remote-mode'] = 'disabled';
+  }
+
+  // Disable network activity icon in debug mode because it
+  // causes unit tests to run really slowly until we
+  // can investigate and fix bug 1054220.
+  if (config.DEBUG) {
+    settings['statusbar.network-activity.disabled'] = true;
   }
 
   settings['language.current'] = config.GAIA_DEFAULT_LOCALE;

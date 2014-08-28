@@ -23,16 +23,58 @@ define(function(require) {
     var _navigating = false;
     var _pendingNavigationRequest = null;
 
+    var _cachedNavigation = null;
+    var _cachedNavigationOptions = {};
+
+    var _getAppNameToLink = function ss_get_app_name_to_link(panelId) {
+      var reAppName = /app:(\w+)/;
+      var name = reAppName.exec(panelId);
+      return name && name[1];
+    };
+
+    var _getAppInfo = function ss_get_app_info(appName) {
+      // We can customize the path for specific apps
+      var _supportedAppInFrame = {
+        keyboard: {},
+        bluetooth: {}
+      };
+
+      var appInfo = _supportedAppInFrame[appName];
+      if (!appInfo) {
+        return false;
+      }
+
+      var prefix = 'app://' + appName + '.gaiamobile.org/';
+      var defaultSrc = prefix + 'settings.html';
+      var appMozapp = prefix + 'manifest.webapp';
+      var appSrc = appInfo.src ? prefix + appInfo.src : defaultSrc;
+
+      return {
+        src: appSrc,
+        mozapp: appMozapp
+      };
+    };
+
     var _isTabletAndLandscape = function ss_is_tablet_and_landscape() {
       return ScreenLayout.getCurrentLayout('tabletAndLandscaped');
     };
 
     var _transit = function ss_transit(oldPanel, newPanel, callback) {
-      if (_isTabletAndLandscape()) {
-        PageTransitions.twoColumn(oldPanel, newPanel, callback);
-      } else {
-        PageTransitions.oneColumn(oldPanel, newPanel, callback);
-      }
+      var promise = new Promise(function(resolve) {
+        var wrappedCallback = function() {
+          if (typeof callback === 'function') {
+            callback();
+          }
+          resolve();
+        };
+
+        if (_isTabletAndLandscape()) {
+          PageTransitions.twoColumn(oldPanel, newPanel, wrappedCallback);
+        } else {
+          PageTransitions.oneColumn(oldPanel, newPanel, wrappedCallback);
+        }
+      });
+      return promise;
     };
 
     var _loadPanel = function ss_loadPanel(panelId, callback) {
@@ -91,56 +133,84 @@ define(function(require) {
     };
 
     var _navigate = function ss_navigate(panelId, options, callback) {
+      // Early return if the panel to be navigated is the same as the
+      // current one.
+      if (_currentNavigation && _currentNavigation.panelId === panelId) {
+        callback();
+        return;
+      }
+
       _loadPanel(panelId, function() {
         // We have to make sure l10n is ready before navigations
         navigator.mozL10n.once(function() {
           PanelCache.get(panelId, function(panel) {
-            // Check if there is any pending navigation.
-            if (_pendingNavigationRequest) {
-              callback();
-              return;
-            }
-
             var newPanelElement = document.getElementById(panelId);
             var currentPanelId =
                _currentNavigation && _currentNavigation.panelId;
             var currentPanelElement =
               _currentNavigation && _currentNavigation.panelElement;
             var currentPanel = _currentNavigation && _currentNavigation.panel;
+
+            // Keep these to make sure we can use when going back
+            _cachedNavigation = _currentNavigation;
+            _cachedNavigationOptions = options;
+
             // Prepare options and calls to the panel object's before
             // show function.
             options = options || {};
 
-            panel.beforeShow(newPanelElement, options);
-            // We don't deactivate the root panel.
-            if (currentPanel && currentPanelId !== _rootPanelId) {
-              currentPanel.beforeHide();
-            }
-
-            // Add a timeout for smoother transition.
-            setTimeout(function doTransition() {
-              _transit(currentPanelElement, newPanelElement,
-                function transitionCompleted() {
-                  panel.show(newPanelElement, options);
-                  // We don't deactivate the root panel.
-                  if (currentPanel && currentPanelId !== _rootPanelId) {
-                    currentPanel.hide();
-                  }
-
-                  // Update the current navigation object
-                  _currentNavigation = {
-                    panelId: panelId,
-                    panelElement: newPanelElement,
-                    panel: panel,
-                    options: options
-                  };
-
-                  // XXX we need to remove this line in the future
-                  // to make sure we won't manipulate Settings
-                  // directly
-                  Settings._currentPanel = '#' + panelId;
-                  callback();
+            // 0. start the chain
+            Promise.resolve()
+            // 1. beforeHide previous panel
+            .then(function() {
+              // We don't deactivate the root panel.
+              if (currentPanel && currentPanelId !== _rootPanelId) {
+                return currentPanel.beforeHide();
+              }
+            })
+            // 2. beforeShow next panel
+            .then(function() {
+              return panel.beforeShow(newPanelElement, options);
+            })
+            // 3. add a timeout for smoother transition.
+            .then(function() {
+              var promise = new Promise(function(resolve) {
+                setTimeout(function timeout() {
+                  resolve();
+                });
               });
+              return promise;
+            })
+            // 4. do the transition
+            .then(function() {
+              return _transit(currentPanelElement, newPanelElement);
+            })
+            // 5. hide previous panel
+            .then(function() {
+              // We don't deactivate the root panel.
+              if (currentPanel && currentPanelId !== _rootPanelId) {
+                return currentPanel.hide();
+              }
+            })
+            // 6. show next panel
+            .then(function() {
+              return panel.show(newPanelElement, options);
+            })
+            // 7. keep information
+            .then(function() {
+              // Update the current navigation object
+              _currentNavigation = {
+                panelId: panelId,
+                panelElement: newPanelElement,
+                panel: panel,
+                options: options
+              };
+
+              // XXX we need to remove this line in the future
+              // to make sure we won't manipulate Settings
+              // directly
+              Settings._currentPanel = '#' + panelId;
+              callback();
             });
           });
         });
@@ -151,6 +221,8 @@ define(function(require) {
       reset: function ss_reset() {
         _rootPanelId = null;
         _currentNavigation = null;
+        _cachedNavigation = null;
+        _cachedNavigationOptions = {};
         _navigating = false;
         _pendingNavigationRequest = null;
         window.removeEventListener('visibilitychange', _onVisibilityChange);
@@ -186,6 +258,25 @@ define(function(require) {
           return;
         }
 
+        // If we find out the link includes information about app's name,
+        // it means that we are going to embed the app into our app.
+        //
+        // In this way, we have to navigate to `frame` panel and embed it.
+        var appName = _getAppNameToLink(panelId);
+        if (appName) {
+          var appInfo = _getAppInfo(appName);
+
+          if (!appInfo) {
+            console.error('We only embed trust apps.');
+            return;
+          }
+
+          panelId = 'frame';
+          options = options || {};
+          options.mozapp = appInfo.mozapp;
+          options.src = appInfo.src;
+        }
+
         _navigating = true;
         _navigate(panelId, options, (function() {
           _navigating = false;
@@ -201,6 +292,19 @@ define(function(require) {
             callback();
           }
         }).bind(this));
+      },
+
+      /**
+       * Go back to previous panel
+       *
+       * @alias module:SettingsService#back
+       */
+      back: function ss_back() {
+        if (_cachedNavigation) {
+          this.navigate(_cachedNavigation.panelId, _cachedNavigationOptions);
+          _cachedNavigation = null;
+          _cachedNavigationOptions = {};
+        }
       }
     };
 });

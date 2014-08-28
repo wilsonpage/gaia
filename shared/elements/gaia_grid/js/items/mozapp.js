@@ -34,13 +34,13 @@
       entryPoint: entryPoint,
       index: 0,
       // XXX: Somewhat ugly hack around the constructor args
-      defaultIconBlob: details && details.defaultIconBlob
+      decoratedIconBlob: details && details.decoratedIconBlob
     };
 
     // Yes this is clobbering all other listeners to the app MozApp
     //      should be in charge here otherwise the icon will be incorrect.
     MOZAPP_EVENTS.forEach(function(type) {
-      this.app['on' + type] = this;
+      this.app['on' + type] = this.handleEvent.bind(this);
     }, this);
 
     // Determine and set the initial state of the app when it is inserted.
@@ -145,6 +145,13 @@
           // GridItem.renderIcon is not concurrency safe one image may override
           // another without ordering.
           this.renderIcon();
+
+          window.dispatchEvent(new CustomEvent('downloadapplied', {
+            detail: {
+              id: this.app.manifestURL
+            }
+          }));
+
           break;
       }
     },
@@ -163,6 +170,10 @@
 
     get name() {
       var userLang = document.documentElement.lang;
+
+      if (navigator.mozL10n && userLang in navigator.mozL10n.qps) {
+        return navigator.mozL10n.qps[userLang].translate(this.descriptor.name);
+      }
 
       var locales = this.descriptor.locales;
       var localized = locales && locales[userLang] && locales[userLang].name;
@@ -216,20 +227,7 @@
     Show a dialog to handle unrecoverable errors.
     */
     unrecoverableError: function() {
-      var dialog = new ConfirmDialogHelper({
-        type: 'unrecoverable',
-        title: _('gaia-grid-unrecoverable-error-title'),
-        body: _('gaia-grid-unrecoverable-error-body'),
-        confirm: {
-          title: _('gaia-grid-unrecoverable-error-action'),
-          cb: () =>  {
-            // XXX: this means whoever uses gaia-grid must have the
-            //      webapps-manage permission
-            navigator.mozApps.mgmt.uninstall(this.app);
-          }
-        }
-      });
-      dialog.show(document.body);
+      navigator.mozApps.mgmt.uninstall(this.app);
     },
 
     cancel: function() {

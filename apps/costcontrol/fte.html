@@ -3,10 +3,10 @@
 <head>
   <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1">
   <meta charset="utf-8">
+  <meta name="theme-color" content="#eeeeee">
   <title data-l10n-id="fte">Usage First Time Experience</title>
 
   <!-- Building blocks -->
-  <link rel="stylesheet" type="text/css" href="shared/style/headers.css">
   <link rel="stylesheet" type="text/css" href="shared/style/buttons.css">
   <link rel="stylesheet" type="text/css" href="shared/style/input_areas.css">
   <link rel="stylesheet" type="text/css" href="shared/style/switches.css">
@@ -16,6 +16,10 @@
   <link rel="stylesheet" type="text/css" href="style/views/settings.css">
   <link rel="stylesheet" type="text/css" href="style/views/firsttime.css">
   <link rel="stylesheet" type="text/css" href="style/views/datalimits.css">
+
+  <!-- Gaia Components -->
+  <link rel="stylesheet" type="text/css" href="/shared/elements/gaia-theme/style.css" />
+  <link rel="stylesheet" type="text/css" href="/shared/elements/gaia-icons/style.css" />
 
   <!-- Localization -->
   <link rel="resource" type="application/l10n" href="locales/locales.ini">
@@ -28,17 +32,19 @@
   <script type="text/javascript" src="shared/js/async_storage.js"></script>
   <script type="text/javascript" src="shared/js/settings_listener.js"></script>
   <script type="text/javascript" src="shared/js/lazy_loader.js"></script>
-  <script type="text/javascript" src="shared/js/font_size_utils.js"></script>
+  <script type="text/javascript" defer src="shared/js/performance_testing_helper.js"></script>
 
-  <!-- Components -->
+  <!-- Gaia Components -->
+  <script defer src="/shared/elements/config.js"></script>
   <script defer src="/shared/js/component_utils.js"></script>
+  <script defer src="/shared/elements/gaia-header/dist/script.js"></script>
   <script defer src="/shared/elements/gaia_buttons/script.js"></script>
 
   <!-- Specific code -->
   <script type="text/javascript" defer src="js/fte.js"></script>
 </head>
 
-<body role="application" class="skin-organic">
+<body role="application" class="theme-settings skin-organic">
 
   <!-- First time experience -->
   <section id="firsttime-view" class="view step-1">
@@ -50,9 +56,9 @@
 
    <!-- Global Step 1 -->
     <section role="region" class="view step" data-viewport="" id="step-1">
-      <header>
+      <gaia-header>
         <h1 data-l10n-id="fte-welcome-title">Welcome</h1>
-      </header>
+      </gaia-header>
       <section class="content">
         <div class="authed-sim" aria-hidden="true">
           <h2 data-l10n-id="fte-authed-sim">Save money by keeping track of your phone and internet usage.</h2>
@@ -72,9 +78,9 @@
 
     <!-- Step 2 -->
     <section role="region" class="view step" data-viewport="right" id="step-2">
-      <header>
+      <gaia-header>
         <h1 data-l10n-id="fte-plantype-title">Type of contract</h1>
-      </header>
+      </gaia-header>
       <ul class="content choices">
         <li>
           <label for="prepaid-plan" class="pack-radio">
@@ -90,17 +96,19 @@
         </li>
       </ul>
       <p class="step-hint" data-l10n-id="fte-plantype-hint">Select the type of contract you have with your mobile service provider.</p>
-      <gaia-buttons data-items="2">
-        <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
-        <button id="to-step-2" class="recommend icon icon-next" data-navigation="next" data-l10n-id="next">Next</button>
-      </gaia-buttons>
+      <bdo dir="ltr">
+        <gaia-buttons data-items="2">
+          <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
+          <button id="to-step-2" class="recommend icon icon-next" data-navigation="next" data-l10n-id="next">Next</button>
+        </gaia-buttons>
+      </bdo>
     </section>
 
     <!-- Prepaid step 2 -->
     <section role="region" class="view step" data-viewport="right" id="prepaid-step-2">
-      <header>
+      <gaia-header>
         <h1 data-l10n-id="fte-prepaid2-title">Low balance alert</h1>
-      </header>
+      </gaia-header>
       <section class="content">
         <ul class="settings">
           <li>
@@ -120,17 +128,19 @@
         </ul>
         <p class="step-hint" data-l10n-id="fte-prepaid2-hint">Set an alert to avoid running out of credit.</p>
       </section>
-      <gaia-buttons data-items="2">
-        <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
-        <button id="low-limit-next-button" class="recommend icon icon-next" data-navigation="next" data-l10n-id="next">Next</button>
-      </gaia-buttons>
+      <bdo dir="ltr">
+        <gaia-buttons data-items="2">
+          <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
+          <button id="low-limit-next-button" class="recommend icon icon-next" data-navigation="next" data-l10n-id="next">Next</button>
+        </gaia-buttons>
+      </bdo>
     </section>
 
     <!-- Prepaid step 3 -->
     <section role="region" class="view step" data-viewport="right" id="prepaid-step-3">
-      <header>
+      <gaia-header>
         <h1 data-l10n-id="fte-prepaid3-title">Data Report and Alert</h1>
-      </header>
+      </gaia-header>
       <section class="content">
         <ul class="settings">
           <li>
@@ -213,17 +223,19 @@
         </ul>
         <p class="step-hint" data-l10n-id="fte-prepaid3-hint">Receive reports about your Internet usage and set an alert to avoid using too much.</p>
       </section>
-      <gaia-buttons data-items="2">
-        <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
-        <button class="recommend" data-navigation="finish" span data-l10n-id="lets-go">Let’s go!</button>
-      </gaia-buttons>
+      <bdo dir="ltr">
+        <gaia-buttons data-items="2">
+          <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
+          <button class="recommend" data-navigation="finish" span data-l10n-id="lets-go">Let’s go!</button>
+        </gaia-buttons>
+      </bdo>
     </section>
 
     <!-- Postpaid step 2 -->
     <section role="region" class="view step" data-viewport="right" id="postpaid-step-2">
-      <header>
+      <gaia-header>
         <h1 data-l10n-id="fte-postpaid2-title">Phone and Data Report</h1>
-      </header>
+      </gaia-header>
        <ul class="content settings">
         <li>
           <p data-l10n-id="reset-report">Reset report</p>
@@ -291,17 +303,19 @@
         </li>
       </ul>
       <p class="step-hint" data-l10n-id="fte-postpaid2-hint">Receive reports about your phone and Internet usage.</p>
-      <gaia-buttons data-items="2">
-        <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
-        <button class="recommend icon icon-next" data-navigation="next" data-l10n-id="next">Next</button>
-      </gaia-buttons>
+      <bdo dir="ltr">
+        <gaia-buttons data-items="2">
+          <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
+          <button class="recommend icon icon-next" data-navigation="next" data-l10n-id="next">Next</button>
+        </gaia-buttons>
+      </bdo>
     </section>
 
     <!-- Postpaid step 3 -->
     <section role="region" class="view step" data-viewport="right" id="postpaid-step-3">
-      <header>
+      <gaia-header>
         <h1 data-l10n-id="fte-postpaid3-title">Data Alert</h1>
-      </header>
+      </gaia-header>
       <section class="content">
         <ul class="settings">
           <li>
@@ -320,17 +334,19 @@
         </ul>
         <p class="step-hint" data-l10n-id="fte-postpaid3-hint">Set an alert to avoid using too much data.</p>
       </section>
-      <gaia-buttons data-items="2">
-        <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
-        <button class="recommend" data-navigation="finish" data-l10n-id="lets-go">Let’s go!</button>
-      </gaia-buttons>
+      <bdo dir="ltr">
+        <gaia-buttons data-items="2">
+          <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
+          <button class="recommend" data-navigation="finish" data-l10n-id="lets-go">Let’s go!</button>
+        </gaia-buttons>
+      </bdo>
     </section>
 
     <!-- Non VIVO step 2 -->
     <section role="region" class="view step" data-viewport="right" id="non-vivo-step-1">
-      <header>
+      <gaia-header>
         <h1 data-l10n-id="fte-onlydata2-title">Data Report</h1>
-      </header>
+      </gaia-header>
       <ul class="content settings">
         <li>
           <p data-l10n-id="reset-report">Reset report</p>
@@ -398,17 +414,19 @@
         </li>
       </ul>
       <p class="step-hint" data-l10n-id="fte-onlydata2-hint">Set an alert to avoid using too much data.</p>
-      <gaia-buttons data-items="2">
-        <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
-        <button class="recommend icon icon-next" data-navigation="next" data-l10n-id="next">Next</button>
-      </gaia-buttons>
+      <bdo dir="ltr">
+        <gaia-buttons data-items="2">
+          <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
+          <button class="recommend icon icon-next" data-navigation="next" data-l10n-id="next">Next</button>
+        </gaia-buttons>
+      </bdo>
     </section>
 
     <!-- Non VIVO step 3 -->
     <section role="region" class="view step" data-viewport="right" id="non-vivo-step-2">
-      <header>
+      <gaia-header>
         <h1 data-l10n-id="fte-onlydata3-title">Data Alert</h1>
-      </header>
+      </gaia-header>
       <ul class="content settings">
         <li>
           <label class="pack-switch end">
@@ -425,22 +443,21 @@
         </li>
       </ul>
       <p class="step-hint" data-l10n-id="fte-onlydata3-hint">Set an alert to avoid using too much data.</p>
-      <gaia-buttons data-items="2">
-        <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
-        <button class="recommend" data-navigation="finish" data-l10n-id="lets-go">Let’s go!</button>
-      </gaia-buttons>
+      <bdo dir="ltr">
+        <gaia-buttons data-items="2">
+          <button data-navigation="back" class="icon icon-previous" data-l10n-id="back">Back</button>
+          <button class="recommend" data-navigation="finish" data-l10n-id="lets-go">Let’s go!</button>
+        </gaia-buttons>
+      </bdo>
     </section>
   </section>
 
   <!-- Data usage limits -->
   <section role="region" id="data-limit-dialog" class="view" data-viewport="bottom">
-    <header>
-      <menu type="toolbar">
-        <button id="data-usage-done-button" data-l10n-id="done" class="recommend">Done</button>
-      </menu>
-      <a class="cancel"><span id="data-usage-close-button" class="icon icon-close">close</span></a>
-      <h1 data-l10n-id="data-limit-header">Data usage limit</h1>
-    </header>
+    <gaia-header id="limit-dialog-header" action="close">
+      <h1 data-l10n-id="data-limit-header">Data Usage Limit</h1>
+      <button id="data-usage-done-button" data-l10n-id="done" class="recommend">Done</button>
+    </gaia-header>
     <section class="content">
       <div class="info">
         <h2 data-l10n-id="data-limit-dialog-title2">Enter a mobile data limit alert</h2>

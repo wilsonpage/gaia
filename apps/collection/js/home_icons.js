@@ -15,29 +15,33 @@
   var initPromise;
 
   function HomeIcons() {
+    this.ready = false;
     this.gridItemsByIdentifier = {};
     this.recordsByManifestUrl = {};
     this.recordsByBookmarkUrl = {};
   }
 
   HomeIcons.prototype = {
-    init: function init() {
-      initPromise = Promise.all([this.collectBookmarkURLs(),
-                                 this.collectManifestURLs()]);
-
-      this.init = function noop() {
-        return initPromise;
-      };
+    init: function init(force) {
+      // first init call or forcing new init
+      if (!initPromise || force) {
+        initPromise =
+          Promise.all([this.collectBookmarkURLs(), this.collectManifestURLs()])
+                 .then(() => this.ready = true);
+      }
 
       return initPromise;
     },
 
     collectBookmarkURLs: function collectBookmarkURLs() {
-     return BookmarksDatabase.getAll().then(function success(systemBookmarks) {
-       for (var id in systemBookmarks) {
-        this.processBookmark(systemBookmarks[id]);
-       }
-     }.bind(this));
+     return new Promise((resolve) => {
+        BookmarksDatabase.getAll().then((systemBookmarks) => {
+         for (var id in systemBookmarks) {
+          this.processBookmark(systemBookmarks[id]);
+         }
+         resolve();
+       });
+      });
     },
 
     collectManifestURLs: function collectManifestURLs() {
@@ -113,6 +117,6 @@
 
   };
 
-  exports.HomeIcons = HomeIcons;
+  exports.HomeIcons = new HomeIcons();
 
 }(window));

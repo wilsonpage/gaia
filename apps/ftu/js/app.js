@@ -1,5 +1,5 @@
 /* global DataMobile, Navigation, SimManager, TimeManager,
-          UIManager, WifiManager, ImportIntegration, Tutorial, Promise,
+          UIManager, WifiManager, ImportIntegration, Tutorial,
           VersionHelper */
 /* exported AppManager */
 'use strict';
@@ -31,19 +31,38 @@ function notifyCollection() {
 
 var AppManager = {
 
-  init: function init() {
+  init: function init(versionInfo) {
     this.isInitialized = true;
 
-    // Send message to populate preinstalled collections
+    UIManager.init();
+    Navigation.init();
+
+    // Send message to populate preinstalled collections.
+    // This needs to be done for both upgrade and non-upgrade flows.
     notifyCollection();
+
+    // if it's an upgrade we can jump to tutorial directly
+    if (versionInfo && versionInfo.isUpgrade()) {
+      var stepsKey = versionInfo.delta();
+      // Play the FTU Tuto steps directly on update
+      UIManager.splashScreen.classList.remove('show');
+      UIManager.activationScreen.classList.remove('show');
+      UIManager.updateScreen.classList.add('show');
+
+      // Load and play the what's new tutorial
+      Tutorial.init(stepsKey, function() {
+        Tutorial.start();
+      });
+      return;
+    }
 
     SimManager.init();
     WifiManager.init();
     ImportIntegration.init();
     TimeManager.init();
-    UIManager.init();
-    Navigation.init();
     DataMobile.init();
+    Tutorial.init();
+
     var kSplashTimeout = 700;
     // Retrieve mobile connection if available
     // this is used to keep all tests passing while introducing multi-sim APIs
@@ -76,34 +95,13 @@ var AppManager = {
 
 navigator.mozL10n.ready(function showBody() {
 
-  var versionInfo;
-  Promise.all([
-    VersionHelper.getVersionInfo().then(function(info) {
-      versionInfo = info;
-    }),
-    Tutorial.loadConfig()
-  ]).then(function() {
-
+  VersionHelper.getVersionInfo().then(function(versionInfo) {
     if (!AppManager.isInitialized) {
-      AppManager.init();
-    }
-
-    if (versionInfo.isUpgrade()) {
-      var stepsKey = versionInfo.delta();
-      // Play the FTU Tuto steps directly on update
-      UIManager.splashScreen.classList.remove('show');
-      UIManager.activationScreen.classList.remove('show');
-      UIManager.updateScreen.classList.add('show');
-
-      if (stepsKey && Tutorial.config[stepsKey]) {
-        Tutorial.init(stepsKey);
-      } else {
-        // play the whole tutorial if there is no specific upgrade steps
-        Tutorial.init();
-      }
+      AppManager.init(versionInfo);
     } else {
       UIManager.initTZ();
       UIManager.mainTitle.innerHTML = _('language');
     }
+
   });
 });

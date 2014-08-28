@@ -80,7 +80,12 @@ contacts.Details = (function() {
 
     utils.listeners.add({
       '#toggle-favorite': toggleFavorite,
-      '#details-back': handleDetailsBack,
+      '#details-view-header': [
+        {
+          event: 'action',
+          handler: handleDetailsBack
+        }
+      ],
       '#edit-contact-button': showEditContact
     });
   };
@@ -515,8 +520,7 @@ contacts.Details = (function() {
     LazyLoader.load(['/dialer/js/mmi.js'], function() {
       if (ActivityHandler.currentActivityIsNot(['open'])) {
         button.addEventListener('click', onPickNumber);
-      } else if ((navigator.mozMobileConnection ||
-          window.navigator.mozMobileConnections &&
+      } else if ((window.navigator.mozMobileConnections &&
           window.navigator.mozMobileConnections[0]) &&
           MmiManager.isMMI(number)) {
         button.addEventListener('click', onMMICode);

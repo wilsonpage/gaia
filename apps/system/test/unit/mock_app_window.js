@@ -14,13 +14,22 @@
       }
       this.config = config;
     }
-    this.instanceID = _id++;
+    this.instanceID = 'mock-app-' + _id++;
     this.groupID = this.instanceID;
     MockAppWindowHelper.mInstances.push(this);
     MockAppWindowHelper.mLatest = this;
   };
   MockAppWindow.prototype = {
     isHomescreen: false,
+    get browserContainer() {
+      if (!this._browserContainer) {
+        this._browserContainer = document.createElement('div');
+      }
+      return this._browserContainer;
+    },
+    set element(ele) {
+      this._element = ele;
+    },
     get element() {
       if (!this._element) {
         this._element = document.createElement('div');
@@ -67,15 +76,18 @@
     canGoBack: function() {},
     back: function() {},
     reload: function() {},
+    stop: function() {},
     isBrowser: function() {},
     isCertified: function() {},
     navigate: function() {},
     isFullScreen: function() {},
     _changeState: function() {},
     _setVisible: function() {},
+    _setVisibleForScreenReader: function() {},
     modifyURLatBackground: function() {},
     getFrameForScreenshot: function() { return this.browser.element; },
     getTopMostWindow: function() { return this; },
+    getBottomMostWindow: function() { return this; },
     determineClosingRotationDegree: function() { return 0; },
     isTransitioning: function() { return false; },
     calibratedHeight: function() { return false; },
@@ -96,7 +108,10 @@
     applyStyle: function() {},
     unapplyStyle: function() {},
     transform: function() {},
-    hideContextMenu: function() {}
+    hideContextMenu: function() {},
+    lockOrientation: function() {},
+    isVisible: function() {},
+    requestForeground: function() {}
   };
   MockAppWindow.mTeardown = function() {
     MockAppWindowHelper.mInstances = [];

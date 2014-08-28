@@ -17,7 +17,7 @@ var Wallpaper = {
       });
     }
 
-    this.cancelButton = document.getElementById('cancel');
+    this.header = document.getElementById('header');
     this.wallpapers = document.getElementById('wallpapers');
     this.generateWallpaperList();
   },
@@ -37,11 +37,14 @@ var Wallpaper = {
       self.wallpapers.innerHTML = '';
       xhr.response.forEach(function(wallpaper) {
         var fileName = 'resources/' + wallpaper;
-        var div = document.createElement('div');
-        div.classList.add('wallpaper');
-        div.dataset.filename = fileName;
-        div.style.backgroundImage = 'url(' + fileName + sampleSize + ')';
-        self.wallpapers.appendChild(div);
+        // Use image tag instead of backgroundImage because gecko handles
+        // memory for off-screen images better
+        var imgNode = document.createElement('img');
+        imgNode.alt = '';
+        imgNode.classList.add('wallpaper');
+        imgNode.dataset.filename = fileName;
+        imgNode.src = fileName + sampleSize;
+        self.wallpapers.appendChild(imgNode);
       });
       if (cb) {
         cb();
@@ -52,7 +55,7 @@ var Wallpaper = {
   startPick: function wallpaper_startPick(request) {
     this.pickActivity = request;
     this.wallpapers.addEventListener('click', this.pickWallpaper.bind(this));
-    this.cancelButton.addEventListener('click', this.cancelPick.bind(this));
+    this.header.addEventListener('action', this.cancelPick.bind(this));
   },
 
   pickWallpaper: function wallpaper_pickWallpaper(e) {
@@ -93,7 +96,7 @@ var Wallpaper = {
 
   endPick: function wallpaper_endPick() {
     this.pickActivity = null;
-    this.cancelButton.removeEventListener('click', this.cancelPick);
+    this.header.removeEventListener('action', this.cancelPick);
     this.wallpapers.removeEventListener('click', this.pickWallpaper);
   }
 };

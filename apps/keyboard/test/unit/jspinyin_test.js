@@ -177,12 +177,10 @@ suite('jspinyin', function() {
   });
 
   test('activate', function(done) {
-    this.sinon.spy(glue, 'alterKeyboard');
     this.sinon.stub(jspinyin, '_start', function() {
       done(function() {
         assert.equal(jspinyin._keypressQueue[0], KeyEvent.DOM_VK_RETURN);
         assert.isNull(jspinyin._uninitTimer);
-        assert.isTrue(glue.alterKeyboard.calledWith('zh-Hans-Pinyin'));
         jspinyin._resetKeypressQueue();
       });
     });
@@ -198,7 +196,6 @@ suite('jspinyin', function() {
   });
 
   test('activate twice', function() {
-    this.sinon.spy(glue, 'alterKeyboard');
     this.sinon.stub(jspinyin, '_start');
 
     mockIndexedDB({
@@ -209,7 +206,6 @@ suite('jspinyin', function() {
         }, 0);
 
         jspinyin.activate('zh-Hans', { type: 'textarea' }, {});
-        assert.isTrue(glue.alterKeyboard.calledWith('zh-Hans-Pinyin'));
       }
     });
   });
@@ -388,7 +384,9 @@ suite('jspinyin', function() {
     });
 
     jspinyin.click('z'.charCodeAt(0));
-    jspinyin.click('\''.charCodeAt(0));
+
+    // "A" means "'" for pinyin composition
+    jspinyin.click('A'.charCodeAt(0));
     jspinyin.click(KeyEvent.DOM_VK_BACK_SPACE);
     jspinyin.click(KeyEvent.DOM_VK_BACK_SPACE);
     jspinyin.click(KeyEvent.DOM_VK_BACK_SPACE);
@@ -396,21 +394,7 @@ suite('jspinyin', function() {
 
   test('switch to symbol layout', function() {
     this.sinon.spy(glue, 'alterKeyboard');
-    jspinyin.click(-21);
-    assert.isTrue(glue.alterKeyboard
-      .calledWith('zh-Hans-Pinyin-Symbol-Ch-1'));
 
-    glue.alterKeyboard.reset();
-    jspinyin.click(-22);
-    assert.isTrue(glue.alterKeyboard
-      .calledWith('zh-Hans-Pinyin-Symbol-Ch-2'));
-
-    glue.alterKeyboard.reset();
-    jspinyin.click(-30);
-    assert.isTrue(glue.alterKeyboard
-      .calledWith('zh-Hans-Pinyin-Symbol-En-2'));
-
-    glue.alterKeyboard.reset();
     jspinyin.click(-31);
     assert.isTrue(glue.alterKeyboard
       .calledWith('zh-Hans-Pinyin-Symbol-En-1'));
@@ -421,9 +405,6 @@ suite('jspinyin', function() {
       .calledWith('zh-Hans-Pinyin-Symbol-En-2'));
 
     glue.alterKeyboard.reset();
-    jspinyin.click(-20);
-    assert.isTrue(glue.alterKeyboard
-      .calledWith('zh-Hans-Pinyin-Symbol-Ch-2'));
   });
 
   test('click a symbol', function(done) {
@@ -433,28 +414,6 @@ suite('jspinyin', function() {
       });
     });
     jspinyin.click('\''.charCodeAt(0));
-  });
-
-  test('switch to pinyin layout', function() {
-    this.sinon.spy(glue, 'alterKeyboard');
-    jspinyin.click(-11);
-    assert.isTrue(glue.alterKeyboard.calledWith('zh-Hans-Pinyin'));
-  });
-
-  test('setLayoutPage', function(done) {
-    jspinyin.setLayoutPage('test');
-
-    var tempLayoutPage = jspinyin._layoutPage;
-
-    this.sinon.stub(glue, 'sendKey', function(keyCode) {
-      jspinyin.setLayoutPage(LAYOUT_PAGE_DEFAULT);
-      done(function() {
-        assert.equal(tempLayoutPage, 'test');
-        assert.equal(jspinyin._layoutPage, LAYOUT_PAGE_DEFAULT);
-      });
-    });
-
-    jspinyin.click(KeyEvent.DOM_VK_RETURN);
   });
 
   test('deactivate', function(done) {

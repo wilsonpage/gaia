@@ -7,15 +7,16 @@ if (typeof GestureDetector === 'undefined') {
   require('/shared/js/gesture_detector.js');
 }
 require('/shared/test/unit/mocks/mock_gesture_detector.js');
+require('/shared/test/unit/mocks/mock_l10n.js');
 
 requireApp('sms/test/unit/mock_contact.js');
-requireApp('sms/test/unit/mock_l10n.js');
 requireApp('sms/test/unit/mock_navigatormoz_sms.js');
 requireApp('sms/test/unit/mock_message_manager.js');
 requireApp('sms/test/unit/mock_moz_activity.js');
 requireApp('sms/test/unit/mock_information.js');
 requireApp('sms/test/unit/mock_activity_handler.js');
 require('/test/unit/mock_navigation.js');
+require('/js/event_dispatcher.js');
 requireApp('sms/js/utils.js');
 requireApp('sms/js/settings.js');
 requireApp('sms/js/attachment_menu.js');
@@ -23,7 +24,6 @@ requireApp('sms/js/compose.js');
 requireApp('sms/js/contacts.js');
 requireApp('sms/js/recipients.js');
 requireApp('sms/js/threads.js');
-requireApp('sms/js/message_manager.js');
 requireApp('sms/js/thread_list_ui.js');
 requireApp('sms/js/thread_ui.js');
 requireApp('sms/js/attachment.js');

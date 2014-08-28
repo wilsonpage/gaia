@@ -56,7 +56,6 @@ Calendar.ns('Views').MonthsDay = (function() {
 
     _initEvents: function() {
       this.controller.on('selectedDayChange', this);
-      this.app.store('Calendar').on('calendarVisibilityChange', this);
       this.delegate(this.events, 'click', '[data-id]', function(e, target) {
         Calendar.App.router.show('/event/show/' + target.dataset.id + '/');
       });
@@ -99,11 +98,6 @@ Calendar.ns('Views').MonthsDay = (function() {
       Parent.prototype.handleEvent.apply(this, arguments);
 
       switch (e.type) {
-        case 'calendarVisibilityChange':
-          // we need to re-render the view when calendar visibility changes to
-          // keep event list in sync
-          this.changeDate(this.date, true);
-          break;
         case 'selectedDayChange':
           this.changeDate(e.data[0], true);
           break;
@@ -132,10 +126,16 @@ Calendar.ns('Views').MonthsDay = (function() {
       this._initEvents();
       var date = Calendar.Calc.createDay(new Date());
       this.changeDate(date);
+    },
+
+    onfirstseen: function() {
+      // this avoids a race condition where events from hidden calendars would
+      // show up on first load
+      this.app.store('Calendar').all(() => {
+        this.render();
+      });
     }
   };
-
-  MonthsDay.prototype.onfirstseen = MonthsDay.prototype.render;
 
   return MonthsDay;
 }());

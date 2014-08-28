@@ -1,25 +1,28 @@
 var fs = require('fs'),
     util = require('util'),
-    assert = require('assert');
+    assert = require('assert'),
+    perfUtils = require('./perf-utils');
 
 /* This is a helper to for perftesting apps. */
 function PerfTestApp(client, origin) {
-  if (excludedApps.indexOf(origin) !== -1) {
+  if (perfUtils.isBlacklisted(config.blacklists.global, origin)) {
     this.client = null;
     this.origin = null;
     this.skip = true;
-    if (process.env.VERBOSE) {
-      console.log("'" + origin +
-                  "' is an excluded app, skipping tests.");
+    if (config.verbose) {
+      console.log('"%s" is a blacklisted app, skipping tests.', origin);
     }
     return;
   }
-  var arr = mozTestInfo.appPath.split('/');
-  manifestPath = arr[0];
-  entryPoint = arr[1];
 
-  origin = util.format('app://%s.gaiamobile.org',
-                       manifestPath);
+  var arr = config.appPath.split('/');
+  var manifestPath = arr[0];
+  var entryPoint = arr[1];
+  var origin = util.format('app://%s',
+    manifestPath.indexOf('.') !== -1 ?
+    manifestPath :
+    manifestPath + '.gaiamobile.org');
+
   this.entryPoint = entryPoint;
   this.client = client;
   this.origin = origin;

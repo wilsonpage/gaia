@@ -289,8 +289,6 @@ suite('Build Integration tests', function() {
 
       // expected values for prefs and user_prefs
       var expectedUserPrefs = {
-        'browser.manifestURL': 'app://system.gaiamobile.org/manifest.webapp',
-        'browser.homescreenURL': 'app://system.gaiamobile.org/index.html',
         'network.http.max-connections-per-server': 15,
         'dom.mozInputMethod.enabled': true,
         'ril.debugging.enabled': false,
@@ -573,15 +571,13 @@ suite('Build Integration tests', function() {
     helper.exec('DEBUG=1 make', function(error, stdout, stderr) {
       helper.checkError(error, stdout, stderr);
 
-      var installedExtsPath = path.join('profile-debug',
-        'installed-extensions.json');
+      var installedExtsPath = path.join('build_stage', 'additional-extensions',
+        'downloaded.json');
       var expectedSettings = {
         'homescreen.manifestURL': 'app://verticalhome.gaiamobile.org/manifest.webapp',
         'rocketbar.searchAppURL': 'app://search.gaiamobile.org/index.html'
       };
       var expectedUserPrefs = {
-        'browser.manifestURL': 'app://system.gaiamobile.org/manifest.webapp',
-        'browser.homescreenURL': 'app://system.gaiamobile.org/index.html',
         'browser.startup.homepage': 'app://system.gaiamobile.org/index.html',
         'startup.homepage_welcome_url': '',
         'browser.shell.checkDefaultBrowser': false,
@@ -671,7 +667,8 @@ suite('Build Integration tests', function() {
           helper.checkSettings(settings, expectedSettings);
           helper.checkPrefs(sandbox.userPrefs, expectedUserPrefs);
           // only expect one zip file for marketplace.
-          assert.equal(zipCount, 1);
+          assert.equal(zipCount, 2, 'we should have two zip files in ' +
+            'profile-debug directory');
 
           fs.unlinkSync(extConfigPath);
           fs.renameSync(extConfigPath + '.bak', extConfigPath);
@@ -698,55 +695,11 @@ suite('Build Integration tests', function() {
     });
   });
 
-  test('make with HAIDA=1', function(done) {
-    helper.exec('HAIDA=1 make', function(error, stdout, stderr) {
+  test('make with GAIA_OPTIMIZE=1 BUILD_DEBUG=1',
+    function(done) {
+    helper.exec('GAIA_OPTIMIZE=1 BUILD_DEBUG=1 make',
+      function(error, stdout, stderr) {
         helper.checkError(error, stdout, stderr);
-
-        var hsBroZip = new AdmZip(path.join(process.cwd(), 'profile',
-          'webapps', 'browser.gaiamobile.org', 'application.zip'));
-        var hsSysZip = new AdmZip(path.join(process.cwd(), 'profile',
-          'webapps', 'system.gaiamobile.org', 'application.zip'));
-
-        var hsInit =
-          JSON.parse(hsBroZip.readAsText(hsBroZip.getEntry('js/init.json')));
-        var hsBroManifest =
-          JSON.parse(hsBroZip.readAsText(hsBroZip.getEntry('manifest.webapp')));
-        var defaultJSONPath =
-          path.join(process.cwd(), 'apps', 'browser', 'build', 'default.json');
-        var hsIcc =
-          JSON.parse(hsSysZip.readAsText(
-            hsSysZip.getEntry('resources/icc.json')));
-        var hsWapuaprof =
-          JSON.parse(hsSysZip.readAsText(hsSysZip.getEntry(
-            'resources/wapuaprof.json')));
-        var hsSysManifest =
-          JSON.parse(hsSysZip.readAsText(hsSysZip.getEntry('manifest.webapp')));
-
-        var expectedInitJson = JSON.parse(fs.readFileSync(defaultJSONPath));
-        var expectedIcc = {
-          'defaultURL': 'http://www.mozilla.org/en-US/firefoxos/'
-        };
-        var expectedWap = {};
-        var expectedManifest = {
-          activities: {
-            view: {
-              filters: {
-                type: 'url',
-                url: {
-                  required: true,
-                  pattern: 'https?:.{1,16384}',
-                  patternFlags: 'i'
-                }
-              }
-            }
-          }
-        };
-        helper.checkSettings(hsInit, expectedInitJson);
-        assert.equal(hsBroManifest.role, 'system');
-        assert.equal(hsBroManifest.activities, null);
-        helper.checkSettings(hsIcc, expectedIcc);
-        helper.checkSettings(hsWapuaprof, expectedWap);
-        helper.checkSettings(hsSysManifest, expectedManifest);
         done();
       }
     );
@@ -760,6 +713,30 @@ suite('Build Integration tests', function() {
         done();
       }
     );
+  });
+
+  test('make app with custom origin', function(done) {
+    // add custom-origin app to apps list
+    var appsListPath  = path.join('build', 'config', 'phone',
+      'apps-engineering.list');
+    fs.renameSync(appsListPath, appsListPath + '.bak');
+    fs.writeFileSync(appsListPath, 'apps/*\ndev_apps/custom-origin\n');
+
+    helper.exec('DEBUG=1 make', function(error, stdout, stderr) {
+      fs.unlinkSync(appsListPath);
+      fs.renameSync(appsListPath + '.bak', appsListPath);
+
+      helper.checkError(error, stdout, stderr);
+
+      var webappsPath = path.join(process.cwd(), 'profile-debug',
+        'webapps', 'webapps.json');
+      var webapps = JSON.parse(fs.readFileSync(webappsPath));
+
+      assert.isNotNull(webapps['test.mozilla.com']);
+      assert.equal(webapps['test.mozilla.com'].origin, 'app://test.mozilla.com');
+
+      done();
+    });
   });
 
   suite('Build file inclusion tests', function() {
@@ -781,7 +758,7 @@ suite('Build Integration tests', function() {
       helper.exec('GAIA_CONCAT_LOCALES=0 make', function(error, stdout, stderr) {
         helper.checkError(error, stdout, stderr);
         var zipPath = path.join(process.cwd(), 'profile', 'webapps',
-          'settings.gaiamobile.org', 'application.zip');
+          'system.gaiamobile.org', 'application.zip');
         var zip = new AdmZip(zipPath);
         var qpsPlocPathInZip = 'locales-obj/qps-ploc.json';
         assert.isNull(zip.getEntry(qpsPlocPathInZip),
@@ -798,21 +775,12 @@ suite('Build Integration tests', function() {
         var zipPath = path.join(process.cwd(), 'profile', 'webapps',
           'system.gaiamobile.org', 'application.zip');
         var zip = new AdmZip(zipPath);
-        var enUSFileInZip = zip.getEntry('locales-obj/en-US.json');
         var qpsPlocPathInZip = 'locales-obj/qps-ploc.json';
+        assert.isNull(zip.getEntry(qpsPlocPathInZip),
+          'accented English file ' + qpsPlocPathInZip + ' should not exist');
         var qpsPlocmPathInZip = 'locales-obj/qps-plocm.json';
-        var qpsPlocFileInZip = zip.getEntry(qpsPlocPathInZip);
-        var qpsPlocmFileInZip = zip.getEntry(qpsPlocmPathInZip);
-        assert.isNotNull(qpsPlocFileInZip,
-          'accented English file ' + qpsPlocPathInZip + ' should exist');
-        assert.notDeepEqual(JSON.parse(zip.readAsText(qpsPlocFileInZip)),
-                            JSON.parse(zip.readAsText(enUSFileInZip)),
-          'accented English file should not be identical to regular English');
-        assert.isNotNull(qpsPlocmFileInZip,
-          'mirrored English file ' + qpsPlocmPathInZip + ' should exist');
-        assert.notDeepEqual(JSON.parse(zip.readAsText(qpsPlocmFileInZip)),
-                            JSON.parse(zip.readAsText(enUSFileInZip)),
-          'mirrored English file should not be identical to regular English');
+        assert.isNull(zip.getEntry(qpsPlocmPathInZip),
+          'mirrored English file ' + qpsPlocmPathInZip + ' should not exist');
         done();
       });
     });

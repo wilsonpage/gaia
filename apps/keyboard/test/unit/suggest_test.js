@@ -176,7 +176,7 @@ suite('Latin suggestions', function() {
     });
   });
 
-  test('dismissSuggestions hides suggestions and inserts space', function() {
+  test('dismissSuggestions hides suggestions', function() {
     im.dismissSuggestions();
 
     // Send candidates should be called once with an empty array
@@ -184,9 +184,38 @@ suite('Latin suggestions', function() {
     sinon.assert.callCount(imSettings.sendCandidates, 1);
     sinon.assert.calledWith(imSettings.sendCandidates, []);
 
-    // Also, a space should be inserted
-    sinon.assert.callCount(imSettings.sendKey, 1);
-    sinon.assert.calledWith(imSettings.sendKey, 32);
+    // Also, a space should not be inserted
+    sinon.assert.callCount(imSettings.sendKey, 0);
+  });
+
+  suite('Uppercase suggestions', function() {
+    test('All uppercase input yields uppercase suggestions', function() {
+      testPrediction('HOLO', 'HOLO', [
+          ['yolo', 10],
+          ['Yelp', 5],
+          ['whuuu', 4]
+        ]);
+
+      sinon.assert.callCount(imSettings.sendCandidates, 1);
+      // Verify that we show 3 suggestions that do not include the input
+      // and that we do not mark the first as an autocorrection.
+      sinon.assert.calledWith(imSettings.sendCandidates,
+                              ['*YOLO', 'YELP', 'WHUUU']);
+    });
+
+    test('One char uppercase not yields uppercase suggestions', function() {
+      testPrediction('F', 'F', [
+          ['yolo', 10],
+          ['Yelp', 5],
+          ['whuuu', 4]
+        ]);
+
+      sinon.assert.callCount(imSettings.sendCandidates, 1);
+      // Verify that we show 3 suggestions that do not include the input
+      // and that we do not mark the first as an autocorrection.
+      sinon.assert.calledWith(imSettings.sendCandidates,
+                              ['yolo', 'Yelp', 'whuuu']);
+    });
   });
 
   suite('handleSuggestions', function() {

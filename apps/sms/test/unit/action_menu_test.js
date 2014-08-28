@@ -2,8 +2,9 @@
 
 'use strict';
 
+require('/shared/test/unit/mocks/mock_l10n.js');
+
 requireApp('sms/js/action_menu.js');
-requireApp('sms/test/unit/mock_l10n.js');
 
 suite('OptionMenu', function() {
   var options, menu, formHeader, formSection, realL10n;
@@ -37,8 +38,7 @@ suite('OptionMenu', function() {
   });
 
   setup(function() {
-    this.sinon.spy(navigator.mozL10n, 'localize');
-    this.sinon.spy(navigator.mozL10n, 'translate');
+    this.sinon.spy(navigator.mozL10n, 'setAttributes');
 
     menu = new OptionMenu(options);
 
@@ -71,9 +71,6 @@ suite('OptionMenu', function() {
         assert.equal(
           menu.form, document.body.lastElementChild
         );
-      });
-      test('calls navigator.mozL10n.translate', function() {
-        sinon.assert.calledWith(navigator.mozL10n.translate, menu.form);
       });
       test('Focus form to dismiss keyboard', function() {
         sinon.assert.called(menu.form.focus);
@@ -157,7 +154,7 @@ suite('OptionMenu', function() {
       assert.equal(buttons[0].textContent, options.items[0].name);
     });
     test('Localized button', function() {
-      sinon.assert.calledWith(navigator.mozL10n.localize, buttons[1],
+      sinon.assert.calledWith(navigator.mozL10n.setAttributes, buttons[1],
         options.items[1].l10nId, options.items[1].l10nArgs);
     });
     test('classes', function() {

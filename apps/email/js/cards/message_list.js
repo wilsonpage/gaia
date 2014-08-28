@@ -1,5 +1,5 @@
 /*jshint browser: true */
-/*global define, console */
+/*global define, console, FontSizeUtils, requestAnimationFrame */
 'use strict';
 
 define(function(require) {
@@ -11,14 +11,14 @@ var templateNode = require('tmpl!./message_list.html'),
     common = require('mail_common'),
     date = require('date'),
     evt = require('evt'),
+    Toaster = require('toaster'),
     model = require('model'),
     headerCursor = require('header_cursor').cursor,
     htmlCache = require('html_cache'),
-    MessageListTopbar = require('message_list_topbar'),
     mozL10n = require('l10n!'),
     VScroll = require('vscroll'),
+    MessageListTopBar = require('message_list_topbar'),
     Cards = common.Cards,
-    Toaster = common.Toaster,
     ConfirmDialog = common.ConfirmDialog,
     batchAddClass = common.batchAddClass,
     bindContainerHandler = common.bindContainerHandler,
@@ -53,6 +53,7 @@ var defaultVScrollData = {
              '\u2583\u2583\u2583\u2583\u2583\u2583\u2583\u2583',
   'isRead': true,
   'isStarred': false,
+  'sendStatus': {},
   'subject': '\u2583\u2583\u2583\u2583\u2583\u2583\u2583\u2583' +
              '\u2583\u2583\u2583\u2583\u2583\u2583\u2583\u2583' +
              '\u2583\u2583\u2583\u2583\u2583\u2583\u2583\u2583'
@@ -63,7 +64,7 @@ var defaultVScrollData = {
 // slice to do more work.
 var defaultSearchVScrollData = {
   header: defaultVScrollData,
-  matches: [],
+  matches: []
 };
 
 /**
@@ -140,7 +141,17 @@ function MessageListCard(domNode, mode, args) {
     batchAddClass(domNode, 'msg-search-only', 'collapsed');
   } else {
     batchAddClass(domNode, 'msg-nonsearch-only', 'collapsed');
+    // Favor the use of the card background color for the status bar instead of
+    // the default color.
+    this.domNode.dataset.statuscolor = 'background';
   }
+
+  this.folderLabel =
+    domNode.getElementsByClassName('msg-list-header-folder-label')[0];
+  this.folderNameNode =
+    domNode.getElementsByClassName('msg-list-header-folder-name')[0];
+  this.folderUnread =
+    domNode.getElementsByClassName('msg-list-header-folder-unread')[0];
 
   this.messagesContainer =
     domNode.getElementsByClassName('msg-messages-container')[0];
@@ -191,12 +202,19 @@ function MessageListCard(domNode, mode, args) {
     .addEventListener('click', this.setEditMode.bind(this, false), false);
 
   // - toolbar: edit mode
-  domNode.getElementsByClassName('msg-star-btn')[0]
+  this.toolbar.starBtn = this.domNode.getElementsByClassName('msg-star-btn')[0],
+  this.toolbar.starBtn
     .addEventListener('click', this.onStarMessages.bind(this, true), false);
-  domNode.getElementsByClassName('msg-mark-read-btn')[0]
+
+  this.toolbar.readBtn =
+    this.domNode.getElementsByClassName('msg-mark-read-btn')[0];
+  this.toolbar.readBtn
     .addEventListener('click', this.onMarkMessagesRead.bind(this, true), false);
-  domNode.getElementsByClassName('msg-delete-btn')[0]
+
+  this.toolbar.deleteBtn = domNode.getElementsByClassName('msg-delete-btn')[0];
+  this.toolbar.deleteBtn
     .addEventListener('click', this.onDeleteMessages.bind(this, true), false);
+
   this.toolbar.moveBtn = domNode.getElementsByClassName('msg-move-btn')[0];
   this.toolbar.moveBtn
     .addEventListener('click', this.onMoveMessages.bind(this, true), false);
@@ -231,7 +249,6 @@ function MessageListCard(domNode, mode, args) {
   this._emittedContentEvents = false;
 
   this.usingCachedNode = !!args.cachedNode;
-
 
   // Set up the list data source for VScroll
   var listFunc = (function(index) {
@@ -315,6 +332,11 @@ function MessageListCard(domNode, mode, args) {
     }
   }.bind(this));
 
+  this._topBar = new MessageListTopBar(
+    domNode.querySelector('.message-list-topbar')
+  );
+  this._topBar.bindToElements(this.scrollContainer, this.vScroll);
+
   // Binding "this" to some functions as they are used for
   // event listeners.
   this._folderChanged = this._folderChanged.bind(this);
@@ -330,6 +352,7 @@ function MessageListCard(domNode, mode, args) {
 
   model.latest('folder', this._folderChanged);
   model.on('newInboxMessages', this.onNewMail);
+  model.on('backgroundSendStatus', this.onBackgroundSendStatus.bind(this));
 
   model.on('foldersSliceOnChange', this.onFoldersSliceChange);
 
@@ -361,6 +384,7 @@ function MessageListCard(domNode, mode, args) {
     }
   }
 }
+
 MessageListCard.prototype = {
   /**
    * How many milliseconds since our last progress update event before we put
@@ -376,7 +400,7 @@ MessageListCard.prototype = {
    * @type {MessageListTopbar}
    * @private
    */
-  _topbar: null,
+  _topBar: null,
 
   /**
    * Cache the distance between messages since rows are effectively fixed
@@ -385,6 +409,8 @@ MessageListCard.prototype = {
   _distanceBetweenMessages: 0,
 
   sliceEvents: ['splice', 'change', 'status', 'complete'],
+
+  toolbarEditButtonNames:['starBtn', 'readBtn', 'deleteBtn', 'moveBtn'],
 
   /**
    * Inform Cards to not emit startup content events, this card will trigger
@@ -402,6 +428,9 @@ MessageListCard.prototype = {
     // vScroll about it, but only do this once the DOM is displayed
     // so the ClientRect gives an actual height.
     this.vScroll.visibleOffset = this.searchBar.getBoundingClientRect().height;
+
+    // Also tell the MessageListTopBar
+    this._topBar.visibleOffset = this.vScroll.visibleOffset;
 
     // For search we want to make sure that we capture the screen size prior to
     // focusing the input since the FxOS keyboard will resize our window to be
@@ -433,6 +462,28 @@ MessageListCard.prototype = {
       return;
     }
 
+    if (this.curFolder.type === 'outbox') {
+      // You cannot edit the outbox messages if the outbox is syncing.
+      if (editMode && this.outboxSyncInProgress) {
+        return;
+      }
+
+      // Outbox Sync and Edit Mode are mutually exclusive. Disable
+      // outbox syncing before allowing us to enter edit mode, and
+      // vice versa. The callback shouldn't take long, but we wait to
+      // trigger edit mode until outbox sync has been fully disabled,
+      // to prevent ugly theoretical race conditions.
+      model.api.setOutboxSyncEnabled(model.account, !editMode, function() {
+        this._setEditMode(editMode);
+      }.bind(this));
+    } else {
+      this._setEditMode(editMode);
+    }
+  },
+
+  // This function is called from setEditMode() after ensuring that
+  // the backend is in a state where we can safely use edit mode.
+  _setEditMode: function(editMode) {
     var i,
         domNode = this.domNode;
 
@@ -498,12 +549,10 @@ MessageListCard.prototype = {
   selectedMessagesUpdated: function() {
     var headerNode =
       this.domNode.getElementsByClassName('msg-listedit-header-label')[0];
-    headerNode.textContent =
-      mozL10n.get('message-multiedit-header',
-                  { n: this.selectedMessages.length });
+    mozL10n.setAttributes(headerNode, 'message-multiedit-header',
+                          { n: this.selectedMessages.length });
 
-    var starBtn = this.domNode.getElementsByClassName('msg-star-btn')[0],
-        readBtn = this.domNode.getElementsByClassName('msg-mark-read-btn')[0];
+    var hasMessages = !!this.selectedMessages.length;
 
     // Enabling/disabling rules (not UX-signed-off):  Our bias is that people
     // want to star messages and mark messages unread (since it they naturally
@@ -524,19 +573,17 @@ MessageListCard.prototype = {
     this.setAsStarred = !(numStarred && numStarred ===
                           this.selectedMessages.length);
     // Mark read if everything is unread, otherwise unread
-    this.setAsRead = (this.selectedMessages.length && numRead === 0);
+    this.setAsRead = (hasMessages && numRead === 0);
 
-    if (!this.setAsStarred) {
-      starBtn.classList.add('msg-btn-active');
-    } else {
-      starBtn.classList.remove('msg-btn-active');
-    }
+    var toolbar = this.toolbar;
 
-    if (this.setAsRead) {
-      readBtn.classList.add('msg-btn-active');
-    } else {
-      readBtn.classList.remove('msg-btn-active');
-    }
+    // Update mark read/unread button to show what action will be taken.
+    toolbar.readBtn.classList.toggle('unread', numRead > 0);
+
+    // Update disabled state based on if there are selected messages
+    this.toolbarEditButtonNames.forEach(function(key) {
+      toolbar[key].disabled = !hasMessages;
+    });
   },
 
   _hideSearchBoxByScrolling: function() {
@@ -603,11 +650,34 @@ MessageListCard.prototype = {
     this.sizeLastSync();
   },
 
+  updateUnread: function(num) {
+    var content = '';
+    if (num > 0) {
+      content = num > 999 ? mozL10n.get('messages-folder-unread-max') : num;
+    }
+
+    this.folderUnread.textContent = content;
+    this.folderUnread.classList.toggle('collapsed', !content);
+    this.callHeaderFontSize();
+  },
+
   onFoldersSliceChange: function(folder) {
-    // Just care about updating the last sync time
     if (folder === this.curFolder) {
+      this.updateUnread(folder.unread);
       this.updateLastSynced(folder.lastSyncedAt);
     }
+  },
+
+  /**
+   * A workaround for shared/js/font_size_utils not recognizing child node
+   * content changing, and if it did, it would be noisy/extra work if done
+   * generically. Using a rAF call to not slow down the rest of card updates,
+   * it is something that can happen lazily on another turn.
+   */
+  callHeaderFontSize: function(node) {
+    requestAnimationFrame(function() {
+      FontSizeUtils._reformatHeaderText(this.folderLabel);
+    }.bind(this));
   },
 
   /**
@@ -632,6 +702,7 @@ MessageListCard.prototype = {
     switch (folder.type) {
       case 'drafts':
       case 'localdrafts':
+      case 'outbox':
       case 'sent':
         this.isIncomingFolder = false;
         break;
@@ -640,20 +711,23 @@ MessageListCard.prototype = {
         break;
     }
 
-    this.domNode.getElementsByClassName('msg-list-header-folder-label')[0]
-      .textContent = folder.name;
-
+    this.folderNameNode.textContent = folder.name;
+    this.updateUnread(folder.unread);
     this.hideEmptyLayout();
 
-    // you can't refresh the localdrafts folder or move messages out of it.
-    if (folder.type === 'localdrafts') {
-      this.toolbar.refreshBtn.classList.add('collapsed');
-      this.toolbar.moveBtn.classList.add('collapsed');
-    }
-    else {
-      this.toolbar.refreshBtn.classList.remove('collapsed');
-      this.toolbar.moveBtn.classList.remove('collapsed');
-    }
+
+    // You can't refresh messages in the localdrafts folder.
+    this.toolbar.refreshBtn.classList.toggle('collapsed',
+                                             folder.type === 'localdrafts');
+    // You can't move messages in localdrafts or the outbox.
+    this.toolbar.moveBtn.classList.toggle('collapsed',
+                                          folder.type === 'localdrafts' ||
+                                          folder.type === 'outbox');
+    // You can't flag or change the read status of messages in the outbox.
+    this.toolbar.starBtn.classList.toggle('collapsed',
+                                          folder.type === 'outbox');
+    this.toolbar.readBtn.classList.toggle('collapsed',
+                                          folder.type === 'outbox');
 
     this.updateLastSynced(folder.lastSyncedAt);
 
@@ -662,6 +736,8 @@ MessageListCard.prototype = {
       this._snippetRequestPending = false;
       headerCursor.freshMessagesSlice();
     }
+
+    this.onFolderShown();
 
     return true;
   },
@@ -729,6 +805,15 @@ MessageListCard.prototype = {
       return;
     }
 
+    // The outbox's refresh button is used for sending messages, so we
+    // ignore any syncing events generated by the slice. The outbox
+    // doesn't need to show many of these indicators (like the "Load
+    // More Messages..." node, etc.) and it has its own special
+    // "refreshing" display, as documented elsewhere in this file.
+    if (this.curFolder.type === 'outbox') {
+      return;
+    }
+
     if (newStatus === 'synchronizing' ||
        newStatus === 'syncblocked') {
         this.syncingNode.classList.remove('collapsed');
@@ -743,11 +828,18 @@ MessageListCard.prototype = {
         // provide a means to attempt to talk to the server again.  We have made
         // onRefresh pretty clever, so it can do all the legwork on
         // accomplishing this goal.
-        Toaster.logRetryable(newStatus, this.onRefresh.bind(this));
+        Toaster.toast({
+          text: mozL10n.get('toaster-retryable-syncfailed')
+        });
       }
       this.toolbar.refreshBtn.dataset.state = 'synchronized';
       this.syncingNode.classList.add('collapsed');
+      this._manuallyTriggeredSync = false;
     }
+  },
+
+  isEmpty: function() {
+    return headerCursor.messagesSlice.items.length === 0;
   },
 
   /**
@@ -760,11 +852,19 @@ MessageListCard.prototype = {
 
     this._clearCachedMessages();
 
-    text.textContent = this.mode == 'search' ?
-      mozL10n.get('messages-search-empty') :
-      mozL10n.get('messages-folder-empty');
+    mozL10n.setAttributes(
+      text,
+      (this.mode === 'search') ? 'messages-search-empty' :
+                                 'messages-folder-empty');
     this.messageEmptyContainer.classList.remove('collapsed');
+
     this.toolbar.editBtn.disabled = true;
+
+    // The outbox can't refresh anything if there are no messages.
+    if (this.curFolder.type === 'outbox') {
+      this.toolbar.refreshBtn.disabled = true;
+    }
+
     this._hideSearchBoxByScrolling();
   },
   /**
@@ -774,6 +874,7 @@ MessageListCard.prototype = {
   hideEmptyLayout: function() {
     this.messageEmptyContainer.classList.add('collapsed');
     this.toolbar.editBtn.disabled = false;
+    this.toolbar.refreshBtn.disabled = false;
   },
 
 
@@ -861,20 +962,35 @@ MessageListCard.prototype = {
         return;
       }
 
-      // Decorate or update the little notification bar that tells the user
-      // how many new emails they've received after a sync.
-      if (this._topbar && this._topbar.getElement() !== null) {
-        // Update the existing status bar.
-        this._topbar.updateNewEmailCount(newEmailCount);
+      // If the user manually synced, then want to jump to show the new
+      // messages. Otherwise, show the top bar.
+      if (this._manuallyTriggeredSync) {
+        this.vScroll.jumpToIndex(0);
       } else {
-        this._topbar = new MessageListTopbar(
-            this.scrollContainer, newEmailCount);
-
-        var el =
-            document.getElementsByClassName(MessageListTopbar.CLASS_NAME)[0];
-        this._topbar.decorate(el);
-        this._topbar.render();
+        // Update the existing status bar.
+        this._topBar.showNewEmailCount(newEmailCount);
       }
+    }
+  },
+
+  // When an email is being sent from the app (and not from an outbox
+  // refresh), we'll receive notification here. Play a sound and
+  // raise a toast, if appropriate.
+  onBackgroundSendStatus: function(data) {
+    if (this.curFolder.type === 'outbox') {
+      if (data.state === 'sending') {
+        // If the message is now sending, make sure we're showing the
+        // outbox as "currently being synchronized".
+        this.toggleOutboxSyncingDisplay(true);
+      } else if (data.state === 'syncDone') {
+        this.toggleOutboxSyncingDisplay(false);
+      }
+    }
+
+    if (data.emitNotifications) {
+      Toaster.toast({
+        text: data.localizedDescription
+      });
     }
   },
 
@@ -1006,10 +1122,9 @@ MessageListCard.prototype = {
     }
 
     // Hide "new mail" topbar too
-    removableCacheNode = cacheNode
-                           .querySelector('.' + MessageListTopbar.CLASS_NAME);
+    removableCacheNode = cacheNode.querySelector('.message-list-topbar');
     if (removableCacheNode) {
-      removableCacheNode.classList.add('collapsed');
+      this._topBar.resetNodeForCache(removableCacheNode);
     }
 
     // Hide the last sync number
@@ -1188,8 +1303,6 @@ MessageListCard.prototype = {
     }
   },
 
-  // The funny name because it is auto-bound as a listener for
-  // messagesSlice events in headerCursor using a naming convention.
   onMessagesChange: function(message, index) {
     this.updateMessageDom(false, message);
 
@@ -1220,7 +1333,7 @@ MessageListCard.prototype = {
 
     // If the placeholder data, indicate that in case VScroll
     // wants to go back and fix later.
-    var classAction = message.isPlaceholderData ? 'add': 'remove';
+    var classAction = message.isPlaceholderData ? 'add' : 'remove';
     msgNode.classList[classAction](this.vScroll.itemDefaultDataClass);
 
     // ID is stored as a data- attribute so that it can survive
@@ -1282,9 +1395,23 @@ MessageListCard.prototype = {
 
     // star
     var starNode = msgNode.getElementsByClassName('msg-header-star')[0];
+
     starNode.classList.toggle('msg-header-star-starred', message.isStarred);
     // subject needs to give space for star if it is visible
     subjectNode.classList.toggle('icon-short', message.isStarred);
+
+    // sync status
+    var syncNode =
+          msgNode.getElementsByClassName('msg-header-syncing-section')[0];
+
+    // sendState is only intended for outbox messages, so not all
+    // messages will have sendStatus defined.
+    var sendState = message.sendStatus && message.sendStatus.state;
+
+    syncNode.classList.toggle('msg-header-syncing-section-syncing',
+                              sendState === 'sending');
+    syncNode.classList.toggle('msg-header-syncing-section-error',
+                              sendState === 'error');
 
     // edit mode select state
     if (this.editMode) {
@@ -1304,7 +1431,7 @@ MessageListCard.prototype = {
 
     // If the placeholder data, indicate that in case VScroll
     // wants to go back and fix later.
-    var classAction = message.isPlaceholderData ? 'add': 'remove';
+    var classAction = message.isPlaceholderData ? 'add' : 'remove';
     msgNode.classList[classAction](this.vScroll.itemDefaultDataClass);
 
     // Even though updateMatchedMessageDom is only used in searches,
@@ -1391,6 +1518,40 @@ MessageListCard.prototype = {
   },
 
   /**
+   * Listener called when a folder is shown. The listener emits an 'inboxShown'
+   * for the current account, if the inbox is really being shown and the app is
+   * visible. Useful if periodic sync is involved, and notifications need to be
+   * closed if the inbox is visible to the user.
+   */
+  onFolderShown: function() {
+    if (this.mode === 'search') {
+      return;
+    }
+
+    var account = model.account,
+        foldersSlice = model.foldersSlice;
+
+    // The extra checks here are to allow for lazy startup when we might have
+    // a card instance but not a full model available. Once the model is
+    // available though, this method will get called again, so the event
+    // emitting is still correctly done in the lazy startup case.
+    if (!document.hidden && account && foldersSlice && this.curFolder) {
+      var inboxFolder = foldersSlice.getFirstFolderWithType('inbox');
+      if (inboxFolder === this.curFolder) {
+        evt.emit('inboxShown', account.id);
+      }
+    }
+  },
+
+  /**
+   * An API method for the cards infrastructure, that Cards will call when the
+   * page visibility changes and this card is the currently displayed card.
+   */
+  onCurrentCardDocumentVisibilityChange: function() {
+    this.onFolderShown();
+  },
+
+  /**
    * Called by Cards when the instance of this card type is the
    * visible card.
    */
@@ -1414,6 +1575,12 @@ MessageListCard.prototype = {
   },
 
   onClickMessage: function(messageNode, event) {
+    // You cannot open a message if this is the outbox and it is syncing.
+    if (this.curFolder &&
+        this.curFolder.type === 'outbox' && this.outboxSyncInProgress) {
+      return;
+    }
+
     var header = messageNode.message;
 
     // Skip nodes that are default/placeholder ones.
@@ -1441,6 +1608,30 @@ MessageListCard.prototype = {
         Cards.pushCard('compose', 'default', 'animate',
                        { composer: composer });
       });
+      return;
+    }
+
+    // When tapping a message in the outbox, don't open the message;
+    // instead, move it to localdrafts and edit the message as a
+    // draft.
+    if (this.curFolder && this.curFolder.type === 'outbox') {
+      // If the message is currently being sent, abort.
+      if (header.sendStatus.state === 'sending') {
+        return;
+      }
+      var draftsFolder =
+            model.foldersSlice.getFirstFolderWithType('localdrafts');
+
+      console.log('outbox: Moving message to localdrafts.');
+      model.api.moveMessages([header], draftsFolder, function(moveMap) {
+        header.id = moveMap[header.id];
+        console.log('outbox: Editing message in localdrafts.');
+        var composer = header.editAsDraft(function() {
+          Cards.pushCard('compose', 'default', 'animate',
+                         { composer: composer });
+        });
+      });
+
       return;
     }
 
@@ -1526,12 +1717,103 @@ MessageListCard.prototype = {
     }
   },
 
+  /**
+   * The outbox has a special role in the message_list, compared to
+   * other folders. We don't expect to synchronize the outbox with the
+   * server, but we do allow the user to use the refresh button to
+   * trigger all of the outbox messages to send.
+   *
+   * While they're sending, we need to display several spinny refresh
+   * icons: One next to each message while it's queued for sending,
+   * and also the main refresh button.
+   *
+   * However, the outbox send operation doesn't happen all in one go;
+   * the backend only fires one 'sendOutboxMessages' at a time,
+   * iterating through the pending messages. Fortunately, it notifies
+   * the frontend (via `onBackgroundSendStatus`) whenever the state of
+   * any message changes, and it provides a flag to let us know
+   * whether or not the outbox sync is fully complete.
+   *
+   * So the workflow for outbox's refresh UI display is as follows:
+   *
+   * 1. The user taps the "refresh" button. In response:
+   *
+   *    1a. Immediately make all visible refresh icons start spinning.
+   *
+   *    1b. Immediately kick off a 'sendOutboxMessages' job.
+   *
+   * 2. We will start to see send status notifications, in this
+   *    class's onBackgroundSendStatus notification. We listen to
+   *    these events as they come in, and wait until we see a
+   *    notification with state === 'syncDone'. We'll keep the main
+   *    refresh icon spinning throughout this process.
+   *
+   * 3. As messages send or error out, we will receive slice
+   *    notifications for each message (handled here in `messages_change`).
+   *    Since each message holds its own status as `header.sendStatus`,
+   *    we don't need to do anything special; the normal rendering logic
+   *    will reset each message's status icon to the appropriate state.
+   *
+   * But don't take my word for it; see `mailapi/jobs/outbox.js` and
+   * `mailapi/jobmixins.js` in GELAM for backend-centric descriptions
+   * of how the outbox sending process works.
+   */
+  toggleOutboxSyncingDisplay: function(syncing) {
+    // Use an internal guard so that we only trigger changes to the UI
+    // when necessary, rather than every time, which could break animations.
+    if (syncing === this._outboxSyncing) {
+      return;
+    }
+
+    this._outboxSyncing = syncing;
+
+    var i;
+    var items = this.messagesContainer.getElementsByClassName(
+      'msg-header-syncing-section');
+
+    if (syncing) {
+      // For maximum perceived responsiveness, show the spinning icons
+      // next to each message immediately, rather than waiting for the
+      // backend to actually start sending each message. When the
+      // backend reports back with message results, it'll update the
+      // icon to reflect the proper result.
+      for (i = 0; i < items.length; i++) {
+        items[i].classList.add('msg-header-syncing-section-syncing');
+        items[i].classList.remove('msg-header-syncing-section-error');
+      }
+
+      this.toolbar.editBtn.disabled = true;
+      this.toolbar.refreshBtn.dataset.state = 'synchronizing';
+    } else {
+      // After sync, the edit button should remain disabled only if
+      // the list is empty.
+      this.toolbar.editBtn.disabled = this.isEmpty();
+      this.toolbar.refreshBtn.dataset.state = 'synchronized';
+
+      // Similarly, we must stop the refresh icons for each message
+      // from rotating further. For instance, if we are offline, we
+      // won't actually attempt to send any of those messages, so
+      // they'll still have a spinny icon until we forcibly remove it.
+      for (i = 0; i < items.length; i++) {
+        items[i].classList.remove('msg-header-syncing-section-syncing');
+      }
+    }
+  },
+
   onRefresh: function() {
     if (!headerCursor.messagesSlice) {
       return;
     }
 
-    switch (headerCursor.messagesSlice.status) {
+    // If this is the outbox, refresh has a different meaning.
+    if (this.curFolder.type === 'outbox') {
+      // Rather than refreshing the folder, we'll send the pending
+      // outbox messages, and spin the refresh icon while doing so.
+      this.toggleOutboxSyncingDisplay(true);
+    }
+    // If this is a normal folder...
+    else {
+      switch (headerCursor.messagesSlice.status) {
       // If we're still synchronizing, then the user is not well served by
       // queueing a refresh yet, let's just squash this.
       case 'new':
@@ -1539,6 +1821,7 @@ MessageListCard.prototype = {
         break;
       // If we fully synchronized, then yes, let us refresh.
       case 'synced':
+        this._manuallyTriggeredSync = true;
         headerCursor.messagesSlice.refresh();
         break;
       // If we failed to talk to the server, then let's only do a refresh if we
@@ -1551,20 +1834,31 @@ MessageListCard.prototype = {
           this.showFolder(this.curFolder, /* force new slice */ true);
         }
         break;
+      }
     }
+
+    // Even if we're not actually viewing the outbox right now, we
+    // should still attempt to sync any pending messages. It's fairly
+    // harmless to kick off this job here, but it could also make
+    // sense to do this at the backend level. There are a number of
+    // cases where we might also want to  sendOutboxMessages() if
+    // we follow up with a more comprehensive sync setting -- e.g. on
+    // network change, on app startup, etc., so it's worth revisiting
+    // this and how coupled we want incoming vs outgoing sync to be.
+    model.api.sendOutboxMessages(model.account);
   },
 
   onStarMessages: function() {
     var op = model.api.markMessagesStarred(this.selectedMessages,
                                          this.setAsStarred);
     this.setEditMode(false);
-    Toaster.logMutation(op);
+    Toaster.toastOperation(op);
   },
 
   onMarkMessagesRead: function() {
     var op = model.api.markMessagesRead(this.selectedMessages, this.setAsRead);
     this.setEditMode(false);
-    Toaster.logMutation(op);
+    Toaster.toastOperation(op);
   },
 
   onDeleteMessages: function() {
@@ -1577,14 +1871,14 @@ MessageListCard.prototype = {
 
     var dialog = deleteConfirmMsgNode.cloneNode(true);
     var content = dialog.getElementsByTagName('p')[0];
-    content.textContent = mozL10n.get('message-multiedit-delete-confirm',
-                                      { n: this.selectedMessages.length });
+    mozL10n.setAttributes(content, 'message-multiedit-delete-confirm',
+                          { n: this.selectedMessages.length });
     ConfirmDialog.show(dialog,
       { // Confirm
         id: 'msg-delete-ok',
         handler: function() {
           var op = model.api.deleteMessages(this.selectedMessages);
-          Toaster.logMutation(op);
+          Toaster.toastOperation(op);
           this.setEditMode(false);
         }.bind(this)
       },
@@ -1618,11 +1912,16 @@ MessageListCard.prototype = {
   onMoveMessages: function() {
     // TODO: Batch move back-end mail api is not ready now.
     //       Please verify this function when api landed.
+
     Cards.folderSelector(function(folder) {
       var op = model.api.moveMessages(this.selectedMessages, folder);
-      Toaster.logMutation(op);
+      Toaster.toastOperation(op);
       this.setEditMode(false);
-    }.bind(this));
+    }.bind(this), function(folder) {
+      return folder.isValidMoveTarget;
+    });
+
+
   },
 
   _folderChanged: function(folder) {

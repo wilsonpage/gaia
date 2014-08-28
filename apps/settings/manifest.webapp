@@ -9,6 +9,8 @@
   },
   "permissions": {
     "storage":{},
+    "browser": {},
+    "embed-apps": {},
     "mobileconnection":{},
     "voicemail":{},
     "bluetooth":{},
@@ -31,7 +33,9 @@
     "audio-channel-notification":{},
     "audio-channel-alarm":{},
     "downloads":{},
-    "nfc":{ "access": "readonly" }
+    "nfc":{ "access": "readonly" },
+    "sms":{},
+    "firefox-accounts": {}
   },
   "activities": {
     "configure": {

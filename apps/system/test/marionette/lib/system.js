@@ -9,18 +9,72 @@ module.exports = System;
 System.URL = 'app://system.gaiamobile.org/manifest.webapp';
 
 System.Selector = Object.freeze({
+  appWindow: '.appWindow',
+  appTitlebar: '.appWindow.active .titlebar',
+  appUrlbar: '.appWindow.active .title',
+  appChromeContextLink: '.appWindow.active .menu-button',
+  appChromeContextMenu: '.appWindow.active .overflow-menu',
+  appChromeContextMenuNewWindow: '.appWindow.active #new-window',
+  appChromeContextMenuBookmark: '.appWindow.active #add-to-home',
+  appChromeContextMenuShare: '.appWindow.active #share',
   statusbar: '#statusbar',
-  statusbarBackground: '#statusbar-background',
+  statusbarLabel: '#statusbar-label',
   topPanel: '#top-panel',
   leftPanel: '#left-panel',
-  rightPanel: '#right-panel'
+  rightPanel: '#right-panel',
+  utilityTray: '#utility-tray'
 });
 
 System.prototype = {
   client: null,
 
+  getAppWindows: function() {
+    return this.client.findElements(System.Selector.appWindow);
+  },
+
+  get appTitlebar() {
+    return this.client.helper.waitForElement(System.Selector.appTitlebar);
+  },
+
+  get appUrlbar() {
+    return this.client.helper.waitForElement(System.Selector.appUrlbar);
+  },
+
+  get appChromeContextLink() {
+    return this.client.helper.waitForElement(
+      System.Selector.appChromeContextLink);
+  },
+
+  get appChromeContextMenu() {
+    return this.client.helper.waitForElement(
+      System.Selector.appChromeContextMenu);
+  },
+
+  get appChromeContextMenuNewWindow() {
+    return this.client.helper.waitForElement(
+      System.Selector.appChromeContextMenuNewWindow);
+  },
+
+  get appChromeContextMenuBookmark() {
+    return this.client.helper.waitForElement(
+      System.Selector.appChromeContextMenuBookmark);
+  },
+
+  get appChromeContextMenuShare() {
+    return this.client.helper.waitForElement(
+      System.Selector.appChromeContextMenuShare);
+  },
+
   get statusbar() {
     return this.client.findElement(System.Selector.statusbar);
+  },
+
+  get statusbarLabel() {
+    return this.client.findElement(System.Selector.statusbarLabel);
+  },
+
+  get utilityTray() {
+    return this.client.findElement(System.Selector.utilityTray);
   },
 
   get topPanel() {

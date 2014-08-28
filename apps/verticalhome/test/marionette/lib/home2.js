@@ -36,8 +36,7 @@ Home2.clientOptions = {
       'app://verticalhome.gaiamobile.org/manifest.webapp',
     'ftu.manifestURL': null,
     'keyboard.ftu.enabled': false,
-    'lockscreen.enabled': false,
-    'rocketbar.enabled': false
+    'lockscreen.enabled': false
   }
 };
 
@@ -48,11 +47,12 @@ Home2.URL = 'app://verticalhome.gaiamobile.org';
 
 Home2.Selectors = {
   editHeaderText: '#edit-header h1',
-  editHeaderDone: '#edit-header menu a',
+  editHeaderDone: '#exit-edit-mode',
   search: '#search',
   firstIcon: '#icons div.icon:not(.placeholder)',
   dividers: '#icons section.divider',
-  contextmenu: '#contextmenu-dialog'
+  contextmenu: '#contextmenu-dialog',
+  themeColor: 'head meta[name="theme-color"]'
 };
 
 /**
@@ -82,10 +82,11 @@ Home2.prototype = {
   Click confirm on a particular type of confirmation dialog.
 
   @param {String} type of dialog.
+  @param {String} selector of the button. Defaults to .confirm.
   */
-  confirmDialog: function(type) {
+  confirmDialog: function(type, button) {
     var dialog = this.getConfirmDialog(type);
-    var confirm = dialog.findElement('.confirm');
+    var confirm = dialog.findElement(button || '.confirm');
 
     // XXX: Hack to use faster polling
     var quickly = this.client.scope({ searchTimeout: 50 });
@@ -98,7 +99,7 @@ Home2.prototype = {
         confirm.click();
         // ensure it is either hidden or hits the stale element ref
         return !confirm.displayed();
-      } catch(e) {
+      } catch (e) {
         if (e.type === 'StaleElementReference') {
           // element was successfully removed
           return true;
@@ -109,11 +110,12 @@ Home2.prototype = {
   },
 
   /**
-   * Enter edit mode by long pressing the first icon on the grid.
+   * Enter edit mode by long pressing a given icon, or the first icon on the
+   * grid if not specified.
    */
-  enterEditMode: function() {
+  enterEditMode: function(icon) {
     var actions = new Actions(this.client);
-    var firstIcon =
+    var firstIcon = icon ||
       this.client.helper.waitForElement(Home2.Selectors.firstIcon);
 
     actions.longPress(firstIcon, 1).perform();
@@ -150,7 +152,7 @@ Home2.prototype = {
 
       // tap the app in the homescreen
       var newApp = this.getIcon(manifestURL);
-      newApp.click();
+      newApp.tap();
 
       // go to the system app
       client.switchToFrame();
@@ -160,7 +162,7 @@ Home2.prototype = {
         frame = client.findElement(
           'iframe[mozapp="' + manifestURL + '"]'
         );
-      } catch(e) {
+      } catch (e) {
         // try again...
         return false;
       }
@@ -202,16 +204,26 @@ Home2.prototype = {
   */
   getIcon: function(manifestUrl, entryPoint) {
     return this.client.helper.waitForElement(
-      '[data-identifier="' + manifestUrl +
+      '[data-identifier*="' + manifestUrl +
       (entryPoint ? '-' + entryPoint : '') + '"]'
     );
+  },
+
+  /**
+  Get the the current meta=theme-color of the homescreen
+
+  @return {String}
+  */
+  getThemeColor: function() {
+    var meta = this.client.findElement(Home2.Selectors.themeColor);
+    return meta.getAttribute('content');
   },
 
   /**
    * Waits for the homescreen to launch and switches to the frame.
    */
   waitForLaunch: function() {
-    this.client.helper.waitForElement('body.homesearch-enabled');
+    this.client.helper.waitForElement('body');
     this.client.apps.switchToApp(Home2.URL);
   },
 
@@ -230,15 +242,14 @@ Home2.prototype = {
     var client = this.client.scope({context: 'chrome'});
 
     var file = 'app://' + app + '.gaiamobile.org/manifest.webapp';
-    var manifest = client.executeScript(function(file) {
+    var manifest = client.executeAsyncScript(function(file) {
       var xhr = new XMLHttpRequest();
-      var data;
-      xhr.open('GET', file, false); // Intentional sync
+      xhr.open('GET', file, true);
       xhr.onload = function(o) {
-        data = JSON.parse(xhr.response);
+        var data = JSON.parse(xhr.response);
+        marionetteScriptFinished(data);
       };
       xhr.send(null);
-      return data;
     }, [file]);
 
     var locales;
@@ -256,15 +267,14 @@ Home2.prototype = {
    * @param {String} key of the string to lookup.
    */
   l10n: function(file, key) {
-    var string = this.client.executeScript(function(file, key) {
+    var string = this.client.executeAsyncScript(function(file, key) {
       var xhr = new XMLHttpRequest();
-      var data;
-      xhr.open('GET', file, false); // Intentional sync
+      xhr.open('GET', file, true);
       xhr.onload = function(o) {
-        data = JSON.parse(xhr.response);
+        var data = JSON.parse(xhr.response);
+        marionetteScriptFinished(data);
       };
       xhr.send(null);
-      return data;
     }, [file, key]);
 
     return string[key];
@@ -274,6 +284,33 @@ Home2.prototype = {
     return this.client.executeScript(function(selector, clazz) {
       return document.querySelector(selector).classList.contains(clazz);
     }, [selector, clazz]);
+  },
+
+  /**
+   * Waits for the system banner to go away and switches back to the homescreen
+   */
+  waitForSystemBanner: function() {
+    this.client.switchToFrame();
+    var banner = this.client.findElement('.banner.generic-dialog');
+    this.client.helper.waitForElementToDisappear(banner);
+    this.client.switchToFrame(this.system.getHomescreenIframe());
+  },
+
+  /**
+   * Helper function to move an icon to a specified index. Currently uses
+   * executeScript() and manually fiddles with the homescreen grid logic,
+   * this is because scripted drag/drop does not work too well within the
+   * vertically scrolling homescreen on b2g desktop.
+   * @param {Element} icon The grid icon object.
+   * @param {Integer} index The position to insert the icon into.
+   */
+  moveIconToIndex: function(icon, index) {
+    this.client.executeScript(function(identifier, newPos) {
+      var app = window.wrappedJSObject.app;
+      var icon = app.grid.getIcon(identifier);
+      app.grid.moveTo(icon.detail.index, newPos);
+      app.grid.render();
+    }, [icon.getAttribute('data-identifier'), index]);
   }
 };
 

@@ -1,10 +1,9 @@
 <element name="developer" extends="section">
   <template>
 
-    <header>
-      <a href="#root"><span class="icon icon-back">Back</span></a>
+    <gaia-header action="back" data-href="#root">
       <h1 data-l10n-id="developer-header">Developer</h1>
-    </header>
+    </gaia-header>
 
     <div>
       <header>
@@ -28,7 +27,13 @@
           </label>
         </li>
         <li>
-          <button class="icon icon-view" data-href="#developer-hud" data-l10n-id="hud-button">Developer HUD</button>
+          <button class="icon icon-view" data-href="#developer-hud" data-l10n-id="hud-settings-button">Developer HUD</button>
+        </li>
+        <li>
+          <label class="pack-checkbox">
+            <input type="checkbox" name="devtools.qps.enabled">
+            <span data-l10n-id="dev-tools-qps">Pseudo-localization</span>
+          </label>
         </li>
       </ul>
       <header>
@@ -62,6 +67,18 @@
           <label class="pack-checkbox">
             <input type="checkbox" name="layers.simple-tiles">
             <span data-l10n-id="simple-tiling">Simple Tiling</span>
+          </label>
+        </li>
+        <li>
+          <label class="pack-checkbox">
+            <input type="checkbox" name="layers.low-precision">
+            <span data-l10n-id="low-precision">Low-precision painting</span>
+          </label>
+        </li>
+        <li>
+          <label class="pack-checkbox">
+            <input type="checkbox" name="layers.low-opacity">
+            <span data-l10n-id="low-opacity">Low-precision transparency</span>
           </label>
         </li>
         <li>
@@ -183,6 +200,18 @@
           </label>
         </li>
         <li>
+          <label class="pack-checkbox">
+            <input type="checkbox" name="devtools.logshake">
+            <span data-l10n-id="shake-to-log">Shake to save system log</span>
+          </label>
+        </li>
+        <li>
+          <label class="pack-checkbox">
+            <input type="checkbox" name="debug.verbose_app_permissions">
+            <span data-l10n-id="verbose-app-permissions">Verbose App Permissions</span>
+          </label>
+        </li>
+        <li>
           <button id="ftuLauncher" data-l10n-id="launch-ftu">Launch First Time Use</button>
         </li>
       </ul>
@@ -192,11 +221,11 @@
       <ul>
         <li>
           <p data-l10n-id="update-channel">Update Channel</p>
-          <input type="text" name="app.update.channel">
+          <input type="text" name="app.update.channel" dir="auto">
         </li>
         <li>
           <p data-l10n-id="update-url">Update URL</p>
-          <input type="text" name="app.update.url">
+          <input type="text" name="app.update.url" dir="auto">
         </li>
       </ul>
     </div>

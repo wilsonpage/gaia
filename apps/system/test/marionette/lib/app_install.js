@@ -93,6 +93,28 @@ AppInstall.prototype = {
   },
 
   /**
+   * Uninstall an app.
+   * @param {string} [manifestURL] The manifestURL of the app.
+   */
+  uninstall: function(manifestURL) {
+    this.client.switchToFrame();
+
+    this.client.executeAsyncScript(function uninstall(url) {
+      var win = window.wrappedJSObject;
+      var mgmt = win.navigator.mozApps.mgmt;
+
+      mgmt.getAll().onsuccess = function(e) {
+        var app = e.target.result.find(function(app) {
+          return app.manifestURL === url;
+        });
+
+        mgmt.uninstall(app);
+        marionetteScriptFinished();
+      };
+    }, [manifestURL]);
+  },
+
+  /**
   Checks for downloads without applying them.
   */
   stageUpdate: function(manifestURL) {

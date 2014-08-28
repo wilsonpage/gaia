@@ -1,0 +1,76 @@
+.appWindow .titlebar {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: 3rem;
+
+  overflow: hidden;
+  z-index: 6;
+}
+
+.appWindow .titlebar .statusbar-shadow {
+  height: 100%;
+
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: bottom right;
+}
+
+.appWindow.light .titlebar .statusbar-shadow {
+  filter: url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\'><filter id=\'invert\'><feColorMatrix in=\'SourceGraphic\' color-interpolation-filters=\'sRGB\' type=\'matrix\' values=\'1 -1 0.3019 0 0 0 0.3019 0 0 0 0 0 0.3019 0 0 0 0 0 1 0\'/></filter></svg>#invert");
+}
+
+.appWindow .titlebar .titlebar-maximized {
+  background-image: -moz-element(#statusbar-maximized);
+  width: 100%;
+}
+
+.appWindow .titlebar .titlebar-minimized {
+  background-image: -moz-element(#statusbar-minimized);
+  background-size: cover;
+  width: calc(100% - 100% * 0.6521 + 8rem * 0.6521 - 0.5rem);
+  right: 0;
+  position: absolute;
+}
+
+/* Transitions between the maximized / minimized status bars */
+.chrome + .titlebar .titlebar-maximized {
+  opacity: 0;
+}
+
+.chrome.maximized + .titlebar .titlebar-maximized {
+  opacity: 1;
+}
+
+.chrome + .titlebar .titlebar-minimized {
+  transform: translateY(-3rem);
+  opacity: 1;
+}
+
+.chrome.maximized + .titlebar .titlebar-minimized {
+  opacity: 0;
+}
+
+.homescreen:not(.bar) > .chrome + .titlebar .titlebar-minimized,
+.lockScreenWindow:not(.bar) > .chrome + .titlebar .titlebar-minimized {
+  opacity: 0;
+}
+
+.homescreen:not(.bar) > .chrome + .titlebar .titlebar-maximized,
+.lockScreenWindow:not(.bar) > .chrome + .titlebar .titlebar-maximized {
+  opacity: 1;
+}
+
+/* Special cases */
+#screen.utility-tray .appWindow .titlebar {
+  visibility: hidden;
+}
+
+/* Homescreen must show the maximised status bar */
+#homescreen .chrome + .titlebar .titlebar-maximized {
+  opacity: 1;
+}
+
+#homescreen .chrome + .titlebar .titlebar-minimized {
+  opacity: 0;
+}

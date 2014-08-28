@@ -41,10 +41,11 @@
     "audio-channel-ringer":{},
     "cellbroadcast":{},
     "input-manage":{},
-    "nfc":{ "access": "readonly" },
+    "nfc":{ "access": "readwrite" },
     "nfc-manager":{},
     "downloads":{},
-    "systemXHR":{}
+    "systemXHR":{},
+    "feature-detection": {}
   },
   "locales": {
     "ar": {
@@ -66,10 +67,23 @@
   },
   "default_locale": "en-US",
   "icons": {
-    "30": "/style/icons/System.png",
-    "45": "/style/icons/System_45.png",
-    "60": "/style/icons/System_60.png",
-    "68": "/style/icons/System_68.png"
+    "84": "/style/icons/system_84.png",
+    "126": "/style/icons/system_126.png",
+    "142": "/style/icons/system_142.png",
+    "189": "/style/icons/system_189.png",
+    "284": "/style/icons/system_284.png"
+  },
+  "activities": {
+    "view": {
+      "filters": {
+        "type": "url",
+        "url": {
+          "required": true,
+          "pattern": "(https?:|data:|rtsp:).{1,16384}",
+          "patternFlags": "i"
+        }
+      }
+    }
   },
   "messages": [
      { "alarm": "/index.html" },
@@ -82,7 +96,8 @@
      { "nfc-manager-tech-discovered": "/index.html" },
      { "nfc-manager-tech-lost": "/index.html" },
      { "nfc-manager-send-file": "/index.html" },
-     { "bluetooth-pairing-request": "/index.html" }
+     { "bluetooth-pairing-request": "/index.html" },
+     { "notification": "/index.html" }
   ],
   "connections": {
     "mediacomms": {
@@ -106,10 +121,6 @@
       "rules": {
         "minimumAccessLevel": "certified"
       }
-    },
-    "change-appearance-statusbar": {
-      "description": "Homescreens change statusbar appearance",
-      "rules": {}
     }
   },
   "datastores-owned": {
@@ -126,6 +137,10 @@
     "Basket_Newsletter": {
       "readonly": false,
       "description": "Email address for sending newsletter"
+    },
+    "bookmarks_store": {
+      "readonly": false,
+      "description": "View and modify bookmarks"
     }
   }
 }

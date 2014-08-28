@@ -1,5 +1,8 @@
 /*global loadBodyHTML, Recipients, MocksHelper, CustomEvent, KeyEvent,
-         MockDialog, Template, MockL10n, Navigation, SharedComponents */
+         MockDialog, Template, MockL10n, Navigation, SharedComponents,
+         MockSettings,
+         KeyboardEvent
+*/
 'use strict';
 
 require('/shared/test/unit/mocks/mock_gesture_detector.js');
@@ -10,21 +13,23 @@ requireApp('sms/js/utils.js');
 
 requireApp('sms/test/unit/mock_dialog.js');
 requireApp('sms/test/unit/mock_utils.js');
-requireApp('sms/test/unit/mock_l10n.js');
+require('/shared/test/unit/mocks/mock_l10n.js');
 require('/test/unit/mock_navigation.js');
+require('/test/unit/mock_settings.js');
 
 var mocksHelperForRecipients = new MocksHelper([
   'Dialog',
   'GestureDetector',
   'Utils',
-  'Navigation'
+  'Navigation',
+  'Settings'
 ]);
 
 mocksHelperForRecipients.init();
 
 suite('Recipients', function() {
   var recipients;
-  var fixture;
+  var fixture, fixtureEmail;
   var mocksHelper = mocksHelperForRecipients;
   var realL10n;
   var outerElement;
@@ -46,6 +51,8 @@ suite('Recipients', function() {
   }
 
   setup(function() {
+    this.sinon.useFakeTimers();
+
     loadBodyHTML('/index.html');
 
     mocksHelper.setup();
@@ -78,8 +85,28 @@ suite('Recipients', function() {
       className: 'recipient',
       isLookupable: false,
       isQuestionable: false,
-      isInvalid: false
+      isInvalid: false,
+      isEmail: false
     };
+
+    fixtureEmail = {
+      name: 'foo',
+      number: 'a@b.com',
+      email: 'a@b.com',
+      source: 'none',
+      // Mapped to node attr, not true boolean
+      editable: 'true',
+
+      // Disambiguation 'display' attributes
+      type: 'Type',
+      carrier: 'Carrier',
+      className: 'recipient email',
+      isLookupable: false,
+      isQuestionable: false,
+      isInvalid: false,
+      isEmail: true
+    };
+
   });
 
   teardown(function() {
@@ -153,6 +180,15 @@ suite('Recipients', function() {
       recipients.add({ number: 999 });
     });
 
+    test('recipients.add() email 1 ', function() {
+      MockSettings.supportEmailRecipient = true;
+      var recipient;
+
+      recipients.add(fixtureEmail);
+      recipient = recipients.list[0];
+
+      assert.deepEqual(recipient, fixtureEmail);
+    });
 
     test('recipients.remove(recipient) ', function() {
       var recipient;
@@ -179,6 +215,40 @@ suite('Recipients', function() {
 
     test('recipients.remove(index) ', function() {
       recipients.add(fixture);
+      assert.equal(recipients.length, 1);
+
+      recipients.remove(0);
+      assert.equal(recipients.length, 0);
+    });
+
+    test('recipients.remove(recipient) email ', function() {
+      MockSettings.supportEmailRecipient = true;
+      var recipient;
+
+      recipients.add(fixtureEmail);
+      recipient = recipients.list[0];
+
+      assert.deepEqual(recipient, fixtureEmail);
+      assert.ok(isValid(recipient, 'a@b.com'));
+
+      recipients.remove(recipient);
+      assert.equal(recipients.length, 0);
+
+      assert.ok(recipients.render.calledTwice);
+    });
+
+    test('recipients.remove(nonexistant) email ', function() {
+      MockSettings.supportEmailRecipient = true;
+      recipients.add(fixtureEmail);
+      recipients.remove(null);
+      assert.equal(recipients.length, 1);
+
+      assert.ok(recipients.render.calledOnce);
+    });
+
+    test('recipients.remove(index) email ', function() {
+      MockSettings.supportEmailRecipient = true;
+      recipients.add(fixtureEmail);
       assert.equal(recipients.length, 1);
 
       recipients.remove(0);
@@ -777,7 +847,7 @@ suite('Recipients', function() {
         });
 
         test('swipe down on singleline, inner height <= min container height',
-         function() {
+          function() {
           inner.style.height = '10px';
 
           outer.dispatchEvent(
@@ -1022,6 +1092,103 @@ suite('Recipients', function() {
           sinon.assert.calledWith(visible, 'multiline');
           sinon.assert.called(last.scrollIntoView);
         });
+      });
+    });
+
+    suite('Multi and single line modes', function() {
+      var waitTime = 100, inner, outer, modeChangeHandler;
+
+      setup(function() {
+        outer = document.getElementById('messages-to-field');
+        outer.style.minHeight = '55px';
+
+        // Simulate multiline mode by default
+        inner = document.getElementById('messages-recipients-list');
+        inner.style.height = '60px';
+
+        modeChangeHandler = sinon.stub();
+        recipients.on('modechange', modeChangeHandler);
+      });
+
+      test('mode is refreshed on "render"', function() {
+        recipients.render();
+        this.sinon.clock.tick(waitTime);
+
+        sinon.assert.calledWith(modeChangeHandler, 'multiline-mode');
+
+        inner.style.height = '50px';
+
+        recipients.render();
+        this.sinon.clock.tick(waitTime);
+
+        sinon.assert.calledWith(modeChangeHandler, 'singleline-mode');
+      });
+
+      test('mode is refreshed on "focus"', function() {
+        recipients.focus();
+        this.sinon.clock.tick(waitTime);
+
+        sinon.assert.calledWith(modeChangeHandler, 'multiline-mode');
+
+        inner.style.height = '50px';
+
+        recipients.focus();
+        this.sinon.clock.tick(waitTime);
+
+        sinon.assert.calledWith(modeChangeHandler, 'singleline-mode');
+      });
+
+      test('mode is refreshed on "keyup"', function() {
+        outer.dispatchEvent(new KeyboardEvent('keyup', {
+          bubbles: true,
+          cancelable: true,
+          keyCode: KeyEvent.DOM_VK_SPACE
+        }));
+        this.sinon.clock.tick(waitTime);
+
+        sinon.assert.calledWith(modeChangeHandler, 'multiline-mode');
+
+        inner.style.height = '50px';
+        outer.dispatchEvent(new KeyboardEvent('keyup', {
+          bubbles: true,
+          cancelable: true,
+          keyCode: KeyEvent.DOM_VK_BACK_SPACE
+        }));
+        this.sinon.clock.tick(waitTime);
+
+        sinon.assert.calledWith(modeChangeHandler, 'singleline-mode');
+      });
+
+      test('modechange is fired once and only if mode is changed', function() {
+        recipients.render().render().render();
+        this.sinon.clock.tick(waitTime * 2);
+
+        sinon.assert.calledOnce(modeChangeHandler);
+        sinon.assert.calledWith(modeChangeHandler, 'multiline-mode');
+
+        recipients.render().render().render();
+        this.sinon.clock.tick(waitTime * 2);
+
+        sinon.assert.calledOnce(modeChangeHandler);
+      });
+
+      test('ensure "singleline" view when switching to "singleline-mode"',
+        function() {
+        recipients.render();
+        this.sinon.clock.tick(waitTime);
+
+        sinon.assert.calledWith(modeChangeHandler, 'multiline-mode');
+
+        recipients.visible('multiline');
+
+        inner.style.height = '50px';
+        recipients.render();
+        this.sinon.clock.tick(waitTime);
+
+        sinon.assert.calledWith(modeChangeHandler, 'singleline-mode');
+
+        var visible = Recipients.View.prototype.visible;
+        sinon.assert.calledWith(visible, 'singleline');
       });
     });
   });

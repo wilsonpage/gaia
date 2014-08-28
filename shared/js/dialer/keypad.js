@@ -80,13 +80,6 @@ var KeypadManager = {
     return this.phoneNumberView;
   },
 
-  get fakePhoneNumberView() {
-    delete this.fakePhoneNumberView;
-    this.fakePhoneNumberView =
-      document.getElementById('fake-phone-number-view');
-    return this.fakePhoneNumberView;
-  },
-
   get phoneNumberViewContainer() {
     delete this.phoneNumberViewContainer;
     this.phoneNumberViewContainer =
@@ -228,8 +221,19 @@ var KeypadManager = {
     TonePlayer.init('normal');
     var channel = this._onCall ? 'telephony' : 'normal';
     window.addEventListener('visibilitychange', (function() {
+      var telephony = navigator.mozTelephony;
+      var callIsActive = telephony.calls.length ||
+            telephony.conferenceGroup.calls.length;
+
       if (TonePlayer) {
-        TonePlayer.setChannel(document.mozHidden ? 'normal' : channel);
+        // If app is hidden and we are not in the middle of a call, then switch
+        // to normal channel, no matter what channel this app should use
+        if (document.hidden && !callIsActive) {
+          TonePlayer.setChannel('normal');
+        } else {
+          // Otherwise switch to the channel this app is supposed to use
+          TonePlayer.setChannel(channel);
+        }
       }
     }).bind(this));
 
@@ -565,8 +569,8 @@ var KeypadManager = {
       this.moveCaretToEnd(this.phoneNumberView);
 
       FontSizeManager.adaptToSpace(
-        FontSizeManager.DIAL_PAD, this.phoneNumberView,
-        this.fakePhoneNumberView, forceMaxFontSize, ellipsisSide);
+        FontSizeManager.DIAL_PAD, this.phoneNumberView, forceMaxFontSize,
+        ellipsisSide);
     }
 
     if (this.onValueChanged) {

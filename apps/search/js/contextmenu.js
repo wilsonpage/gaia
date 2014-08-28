@@ -39,8 +39,15 @@
           // it overlaps search bar, let's create a contextmenu attribute on
           // the fly, and remove it once the event dispatching is done.
           e.target.setAttribute('contextmenu', 'contextmenu');
-          setTimeout(function() {
+
+          // Stop the grid from listening to events to prevent it from
+          // receiving a touchend event and launching the icon. This is
+          // restored on next tick.
+          this.grid.stop();
+
+          setTimeout(() => {
             e.target.removeAttribute('contextmenu');
+            this.grid.start();
           });
 
           this.icon = icon;
@@ -48,16 +55,26 @@
 
         case 'click':
           /* jshint nonew: false */
+          /**
+           * We could have several cases for icons in the search grid:
+           * - Icons from e.me: this.icon.icon will be url
+           * - Icons from places: this.icon.icon can be:
+           *   - a blob, cached icon
+           *   - a icon url
+           *   To solve this, added an extra feature attribute: iconUrl,
+           *   so GaiaGridItems with this extra attribute in the detail
+           *   will have a way to keep track of the original url.
+           */
+          var iconUrl = this.icon.detail.iconUrl || this.icon.icon;
           new MozActivity({
             name: 'save-bookmark',
             data: {
               type: 'url',
               url: this.icon.detail.url,
               name: this.icon.name,
-              icon: this.icon.icon
+              icon: iconUrl
             }
           });
-          this.hide();
           break;
       }
     }

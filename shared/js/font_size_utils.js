@@ -138,6 +138,10 @@
      * @param {HTMLElement} domNode
      */
     _registerHeadersInSubtree: function(domNode) {
+      if (!domNode) {
+        return;
+      }
+
       var headers = domNode.querySelectorAll('header > h1');
       for (var i = 0; i < headers.length; i++) {
         // On some apps wrapping inside a requestAnimationFrame reduces the
@@ -171,7 +175,7 @@
      * @param {Array} allowedSizes A list of fontSizes allowed.
      * @param {String} fontFamily The font family of the string we're measuring.
      * @param {Integer} maxWidth The maximum number of pixels before overflow.
-     * @return {Object} Dict containing max fontSize and overflow flag.
+     * @return {Object} Dict containing fontSize, overflow and textWidth.
      */
     getMaxFontSizeInfo: function(string, allowedSizes, fontFamily, maxWidth) {
       var fontSize;
@@ -337,7 +341,9 @@
 
       // If the minimum amount of space our header needs plus the max margins
       // fits inside the width of the window, we can center this header.
-      if (minHeaderWidth + (margin * 2) <= this.getWindowWidth()) {
+      // We subtract 1 pixels to wrap text like Gecko.
+      // See https://bugzil.la/1026955
+      if (minHeaderWidth + (margin * 2) < this.getWindowWidth() - 1) {
         element.style.marginLeft = element.style.marginRight = margin + 'px';
       }
     },

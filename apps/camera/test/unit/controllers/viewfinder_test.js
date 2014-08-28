@@ -1,11 +1,10 @@
-/*global req*/
 'use strict';
 
 suite('controllers/viewfinder', function() {
   suiteSetup(function(done) {
     var self = this;
 
-    req([
+    requirejs([
       'app',
       'lib/camera/camera',
       'controllers/viewfinder',
@@ -16,10 +15,10 @@ suite('controllers/viewfinder', function() {
       'lib/setting'
     ], function(
       App, Camera, ViewfinderController, ViewfinderView,
-      FocusRingView, FacesView, Settings, Setting) {
+      FocusView, FacesView, Settings, Setting) {
       self.ViewfinderController = ViewfinderController.ViewfinderController;
       self.ViewfinderView = ViewfinderView;
-      self.FocusRingView = FocusRingView;
+      self.FocusView = FocusView;
       self.FacesView = FacesView;
       self.Settings = Settings;
       self.Setting = Setting;
@@ -30,6 +29,9 @@ suite('controllers/viewfinder', function() {
   });
 
   setup(function() {
+    this.sandbox = sinon.sandbox.create();
+
+    // App
     this.app = sinon.createStubInstance(this.App);
     this.app.camera = sinon.createStubInstance(this.Camera);
     this.app.activity = {};
@@ -37,9 +39,11 @@ suite('controllers/viewfinder', function() {
     this.app.settings.grid = sinon.createStubInstance(this.Setting);
     this.app.views = {
       viewfinder: sinon.createStubInstance(this.ViewfinderView),
-      focusRing: sinon.createStubInstance(this.FocusRingView),
+      focus: sinon.createStubInstance(this.FocusView),
       faces: sinon.createStubInstance(this.FacesView)
     };
+    this.app.Pinch = sinon.stub();
+    this.app.Pinch.prototype.on = sinon.stub();
 
     // Fake elements
     this.app.views.viewfinder.els = { video: {} };
@@ -62,29 +66,38 @@ suite('controllers/viewfinder', function() {
     this.viewfinder = this.controller.views.viewfinder;
     this.focusRing = this.controller.views.focus;
     this.faces = this.controller.views.faces;
+    this.focus = this.controller.views.focus;
     this.settings = this.app.settings;
     this.camera = this.app.camera;
   });
 
+  teardown(function() {
+    this.sandbox.restore();
+  });
+
   suite('ViewfinderController()', function() {
     test('Should stop the stream when the PreviewGallery is opened', function() {
-      assert.isTrue(this.app.on.calledWith('previewgallery:opened', this.controller.stopStream));
+      assert.isTrue(this.app.on.calledWith('previewgallery:opened',
+        this.controller.onGalleryOpened));
     });
 
-    test('Should listen when the PreviewGallery is closed', function() {
-      assert.isTrue(this.app.on.calledWith('previewgallery:closed'));
+    test('Should start the stream when the PreviewGallery is closed', function() {
+      assert.isTrue(this.app.on.calledWith('previewgallery:closed',
+        this.controller.onGalleryClosed));
     });
 
-    test('Should stop the stream when on app blur', function() {
-      assert.isTrue(this.app.on.calledWith('hidden', this.controller.stopStream));
+    test('Should stop the stream preview is false', function() {
+      assert.isTrue(this.app.on.calledWith('camera:previewactive', this.controller.onPreviewActive));
     });
 
     test('Should hide the grid when the settings menu opened', function() {
-      assert.isTrue(this.app.on.calledWith('settings:opened', this.controller.hideGrid));
+      assert.isTrue(this.app.on.calledWith('settings:opened',
+        this.controller.onSettingsOpened));
     });
 
     test('Should show the grid again when the settings menu is closed', function() {
-      assert.isTrue(this.app.on.calledWith('settings:closed', this.controller.configureGrid));
+      assert.isTrue(this.app.on.calledWith('settings:closed',
+        this.controller.onSettingsClosed));
     });
 
     test('Should flash viewfinder shutter when camera shutter fires', function() {
@@ -113,47 +126,67 @@ suite('controllers/viewfinder', function() {
     });
   });
 
-  suite('ViewfinderController#onPreviewGalleryClosed', function() {
+  suite('ViewfinderController#createViews()', function() {
     setup(function() {
-      sinon.spy(this.controller, 'startStream');
+      this.controller.createViews();
     });
 
-    test('Should start the stream only if the app is visible', function() {
-      this.app.hidden = true;
-      this.controller.onPreviewGalleryClosed();
-      assert.isFalse(this.controller.startStream.called);
-
-      this.app.hidden = false;
-      this.controller.onPreviewGalleryClosed();
-      assert.isTrue(this.controller.startStream.called);
+    test('It appends views to the viewfinder views', function() {
+      assert.isTrue(this.focus.appendTo.calledWith(this.viewfinder.el));
+      assert.isTrue(this.faces.appendTo.calledWith(this.viewfinder.el));
+      assert.isTrue(this.viewfinder.appendTo.calledWith(this.app.el));
     });
   });
 
-  suite('ViewfinderController#onFacesDetected', function() {
+  suite('ViewfinderController#show()', function() {
     setup(function() {
-      this.viewfinder.getSize.returns({ width: 800, height: 600});
-      sinon.spy(this.faces, 'show');
-      sinon.spy(this.faces, 'render');
+      this.sandbox.stub(window, 'clearTimeout');
+      this.sandbox.stub(window, 'setTimeout').returns('<timeout-id>');
+      this.app.criticalPathDone = true;
     });
 
-    test('Should call render faces and show the faces view', function() {
-      this.controller.onFacesDetected([]);
-      assert.isTrue(this.controller.views.faces.show.called);
-      assert.isTrue(this.faces.render.called);
+    test('It fades the viewfinder in straight away if the critical path is incomplete', function() {
+      this.app.criticalPathDone = false;
+      this.controller.show();
+      sinon.assert.called(this.viewfinder.fadeIn);
+      sinon.assert.notCalled(window.setTimeout);
+    });
+
+    test('It fades the viewfinder in after 280ms timeout to avoid flicker', function() {
+      this.controller.show();
+      sinon.assert.calledWith(window.setTimeout, this.viewfinder.fadeIn, 280);
+    });
+
+    test('It clears any existing timeouts to avoid multiple scheduled timeouts', function() {
+      this.controller.show();
+      this.controller.show();
+      sinon.assert.calledWith(window.clearTimeout, '<timeout-id>');
     });
   });
 
-  suite('ViewfinderController#startStream()', function() {
+  suite('ViewfinderController#hide()', function() {
+    setup(function() {
+      this.sandbox.stub(window, 'setTimeout').returns('<timeout-id>');
+      this.sandbox.stub(window, 'clearTimeout');
+    });
+
+    test('It fades out the viewfinder', function() {
+      this.controller.hide();
+      sinon.assert.called(this.viewfinder.fadeOut);
+    });
+
+    test('It clears any fadeTimeout hanging around', function() {
+      this.controller.show();
+      this.controller.hide();
+      sinon.assert.called(window.clearTimeout, '<timeout-id>');
+    });
+  });
+
+  suite('ViewfinderController#loadStream()', function() {
     test('Should load preview stream into viewfinder video element', function() {
       var video = this.viewfinder.els.video;
-      this.controller.startStream();
+      this.controller.loadStream();
       assert.isTrue(this.camera.loadStreamInto.calledWith(video));
-    });
-
-    test('Should not `loadStreamInto` if preview-gallery is open', function() {
-      this.app.get.withArgs('previewGalleryOpen').returns(true);
-      this.controller.startStream();
-      assert.isFalse(this.camera.loadStreamInto.called);
     });
   });
 

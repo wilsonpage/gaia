@@ -94,20 +94,20 @@ marionette('check root panel settings', function() {
       });
     });
 
-    suite('usb storage', function() {
+    suite.only('usb storage', function() {
       test('check default value', function() {
         assert.ok(!rootPanel.usbStorageCheckboxChecked,
           'usb storage should be disabled by default');
         assert.equal(rootPanel.usbStorageDesc, 'Disabled');
       });
 
-      test('enable usb storage', function() {
+      test.skip('enable usb storage', function() {
         rootPanel.usbStorage(true);
 
         // There will be confirmation dialog shown at the first time the usb
         // storage is enabled. Add a waitFor for this case.
         client.waitFor(function() {
-          return client.findElement('#turn-on-ums-dialog').displayed();
+          return client.findElement('.turn-on-ums-dialog').displayed();
         });
         rootPanel.tapUsbStorageConfirmButton();
 
@@ -118,6 +118,11 @@ marionette('check root panel settings', function() {
   });
 
   suite('sim related tests', function() {
+    setup(function() {
+      client.contentScript.inject(__dirname +
+        '/../mocks/mock_navigator_moz_bluetooth.js');
+    });
+
     suite('single sim tests', function() {
       setup(function() {
         client.contentScript.inject(__dirname +
