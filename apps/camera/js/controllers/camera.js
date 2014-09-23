@@ -5,6 +5,7 @@ define(function(require, exports, module) {
  * Dependencies
  */
 
+var GaiaCamera = require('lib/camera/gaia-camera');
 var debug = require('debug')('controller:camera');
 var bindAll = require('lib/bind-all');
 
@@ -23,14 +24,17 @@ module.exports.CameraController = CameraController;
 function CameraController(app) {
   bindAll(this);
   this.app = app;
-  this.camera = app.camera;
-  this.settings = app.settings;
-  this.activity = app.activity;
-  this.hdrDisabled = this.settings.hdr.get('disabled');
-  this.l10nGet = app.l10nGet;
-  this.configure();
-  this.bindEvents();
-  debug('initialized');
+  // this.camera = app.camera;
+  // this.settings = app.settings;
+  // this.activity = app.activity;
+  // this.hdrDisabled = this.settings.hdr.get('disabled');
+  // this.l10nGet = app.l10nGet;
+  // this.configure();
+  // this.bindEvents();
+  // debug('initialized');
+  //
+  // this.camera = new GaiaCamera();
+  // this.app.el.appendChild(this.camera);
 }
 
 CameraController.prototype.bindEvents = function() {
