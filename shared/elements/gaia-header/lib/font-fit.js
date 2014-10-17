@@ -28,7 +28,7 @@
      *
      * @param {HTMLHeadingElement} heading h1 text inside header to reformat.
      */
-    reformatHeading: function(heading) {
+    reformatHeading: function(heading, done) {
       // Skip resize logic if header has no content, ie before localization.
       if (!heading || heading.textContent.trim() === '') {
         return;
@@ -50,7 +50,12 @@
 
       // Perform auto-resize and center.
       style.textWidth = this._autoResizeElement(heading, style);
-      this._centerTextToScreen(heading, style);
+
+
+      // requestAnimationFrame(function() {
+        this._centerTextToScreen(heading, style);
+        if (done) { done(); }
+      // }.bind(this));
     },
 
     /**

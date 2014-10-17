@@ -82,6 +82,7 @@ var Startup = {
       MessageManager.init();
       Navigation.init();
       ThreadListUI.init();
+
       ThreadListUI.renderThreads(this._lazyLoadInit.bind(this), function() {
         window.dispatchEvent(new CustomEvent('moz-app-loaded'));
         App.setReady();
@@ -92,7 +93,7 @@ var Startup = {
       window.dispatchEvent(new CustomEvent('moz-chrome-interactive'));
     }.bind(this);
 
-    window.addEventListener('DOMContentLoaded', loaded);
+    window.addEventListener('load', loaded);
   }
 };
 

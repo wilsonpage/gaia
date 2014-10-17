@@ -151,7 +151,7 @@ var proto = Object.create(HTMLElement.prototype);
 var actionTypes = {
   menu: true,
   back: true,
-  close: true,
+  close: true
 };
 
 /**
@@ -172,26 +172,130 @@ proto.createdCallback = function() {
     inner: this.shadowRoot.querySelector('.inner')
   };
 
-  this.els.actionButton.addEventListener('click',
-    proto.onActionButtonClick.bind(this));
-
-  this.configureActionButton();
+  this.runFontFit = this.runFontFit.bind(this);
+  this.onActionButtonClick = this.onActionButtonClick.bind(this);
+  this.els.actionButton.addEventListener('click', this.onActionButtonClick);
   this.setupInteractionListeners();
+  this.configureActionButton();
   this.shadowStyleHack();
   this.runFontFit();
+  this.setupRtl();
 };
 
+/**
+ * Called when the element is
+ * attached to the DOM.
+ *
+ * @private
+ */
+proto.attachedCallback = function() {
+  this.restyleShadowDom();
+  this.rerunFontFit();
+  this.setupRtl();
+};
+
+/**
+ * Called when the element is detached
+ * (removed) from the DOM.
+ *
+ * @private
+ */
+proto.detachedCallback = function() {
+  this.teardownRtl();
+};
+
+/**
+ * Sets up mutation observes to listen for
+ * 'dir' attribute changes on <html> and
+ * runs the initial configuration.
+ *
+ * Although the `dir` attribute should
+ * be able to be placed on any ancestor
+ * node, we are currently only supporting
+ * <html>. This is to keep the logic
+ * simple and compatible with mozL10n.js.
+ *
+ * We could walk up the DOM and attach
+ * a mutation observer to the nearest
+ * ancestor with a `dir` attribute,
+ * but then things start to get messy
+ * and complex for little gain.
+ *
+ * We re-run font-fit to make sure
+ * the heading is re-positioned after
+ * the buttons switch around. We could
+ * potentially let the font-fit observer
+ * catch the `textContent` change that
+ * *may* happen after a language change,
+ * but that's only if the heading has
+ * been localized.
+ *
+ * Once `:host-context()` selector lands
+ * (bug 1082060) we may be able to reconsider
+ * this implementation. But even then, we would
+ * need a way to re-run font-fit.
+ *
+ * @private
+ */
+proto.setupRtl = function() {
+  if (this.observerRtl) { return; }
+
+  var self = this;
+  this.observerRtl = new MutationObserver(onAttributeChanged);
+  this.observerRtl.observe(document.documentElement, { attributes: true });
+  this.configureRtl();
+
+  function onAttributeChanged(mutations) {
+    mutations.forEach(function(mutation) {
+      if (mutation.attributeName !== 'dir') { return; }
+      this.configureRtl();
+      this.rerunFontFit();
+    }, self);
+  }
+};
+
+/**
+ * Stop the mutation observer.
+ *
+ * @private
+ */
+proto.teardownRtl = function() {
+  if (!this.observerRtl) { return; }
+  this.observerRtl.disconnect();
+  this.observerRtl = null;
+};
+
+/**
+ * Syncs the inner's 'dir' attribute
+ * with the one on <html> .
+ *
+ * @private
+ */
+proto.configureRtl = function() {
+  var value = document.documentElement.getAttribute('dir') || 'ltr';
+  if (value) this.els.inner.setAttribute('dir', value);
+};
+
+/**
+ * The Gecko platform doesn't yet have
+ * `::content` or `:host`, selectors,
+ * without these we are unable to style
+ * user-content in the light-dom from
+ * within our shadow-dom style-sheet.
+ *
+ * To workaround this, we clone the <style>
+ * node into the root of the component,
+ * so our selectors are able to target
+ * light-dom content.
+ *
+ * @private
+ */
 proto.shadowStyleHack = function() {
   if (hasShadowCSS) { return; }
   var style = this.shadowRoot.querySelector('style').cloneNode(true);
   this.classList.add('-content', '-host');
   style.setAttribute('scoped', '');
   this.appendChild(style);
-};
-
-proto.attachedCallback = function() {
-  this.restyleShadowDom();
-  this.rerunFontFit();
 };
 
 /**
@@ -210,6 +314,30 @@ proto.restyleShadowDom = function() {
 };
 
 /**
+ * Runs the logic to size and position
+ * header text inside the available space.
+ *
+ * @private
+ */
+proto.runFontFit = function() {
+  var self = this;
+
+  if (document.readyState !== 'complete') {
+    addEventListener('load', this.runFontFit);
+    return;
+  }
+
+  for (var i = 0; i < this.els.headings.length; i++) {
+    fontFit.reformatHeading(this.els.headings[i], complete);
+    fontFit.observeHeadingChanges(this.els.headings[i]);
+  }
+
+  function complete() {
+    self.classList.add('font-fit-done');
+  }
+};
+
+/**
  * Rerun font-fit logic.
  *
  * TODO: We really need an official API for this.
@@ -219,13 +347,6 @@ proto.restyleShadowDom = function() {
 proto.rerunFontFit = function() {
   for (var i = 0; i < this.els.headings.length; i++) {
     this.els.headings[i].textContent = this.els.headings[i].textContent;
-  }
-};
-
-proto.runFontFit = function() {
-  for (var i = 0; i < this.els.headings.length; i++) {
-    fontFit.reformatHeading(this.els.headings[i]);
-    fontFit.observeHeadingChanges(this.els.headings[i]);
   }
 };
 
@@ -314,7 +435,7 @@ proto.onActionButtonClick = function(e) {
  * @private
  */
 proto.setupInteractionListeners = function() {
-  pressed(this.els.inner);
+  pressed(this.els.inner, { instant: true });
 };
 
 // HACK: Create a <template> in memory at runtime.
@@ -456,6 +577,7 @@ gaia-header[hidden] {
   font-weight: 300;
   font-style: italic;
   font-size: 24px;
+  visibility: hidden;
 
   color:
     var(--header-title-color,
@@ -463,6 +585,10 @@ gaia-header[hidden] {
     var(--title-color,
     var(--text-color,
     inherit))));
+}
+
+.font-fit-done h1 {
+  visibility: visible;
 }
 
 /**
@@ -594,9 +720,26 @@ button.released,
   font-weight: 500;
 }
 
-.icon-back:before { content: 'back'; }
 .icon-menu:before { content: 'menu'; }
 .icon-close:before { content: 'close'; }
+
+/** Back Icon
+ ---------------------------------------------------------*/
+
+.icon-back:before {
+  content: 'back';
+}
+
+/**
+ * [dir='rtl']
+ *
+ * Switch to use the 'forward' icon
+ * when in right-to-left direction.
+ */
+
+[dir='rtl'] .icon-back:before {
+  content: 'forward';
+}
 
 </style>
 
@@ -657,7 +800,7 @@ return w[n];},m.exports,m);w[n]=m.exports;};})('gaia-header',this));
      *
      * @param {HTMLHeadingElement} heading h1 text inside header to reformat.
      */
-    reformatHeading: function(heading) {
+    reformatHeading: function(heading, done) {
       // Skip resize logic if header has no content, ie before localization.
       if (!heading || heading.textContent.trim() === '') {
         return;
@@ -679,7 +822,12 @@ return w[n];},m.exports,m);w[n]=m.exports;};})('gaia-header',this));
 
       // Perform auto-resize and center.
       style.textWidth = this._autoResizeElement(heading, style);
-      this._centerTextToScreen(heading, style);
+
+
+      // requestAnimationFrame(function() {
+        this._centerTextToScreen(heading, style);
+        if (done) { done(); }
+      // }.bind(this));
     },
 
     /**
