@@ -15,6 +15,11 @@ var debounce = require('lib/debounce');
 var bindAll = require('lib/bind-all');
 var model = require('model');
 
+var scaleSizeTo = {
+  fill: CameraUtils.scaleSizeToFillViewport,
+  fit: CameraUtils.scaleSizeToFitViewport
+};
+
 /**
  * Initialize a new 'Camera'
  *
@@ -96,6 +101,9 @@ module.exports = component.register('gaia-camera', {
     this.createShadowRoot().innerHTML = this.template;
 
     this.els = {
+      inner: this.shadowRoot.querySelector('.inner'),
+      frame: this.shadowRoot.querySelector('.frame'),
+      container: this.shadowRoot.querySelector('.container'),
       video: this.shadowRoot.querySelector('video')
     };
 
@@ -275,12 +283,13 @@ module.exports = component.register('gaia-camera', {
         maxDetectedFaces: self.focus.maxDetectedFaces
       });
 
+      self.loadStreamInto(self.els.video);
+      self.updatePreviewPosition();
+
       // If the camera was configured in the
       // `mozCamera.getCamera()` call, we can
       // fire the 'configured' event now.
       self.emit('configured');
-
-      self.loadStreamInto(this.els.video);
       self.ready();
     }
 
@@ -350,7 +359,7 @@ module.exports = component.register('gaia-camera', {
   formatCapabilities: function(capabilities) {
     var hasHDR = capabilities.sceneModes.indexOf('hdr') > -1;
     var hdr = hasHDR ? ['on', 'off'] : undefined;
-    return mix({ hdr: hdr }, capabilities);
+    return Object.assign({ hdr: hdr }, capabilities);
   },
 
   /**
@@ -1494,32 +1503,153 @@ module.exports = component.register('gaia-camera', {
     }, 150);
   },
 
-  template: `<div class="viewfinder-frame js-frame">
-    <div class="viewfinder-video-container js-video-container">
-      <video class="viewfinder-video js-video"></video>
+  updatePreviewPosition: function() {
+    var mirrored = this.selectedCamera === 'front';
+    var sensorAngle = this.getSensorAngle();
+    var previewSize = this.previewSize;
+    var container;
+    var aspect;
+
+    // Invert dimensions if the camera's `sensorAngle` is
+    // 0 or 180 degrees.
+    if (sensorAngle % 180 === 0) {
+      container = {
+        width: this.clientWidth,
+        height: this.clientHeight,
+        aspect: this.clientWidth / this.height
+      };
+
+      aspect = previewSize.height / previewSize.width;
+    } else {
+      container = {
+        width: this.clientHeight,
+        height: this.clientWidth,
+        aspect: this.clientHeight / this.clientWidth
+      };
+
+      aspect = previewSize.width / previewSize.height;
+    }
+
+    var shouldFill = aspect > container.aspect;
+    var scaleType = this.scaleType || (shouldFill ? 'fill' : 'fit');
+
+    // Calculate the correct scale to apply to the
+    // preview to either 'fill' or 'fit' the viewfinder
+    // container (always preserving the aspect ratio).
+    var landscape = scaleSizeTo[scaleType](container, previewSize);
+    var portrait = { width: landscape.height, height: landscape.width };
+
+    // Set the size of the frame to match 'portrait' dimensions
+    this.els.frame.style.width = portrait.width + 'px';
+    this.els.frame.style.height = portrait.height + 'px';
+
+    var transform = '';
+
+    if (mirrored) {
+      transform += 'scale(-1, 1) ';
+    }
+
+    transform += 'rotate(' + sensorAngle + 'deg)';
+
+    // Set the size of the video container to match the
+    // 'landscape' dimensions (CSS is used to rotate
+    // the 'landscape' video stream to 'portrait')
+    this.els.container.style.width = landscape.width + 'px';
+    this.els.container.style.height = landscape.height + 'px';
+    this.els.container.style.transform = transform;
+
+    // CSS aligns the contents slightly
+    // differently depending on the scaleType
+    this.setAttr('scaleType', scaleType);
+
+    debug('updated preview size/position', landscape, transform);
+  },
+
+  template: `<div class="inner">
+    <div class="frame">
+      <div class="container">
+        <video></video>
+      </div>
     </div>
-    <div class="viewfinder-grid">
-      <div class="row"></div>
-      <div class="row middle"></div>
-      <div class="row"></div>
-      <div class="column left">
-        <div class="cell top"></div>
-        <div class="cell middle"></div>
-        <div class="cell bottom"></div>
-      </div>
-      <div class="column middle">
-        <div class="cell top"></div>
-        <div class="cell middle"></div>
-        <div class="cell bottom"></div>
-      </div>
-      <div class="column right">
-       <div class="cell top"></div>
-       <div class="cell middle"></div>
-       <div class="cell bottom"></div>
-      </div>
-      </div>
-    </div>
-  </div>`
+  </div>
+  <style>
+
+    :host {
+      position: relative;
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .inner {
+      position: absolute;
+      top: 0;
+      left: 0;
+
+      display: flex;
+      width: 100%;
+      height: 100%;
+
+      justify-content: center;
+      overflow: hidden;
+      transition: opacity 360ms ease-in-out;
+    }
+
+    /**
+     * scale-type=fill
+     */
+
+    .inner[scale-type=fill] {
+      align-items: center;
+    }
+
+    /**
+     * .shutter
+     */
+
+    .shutter {
+      animation: 400ms shutter-animation;
+    }
+
+    /** Frame
+     ---------------------------------------------------------*/
+
+    /**
+     * 1. The grid should never overflow the viewport.
+     */
+
+    .frame {
+      display: flex;
+      position: relative;
+      max-width: 100%; /* 1 */
+      max-height: 100%; /* 1 */
+      justify-content: center;
+      align-items: center;
+    }
+
+    /** Video Container
+     ---------------------------------------------------------*/
+
+    .container {
+      flex-shrink: 0;
+    }
+
+    /** Video
+     ---------------------------------------------------------*/
+
+    video {
+      width: 100%;
+      height: 100%;
+      outline: none;
+    }
+  </style>`,
+
+  globalCss: `
+    @keyframes shutter-animation {
+      0% { opacity: 1; }
+      1% { opacity: 0.2; }
+      100% { opacity: 1 }
+    }`
 });
 
 });
