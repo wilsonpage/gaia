@@ -5,7 +5,6 @@ define(function(require, exports, module) {
  * Dependencies
  */
 
-var cameraCoordinates = require('lib/camera-coordinates');
 var debug = require('debug')('controller:faces');
 var FacesView = require('views/faces');
 
@@ -65,10 +64,7 @@ FacesController.prototype.bindEvents = function() {
  */
 FacesController.prototype.onFocusConfigured = function(config) {
   debug('focus configured', config);
-  this.view.clear();
-  if (config.maxDetectedFaces > 0) {
-    this.view.configure(config.maxDetectedFaces);
-  }
+  this.view.configure(config.maxDetectedFaces);
 };
 
 FacesController.prototype.onFacesDetected = function(faces) {
@@ -78,36 +74,8 @@ FacesController.prototype.onFacesDetected = function(faces) {
 
 FacesController.prototype.renderFaces = function(faces) {
   debug('faces detected', faces);
-
-  var viewfinderSize =  this.camera.viewfinderSize;
-  var viewportHeight = viewfinderSize.height;
-  var viewportWidth = viewfinderSize.width;
-  var sensorAngle = this.camera.getSensorAngle();
-  var camera = this.app.settings.cameras.selected('key');
-  var isFrontCamera = camera === 'front';
-
-  var circles = faces.map((face, index) => {
-    var faceInPixels = cameraCoordinates.faceToPixels(
-      face.bounds,
-      viewportWidth,
-      viewportHeight,
-      sensorAngle,
-      isFrontCamera);
-
-    return this.calculateFaceCircle(faceInPixels);
-  });
-
   this.view.show();
-  this.view.render(circles);
-  debug('face circles', circles);
-};
-
-FacesController.prototype.calculateFaceCircle = function(face) {
-  return {
-    x: face.left,
-    y: face.top,
-    diameter: Math.max(face.width, face.height)
-  };
+  this.view.render(faces);
 };
 
 });

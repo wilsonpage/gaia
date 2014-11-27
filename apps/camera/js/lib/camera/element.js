@@ -5,8 +5,9 @@ define(function(require, exports, module) {
  * Module Dependencies
  */
 
-var CameraUtils = require('lib/camera-utils');
+var cameraCoordinates = require('lib/camera-coordinates');
 var getVideoMetaData = require('lib/get-video-meta-data');
+var CameraUtils = require('lib/camera-utils');
 var orientation = require('lib/orientation');
 var component = require('gaia-component');
 var Focus = require('lib/camera/focus');
@@ -475,7 +476,29 @@ module.exports = component.register('gaia-camera', {
   },
 
   onFacesDetected: function(faces) {
-    this.emit('facesdetected', faces);
+    var viewportHeight = this.viewfinderSize.height;
+    var viewportWidth = this.viewfinderSize.width;
+    var sensorAngle = this.getSensorAngle();
+    var isFrontCamera = this.selectedCamera === 'front';
+
+    var circles = faces.map((face, index) => {
+      var faceInPixels = cameraCoordinates.faceToPixels(
+        face.bounds,
+        viewportWidth,
+        viewportHeight,
+        sensorAngle,
+        isFrontCamera);
+
+      return {
+        x: faceInPixels.left,
+        y: faceInPixels.top,
+        diameter: Math.max(
+          faceInPixels.width,
+          faceInPixels.height)
+      };
+    });
+
+    this.emit('facesdetected', circles, faces);
   },
 
   /**
@@ -517,19 +540,6 @@ module.exports = component.register('gaia-camera', {
     if (!this.mozCamera) { return; }
     return this.mozCamera.capabilities.previewSizes;
   },
-
-  /**
-   * Return the current optimal preview size.
-   *
-   * @return {Object}
-   * @private
-   */
-  // previewSize: function() {
-  //   var sizes = this.previewSizes();
-  //   var size = CameraUtils.getOptimalPreviewSize(sizes);
-  //   debug('get optimal previewSize', size);
-  //   return size;
-  // };
 
   /**
    * Get the current recording resolution.
