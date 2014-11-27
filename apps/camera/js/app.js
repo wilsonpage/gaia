@@ -109,7 +109,8 @@ App.prototype.runControllers = function() {
   this.controllers.settings(this);
   this.controllers.activity(this);
   this.controllers.camera(this);
-  // this.controllers.viewfinder(this);
+  this.controllers.focus(this);
+  this.controllers.faces(this);
   this.controllers.hud(this);
   this.controllers.controls(this);
   debug('controllers run');

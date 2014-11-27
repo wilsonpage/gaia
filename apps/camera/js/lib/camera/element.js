@@ -107,6 +107,8 @@ module.exports = component.register('gaia-camera', {
       video: this.shadowRoot.querySelector('video')
     };
 
+    this.els.frame.addEventListener('click', e => this.onFrameClick(e));
+
     this.zoom = { value: 1 };
     this.mozCameraConfig = {};
 
@@ -393,6 +395,7 @@ module.exports = component.register('gaia-camera', {
       return;
     }
 
+
     var config = {
       mode: this.mode,
       recorderProfile: this.recorderProfile,
@@ -406,6 +409,8 @@ module.exports = component.register('gaia-camera', {
       return;
     }
 
+    this.configuring = true;
+
     // In some extreme cases the mode can
     // get changed and configured whilst
     // video recording is in progress.
@@ -414,16 +419,15 @@ module.exports = component.register('gaia-camera', {
     // Indicate 'busy'
     this.busy();
 
-    this.fadeOut()
-      .then(() => this.mozCamera.setConfiguration(config))
+    this.mozCamera.setConfiguration(config)
       .then(onSuccess)
-      .then(() => this.fadeIn())
       .catch(onError);
 
     debug('mozCamera configuring', config);
 
     function onSuccess(config) {
       debug('configuration success', config);
+      self.configuring = false;
       if (!self.mozCamera) { return; }
       self.updateConfig(config);
       self.updatePreviewPosition();
@@ -434,6 +438,7 @@ module.exports = component.register('gaia-camera', {
 
     function onError(err) {
       debug('Error configuring camera');
+      self.configuring = false;
       self.ready();
     }
   },
@@ -1260,7 +1265,6 @@ module.exports = component.register('gaia-camera', {
     if (this.isMode(mode)) { return; }
     this.mode = mode;
     this.configure();
-    return this;
   },
 
   /**
@@ -1475,6 +1479,7 @@ module.exports = component.register('gaia-camera', {
     // CSS aligns the contents slightly
     // differently depending on the scaleType
     this.setAttr('scaleType', scaleType);
+    this.viewfinderSize = portrait;
 
     debug('updated preview size/position', landscape, transform);
   },
@@ -1605,6 +1610,13 @@ module.exports = component.register('gaia-camera', {
         resolve();
       }, this.fadeTome);
     });
+  },
+
+  onFrameClick: function(e) {
+    var frame = e.currentTarget;
+    var x = e.pageX - frame.clientLeft;
+    var y = e.pageY - frame.clientLeft;
+    this.emit('frameclicked', { x: x, y: y });
   },
 
   template: `<div class="inner">

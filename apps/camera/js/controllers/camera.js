@@ -49,6 +49,7 @@ CameraController.prototype.bindEvents = function() {
   camera.on('change:focus', app.firer('camera:focusstatechanged'));
   camera.on('filesizelimitreached', this.onFileSizeLimitReached);
   camera.on('facesdetected', app.firer('camera:facesdetected'));
+  camera.on('frameclicked', app.firer('camera:frameclicked'));
   camera.on('willrecord', app.firer('camera:willrecord'));
   camera.on('configured', app.firer('camera:configured'));
   camera.on('requesting', app.firer('camera:requesting'));
