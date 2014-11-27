@@ -152,6 +152,7 @@ module.exports = View.extend({
   _value: 0,
 
   setValue: function(value, emitChange) {
+    debug('set value: %', value, emitChange);
     this.resetInactivityTimeout();
 
     var lastValue = this._value;

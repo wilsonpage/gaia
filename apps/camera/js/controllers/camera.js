@@ -42,6 +42,7 @@ CameraController.prototype.bindEvents = function() {
   // Relaying camera events means other modules
   // don't have to depend directly on camera
   camera.on('change:previewActive', this.app.firer('camera:previewactive'));
+  camera.on('preview:started', this.app.firer('camera:preview:started'));
   camera.on('change:videoElapsed', app.firer('camera:recorderTimeUpdate'));
   camera.on('autofocuschanged', app.firer('camera:autofocuschanged'));
   camera.on('focusconfigured',  app.firer('camera:focusconfigured'));
@@ -56,6 +57,7 @@ CameraController.prototype.bindEvents = function() {
   camera.on('newimage', app.firer('camera:newimage'));
   camera.on('newvideo', app.firer('camera:newvideo'));
   camera.on('shutter', app.firer('camera:shutter'));
+  camera.on('zoomed', app.firer('camera:zoomed'));
   camera.on('loaded', app.firer('camera:loaded'));
   camera.on('closed', this.onCameraClosed);
   camera.on('error', app.firer('camera:error'));
@@ -71,7 +73,9 @@ CameraController.prototype.bindEvents = function() {
   app.on('stoprecording', this.camera.stopRecording);
   app.on('storage:volumechanged', this.onStorageVolumeChanged);
   app.on('storage:changed', this.onStorageChanged);
+  app.on('zoombar:changed', this.onZoomBarChanged);
   app.on('activity:pick', this.onPickActivity);
+  app.on('pinch:changed', this.onPinchChanged);
   app.on('timer:ended', this.capture);
   app.on('visible', this.camera.load);
   app.on('capture', this.capture);
@@ -97,7 +101,16 @@ CameraController.prototype.bindEvents = function() {
  * @private
  */
 CameraController.prototype.configure = function() {
+  var zoomSensitivity = this.settings.viewfinder.get('zoomGestureSensitivity');
+  var zoomEnabled = this.settings.zoom.enabled();
+  var useZoomPreviewAdjustment = this.app.settings.zoom
+    .get('useZoomPreviewAdjustment');
+
   this.settings.cameras.filterOptions(this.camera.cameraList);
+
+  this.camera.enableZoom(zoomEnabled);
+  this.camera.enableZoomPreviewAdjustment(useZoomPreviewAdjustment);
+  this.sensitivity = zoomSensitivity * window.innerWidth;
   debug('configured');
 };
 
@@ -118,11 +131,11 @@ CameraController.prototype.onSettingsConfigured = function() {
 
   this.camera.setRecorderProfile(recorderProfile);
   this.camera.setPictureSize(pictureSize);
-  this.camera.configureZoom();
+  // this.camera.configureZoom();
 
   // Defer this work as it involves
   // expensive mozSettings calls
-  setTimeout(this.updateZoomForMako);
+  // setTimeout(this.updateZoomForMako);
 
   debug('camera configured with final settings');
 };
@@ -212,11 +225,8 @@ CameraController.prototype.showSizeLimitAlert = function() {
  */
 CameraController.prototype.setMode = function(mode) {
   debug('set mode: %s', mode);
-  var self = this;
-  var html;
 
   // Abort if didn't change.
-  //
   // TODO: Perhaps the `Setting` instance should
   // not emit a `change` event if the value did
   // not change? This may require some deep checking
@@ -228,19 +238,13 @@ CameraController.prototype.setMode = function(mode) {
     return;
   }
 
-  if (mode == 'video') {
-    html = this.l10nGet('Video-Mode');
-  }
-  else {
-    html = this.l10nGet('Photo-Mode');
-  }
-  this.notification.display({ text: html });
+  var html = mode === 'video' ?
+    this.l10nGet('Video-Mode') :
+    this.l10nGet('Photo-Mode');
 
+  this.notification.display({ text: html });
+  this.camera.setMode(mode);
   this.setFlashMode();
-  this.app.emit('camera:willchange');
-  this.app.once('viewfinder:hidden', function() {
-    self.camera.setMode(mode);
-  });
 };
 
 /**
@@ -298,25 +302,8 @@ CameraController.prototype.updatePictureSize = function() {
  */
 CameraController.prototype.updateRecorderProfile = function() {
   debug('update recorder-profile');
-  var videoMode = this.settings.mode.selected('key') === 'video';
   var key = this.settings.recorderProfiles.selected('key');
-  var self = this;
-
-  // Don't do anything if the recorder-profile didn't change
-  if (this.camera.isRecorderProfile(key)) { return; }
-
-  // If not currently in 'video'
-  // mode, just configure.
-  if (!videoMode) {
-    this.camera.setRecorderProfile(key, { configure: false });
-    return;
-  }
-
-  // Wait for the viewfinder to be hidden
-  this.app.emit('camera:willchange');
-  this.app.once('viewfinder:hidden', function() {
-    self.camera.setRecorderProfile(key);
-  });
+  this.camera.setRecorderProfile(key);
 };
 
 /**
@@ -335,11 +322,7 @@ CameraController.prototype.updateRecorderProfile = function() {
  */
 CameraController.prototype.setCamera = function(camera) {
   debug('set camera: %s', camera);
-  var self = this;
-  this.app.emit('camera:willchange');
-  this.app.once('viewfinder:hidden', function() {
-    self.camera.setCamera(camera);
-  });
+  this.camera.setCamera(camera);
 };
 
 /**
@@ -454,6 +437,22 @@ CameraController.prototype.onGalleryClosed = function(reason) {
   if (this.app.hidden) { return; }
   this.app.showSpinner();
   this.camera.load(this.app.clearSpinner);
+};
+
+/**
+ * Updates the zoom level on the camera
+ * when the pinch changes.
+ *
+ * @private
+ */
+CameraController.prototype.onPinchChanged = function(deltaPinch) {
+  var zoom = this.camera.zoom.value * (1 + (deltaPinch / this.sensitivity));
+  this.camera.setZoom(zoom);
+};
+
+CameraController.prototype.onZoomBarChanged = function(value) {
+  var zoom = (this.camera.zoom.range * value / 100) + this.camera.zoom.min;
+  this.camera.setZoom(zoom);
 };
 
 /**

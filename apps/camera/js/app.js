@@ -73,7 +73,7 @@ function App(options) {
 App.prototype.boot = function() {
   debug('boot');
   if (this.booted) { return; }
-  this.showSpinner('requestingCamera');
+  // this.showSpinner('requestingCamera');
   this.bindEvents();
   this.initializeViews();
   this.runControllers();
@@ -162,7 +162,7 @@ App.prototype.bindEvents = function() {
 
   // App
   this.once('storage:checked:healthy', this.geolocationWatch);
-  this.once('viewfinder:visible', this.onCriticalPathDone);
+  this.once('camera:preview:started', this.onCriticalPathDone);
   this.once('camera:error', this.onCriticalPathDone);
   this.on('camera:willchange', this.firer('busy'));
   this.on('ready', this.clearSpinner);

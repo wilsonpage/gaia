@@ -18,7 +18,7 @@ html {
  */
 
 body {
-  background-color: #000;
+  background: var(--background);
   -moz-user-select: none; /* 1 */
 }
 

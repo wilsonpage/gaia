@@ -37,35 +37,12 @@ ZoomBarController.prototype.createView = function() {
 };
 
 ZoomBarController.prototype.bindEvents = function() {
-  this.view.on('change', this.onChange);
-
-  // TODO: Camera events should be relayed through
-  // the app, so that controllers dont' have a
-  // hard dependency on each other.
-  this.camera.on('zoomconfigured', this.onZoomConfigured);
-  this.camera.on('zoomchanged', this.setZoom);
-};
-
-ZoomBarController.prototype.onChange = function(value) {
-  var minimumZoom = this.camera.getMinimumZoom();
-  var maximumZoom = this.camera.getMaximumZoom();
-  var range = maximumZoom - minimumZoom;
-  var zoom = (range * value / 100) + minimumZoom;
-  this.camera.setZoom(zoom);
-};
-
-ZoomBarController.prototype.onZoomConfigured = function(zoom) {
-  this.setZoom(zoom);
-  this.view.hide();
+  this.view.on('change', this.app.firer('zoombar:changed'));
+  this.app.on('camera:zoomed', this.setZoom);
 };
 
 ZoomBarController.prototype.setZoom = function(zoom) {
-  debug('set zoom');
-  var minimumZoom = this.camera.getMinimumZoom();
-  var maximumZoom = this.camera.getMaximumZoom();
-  var range = maximumZoom - minimumZoom;
-  var percent = (zoom - minimumZoom) / range * 100;
-  this.view.setValue(percent);
+  this.view.setValue(zoom.percent);
   debug('zoom set');
 };
 

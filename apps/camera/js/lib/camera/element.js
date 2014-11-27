@@ -103,9 +103,12 @@ module.exports = component.register('gaia-camera', {
     this.els = {
       inner: this.shadowRoot.querySelector('.inner'),
       frame: this.shadowRoot.querySelector('.frame'),
-      container: this.shadowRoot.querySelector('.container'),
+      wrapper: this.shadowRoot.querySelector('.wrapper'),
       video: this.shadowRoot.querySelector('video')
     };
+
+    this.zoom = { value: 1 };
+    this.mozCameraConfig = {};
 
     // Minimum video duration length for creating a
     // video that contains at least few samples, see bug 899864.
@@ -203,7 +206,6 @@ module.exports = component.register('gaia-camera', {
     // as the previous camera config
     // won't apply to the new camera.
     if (this.mozCamera) {
-      this.mozCameraConfig = null;
       this.release(ready);
     } else {
       ready();
@@ -232,12 +234,14 @@ module.exports = component.register('gaia-camera', {
    *
    * @private
    */
-  requestCamera: function(camera, config) {
-    debug('request camera', camera, config);
+  requestCamera: function(camera) {
+    debug('request camera', camera);
     if (this.isBusy) { return; }
 
     var attempts = this.requestAttempts;
+    var config = { mode: this.mode };
     var self = this;
+
 
     // Indicate 'busy'
     this.busy('requestingCamera');
@@ -251,7 +255,7 @@ module.exports = component.register('gaia-camera', {
      * @private
      */
     function request() {
-      navigator.mozCameras.getCamera(camera, {})
+      navigator.mozCameras.getCamera(camera, config)
         .then(onSuccess)
         .catch(onError);
 
@@ -340,6 +344,7 @@ module.exports = component.register('gaia-camera', {
     this.mozCamera.onRecorderStateChange = this.onRecorderStateChange;
 
     this.capabilities = this.formatCapabilities(capabilities);
+    this.configureZoom();
 
     this.emit('newcamera', this.capabilities);
     debug('configured new camera');
@@ -359,7 +364,7 @@ module.exports = component.register('gaia-camera', {
   formatCapabilities: function(capabilities) {
     var hasHDR = capabilities.sceneModes.indexOf('hdr') > -1;
     var hdr = hasHDR ? ['on', 'off'] : undefined;
-    return Object.assign({ hdr: hdr }, capabilities);
+    return mixin({ hdr: hdr }, capabilities);
   },
 
   /**
@@ -409,9 +414,10 @@ module.exports = component.register('gaia-camera', {
     // Indicate 'busy'
     this.busy();
 
-    // Configure the camera hardware
-    this.mozCamera.setConfiguration(config)
+    this.fadeOut()
+      .then(() => this.mozCamera.setConfiguration(config))
       .then(onSuccess)
+      .then(() => this.fadeIn())
       .catch(onError);
 
     debug('mozCamera configuring', config);
@@ -420,6 +426,7 @@ module.exports = component.register('gaia-camera', {
       debug('configuration success', config);
       if (!self.mozCamera) { return; }
       self.updateConfig(config);
+      self.updatePreviewPosition();
       self.configureFocus();
       self.emit('configured');
       self.ready();
@@ -432,12 +439,6 @@ module.exports = component.register('gaia-camera', {
   },
 
   configMatches: function(newConfig) {
-    console.log(this.mozCameraConfig,
-      newConfig.mode === this.mozCameraConfig.mode,
-      newConfig.pictureSize === this.mozCameraConfig.pictureSize,
-      newConfig.recorderProfile === this.mozCameraConfig.recorderProfile
-    );
-
     return newConfig.mode === this.mozCameraConfig.mode &&
       newConfig.pictureSize === this.mozCameraConfig.pictureSize &&
       newConfig.recorderProfile === this.mozCameraConfig.recorderProfile;
@@ -608,20 +609,11 @@ module.exports = component.register('gaia-camera', {
     debug('set recorderProfile: %s', key);
     if (!key) { return; }
 
-    // Configure unless `false`
-    var configure = !(options && options.configure === false);
-
-    // Exit if not changed
-    if (this.isRecorderProfile(key)) {
-      debug('recorderProfile didn\'t change');
-      return;
-    }
-
     this.recorderProfile = key;
-    if (configure) { this.configure(); }
 
+    // Only re-configure in 'video' mode
+    if (this.mode === 'video') { this.configure(); }
     debug('recorderProfile changed: %s', key);
-    return this;
   },
 
   isRecorderProfile: function(key) {
@@ -1380,84 +1372,6 @@ module.exports = component.register('gaia-camera', {
   },
 
   /**
-   * Check if the hardware supports zoom.
-   *
-   * @return {Boolean}
-   */
-  isZoomSupported: function() {
-    return this.mozCamera.capabilities.zoomRatios.length > 1;
-  },
-
-  configureZoom: function() {
-    var previewSize = this.previewSize;
-    var maxPreviewSize =
-      CameraUtils.getMaximumPreviewSize(this.previewSizes());
-
-    // Calculate the maximum amount of zoom that the hardware will
-    // perform. This calculation is determined by taking the maximum
-    // supported preview size *width* and dividing by the current preview
-    // size *width*.
-    var maxHardwareZoom = maxPreviewSize.width / previewSize.width;
-    this.set('maxHardwareZoom', maxHardwareZoom);
-
-    this.setZoom(this.getMinimumZoom());
-    this.emit('zoomconfigured', this.getZoom());
-    return this;
-  },
-
-  getMinimumZoom: function() {
-    var zoomRatios = this.mozCamera.capabilities.zoomRatios;
-    if (zoomRatios.length === 0) {
-      return 1.0;
-    }
-
-    return zoomRatios[0];
-  },
-
-  getMaximumZoom: function() {
-    var zoomRatios = this.mozCamera.capabilities.zoomRatios;
-    if (zoomRatios.length === 0) {
-      return 1.0;
-    }
-
-    return zoomRatios[zoomRatios.length - 1];
-  },
-
-  getZoom: function() {
-    return this.mozCamera.zoom;
-  },
-
-  setZoom: function(zoom) {
-    this.zoom = zoom;
-    this.emit('zoomchanged', this.zoom);
-
-    // Stop here if we're already waiting for
-    // `mozCamera.zoom` to be updated.
-    if (this.zoomChangeTimeout) {
-      return;
-    }
-
-    var self = this;
-
-    // Throttle to prevent hammering the Camera API.
-    this.zoomChangeTimeout = window.setTimeout(function() {
-      self.zoomChangeTimeout = null;
-
-      self.mozCamera.zoom = self.zoom;
-    }, 150);
-  },
-
-  getZoomPreviewAdjustment: function() {
-    var zoom = this.mozCamera.zoom;
-    var maxHardwareZoom = this.get('maxHardwareZoom');
-    if (zoom <= maxHardwareZoom) {
-      return 1.0;
-    }
-
-    return zoom / maxHardwareZoom;
-  },
-
-  /**
    * Retrieves the angle of orientation of the camera hardware's
    * image sensor. This value is calculated as the angle that the
    * camera image needs to be rotated (clockwise) so that it appears
@@ -1554,9 +1468,9 @@ module.exports = component.register('gaia-camera', {
     // Set the size of the video container to match the
     // 'landscape' dimensions (CSS is used to rotate
     // the 'landscape' video stream to 'portrait')
-    this.els.container.style.width = landscape.width + 'px';
-    this.els.container.style.height = landscape.height + 'px';
-    this.els.container.style.transform = transform;
+    this.els.wrapper.style.width = landscape.width + 'px';
+    this.els.wrapper.style.height = landscape.height + 'px';
+    this.els.wrapper.style.transform = transform;
 
     // CSS aligns the contents slightly
     // differently depending on the scaleType
@@ -1565,20 +1479,157 @@ module.exports = component.register('gaia-camera', {
     debug('updated preview size/position', landscape, transform);
   },
 
+  /**
+   * Zoom
+   */
+
+  /**
+   * Check if the hardware supports zoom.
+   *
+   * @return {Boolean}
+   */
+  isZoomSupported: function() {
+    return this.mozCamera && this.mozCamera.capabilities.zoomRatios.length > 1;
+  },
+
+  enableZoom: function(value) {
+    this.zoom.enabled = value !== false;
+  },
+
+  configureZoom: function() {
+    var previewSize = this.previewSize;
+    var maxPreviewSize =
+      CameraUtils.getMaximumPreviewSize(this.previewSizes());
+
+    // Calculate the maximum amount of zoom that the hardware will
+    // perform. This calculation is determined by taking the maximum
+    // supported preview size *width* and dividing by the current preview
+    // size *width*.
+    this.zoom.maxHardware = maxPreviewSize.width / previewSize.width;
+    this.zoom.min = this.getMinZoom();
+    this.zoom.max = this.getMaxZoom();
+    this.zoom.range = this.zoom.max - this.zoom.min;
+
+    this.setZoom(this.getMinZoom());
+  },
+
+  getMinZoom: function() {
+    var zoomRatios = this.mozCamera.capabilities.zoomRatios;
+    if (zoomRatios.length === 0) { return 1.0; }
+    return zoomRatios[0];
+  },
+
+  getMaxZoom: function() {
+    var zoomRatios = this.mozCamera.capabilities.zoomRatios;
+    if (zoomRatios.length === 0) { return 1.0; }
+    return zoomRatios[zoomRatios.length - 1];
+  },
+
+  getZoom: function() {
+    return this.mozCamera.zoom;
+  },
+
+  setZoom: function(zoom) {
+    debug('set zoom: %s', zoom);
+    if (!this.zoom.enabled) { return; }
+
+    zoom = clamp(zoom, this.zoom.min, this.zoom.max);
+    this.zoom.percent = (zoom - this.zoom.min) / this.zoom.range * 100;
+    this.zoom.value = zoom;
+
+    debug('set zoom clamped: %s', this.zoom.value, this.zoom);
+
+    this.emit('zoomed', this.zoom);
+
+    // Stop here if we're already waiting for
+    // `mozCamera.zoom` to be updated.
+    if (this.zoom.changeTimeout) { return; }
+
+    // Throttle to prevent hammering the Camera API.
+    this.zoom.changeTimeout = setTimeout(()=>  {
+      this.zoom.changeTimeout = null;
+      this.mozCamera.zoom = this.zoom.value;
+    }, 50);
+  },
+
+  disableZoom: function() {
+    this.zoom.enabled = false;
+    this.setZoom(1);
+  },
+
+  enableZoomPreviewAdjustment: function(value) {
+    this.zoom.usePreviewAdjustment = value;
+  },
+
+  getZoomPreviewAdjustment: function() {
+    var zoom = this.getZoom();
+    if (zoom <= this.zoom.maxHardware) { return 1; }
+    return zoom / this.zoom.maxHardware;
+  },
+
+  /**
+   * Adjust the scale of the <video/> tag to compensate for the inability
+   * of the Camera API to zoom the preview stream beyond a certain point.
+   * This gets called when the `Camera` emits a `zoomchanged` event and is
+   * calculated by `Camera.prototype.getZoomPreviewAdjustment()`.
+   */
+  setZoomPreviewAdjustment: function(scale) {
+    if (this.zoom.usePreviewAdjustment) {
+      this.els.video.style.transform = 'scale(' + scale + ')';
+    }
+  },
+
+  fadeTime: 360,
+
+  fadeOut: function(done) {
+    debug('fade-out');
+    return new Promise((resolve) => {
+      this.classList.add('hidden');
+      document.body.classList.remove('no-background');
+      clearTimeout(this.fadeTimeout);
+      this.fadeTimeout = setTimeout(() => {
+        this.emit('fadedout');
+        resolve();
+      }, this.fadeTime);
+    });
+  },
+
+  fadeIn: function() {
+    debug('fade-in');
+    return new Promise((resolve) => {
+      this.classList.remove('hidden');
+      clearTimeout(this.fadeTimeout);
+      this.fadeTimeout = setTimeout(() => {
+        document.body.classList.add('no-background');
+        this.emit('fadedin');
+        resolve();
+      }, this.fadeTome);
+    });
+  },
+
   template: `<div class="inner">
     <div class="frame">
-      <div class="container">
+      <div class="wrapper">
         <video></video>
       </div>
+      <content></content>
     </div>
   </div>
   <style>
 
     :host {
       position: relative;
+
       display: block;
       width: 100%;
       height: 100%;
+
+      opacity: 1;
+      transition: opacity 360ms ease-in-out;
+    }
+
+    :host.hidden {
+      opacity: 0;
     }
 
     .inner {
@@ -1627,10 +1678,10 @@ module.exports = component.register('gaia-camera', {
       align-items: center;
     }
 
-    /** Video Container
+    /** Video wrapper
      ---------------------------------------------------------*/
 
-    .container {
+    .wrapper {
       flex-shrink: 0;
     }
 
@@ -1651,6 +1702,24 @@ module.exports = component.register('gaia-camera', {
       100% { opacity: 1 }
     }`
 });
+
+function mixin(a, b) {
+  for (var key in b) { a[key] = b[key]; }
+  return a;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function wait(ms) {
+  return () => {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+  };
+}
+
 
 });
 
