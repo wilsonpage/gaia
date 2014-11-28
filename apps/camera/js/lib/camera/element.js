@@ -379,11 +379,11 @@ module.exports = component.register('gaia-camera', {
     return new Promise((resolve, reject) => {
       if (!this.mozCamera) { return reject('no camera'); }
 
-      var config = this.getConfig();
+      var config = this.createConfig();
 
       // Check if the new config is different
       // from the last camera configuration
-      if (!this.configDirty(config)) {
+      if (!this.needsConfiguring()) {
         debug('hardware configuration not required');
         return resolve();
       }
@@ -404,7 +404,7 @@ module.exports = component.register('gaia-camera', {
 
         this.mozCameraConfig = config;
 
-        if (this.configDirty()) {
+        if (this.needsConfiguring()) {
           this.configure().then(resolve, reject);
           return;
         }
@@ -425,13 +425,17 @@ module.exports = component.register('gaia-camera', {
   },
 
   fadeConfigure: function() {
+    if (!this.needsConfiguring()) {
+      return Promise.resolve();
+    }
+
     this.fadeOut()
       .then(() => this.configure())
       .then(wait(280))
       .then(() => this.fadeIn());
   },
 
-  getConfig: function() {
+  createConfig: function() {
     return {
       mode: this.mode,
       recorderProfile: this.recorderProfile,
@@ -439,12 +443,10 @@ module.exports = component.register('gaia-camera', {
     };
   },
 
-  configDirty: function(newConfig) {
+  needsConfiguring: function() {
     var current = this.mozCameraConfig;
-    var next = newConfig || this.getConfig();
-
+    var next = this.createConfig();
     debug('config dirty', current, next);
-
     return next.mode !== current.mode ||
       (this.isMode('video') &&
         next.recorderProfile !== current.recorderProfile) ||
