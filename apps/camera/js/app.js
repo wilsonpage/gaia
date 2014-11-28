@@ -110,6 +110,7 @@ App.prototype.runControllers = function() {
   this.controllers.activity(this);
   this.controllers.camera(this);
   this.controllers.focus(this);
+  this.controllers.grid(this);
   this.controllers.faces(this);
   this.controllers.hud(this);
   this.controllers.controls(this);

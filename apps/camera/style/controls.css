@@ -323,7 +323,7 @@
 
 .capture-button .inner-circle {
   background-color: white;
-  transform: scale(0.76);
+  transform: scale(0.76666);
   transition: transform 150ms ease-in;
 }
 

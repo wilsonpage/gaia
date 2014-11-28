@@ -91,66 +91,6 @@ module.exports = component.register('gaia-camera', {
   // hardware request before giving up
   requestAttempts: 3,
 
-  /**
-   * Loads the currently selected camera.
-   *
-   * There are cases whereby the camera
-   * may still be 'releasing' its hardware.
-   * If this is the case we wait for the
-   * release process to finish, then attempt
-   * to load again.
-   *
-   * @public
-   */
-  load: function() {
-    debug('load camera');
-
-    var loadingNewCamera = this.selectedCamera !== this.lastLoadedCamera;
-    var self = this;
-
-    // If hardware is still being released
-    // we're not allowed to request the camera.
-    if (this.releasePromise) {
-      debug('wait for camera release');
-      this.once('released', function() { self.load(); });
-      return;
-    }
-
-    // Don't re-load hardware if selected camera is the same.
-    if (this.mozCamera && !loadingNewCamera) {
-      this.setupNewCamera(this.mozCamera);
-      debug('camera not changed');
-      return;
-    }
-
-    // If a camera is already loaded,
-    // it must be 'released' first.
-    // We also discard the `mozCameraConfig`
-    // as the previous camera config
-    // won't apply to the new camera.
-    if (this.mozCamera) {
-      this.release(ready);
-    } else {
-      ready();
-    }
-
-    // Once ready we request the camera
-    // with the currently `selectedCamera`
-    // and any `mozCameraConfig` that may
-    // be in memory.
-    //
-    // The only time there should be a
-    // valid `mozCameraConfig` in memory
-    // is when the app becomes visible again
-    // after being hidden. and we wish to
-    // request the camera again in exactly
-    // the same state it was previously in.
-    function ready() {
-      self.requestCamera(self.selectedCamera);
-      self.lastLoadedCamera = self.selectedCamera;
-    }
-  },
-
   loadCamera: function() {
     return new Promise((resolve, reject) => {
       debug('load camera');
@@ -161,13 +101,17 @@ module.exports = component.register('gaia-camera', {
       // If there's already a camera loaded,
       // release it then try loading again.
       if (this.mozCamera) {
-        return this.release().then(this.loadCamera);
+        return this.release()
+          .then(this.loadCamera)
+          .then(resolve, reject);
       }
 
       // If a camera is currently being
       // released, try again once it's done
       if (this.releasePromise) {
-        return this.releasePromise.then(this.loadCamera);
+        return this.releasePromise
+          .then(this.loadCamera)
+          .then(resolve, reject);
       }
 
       var attempts = this.requestAttempts;
@@ -192,6 +136,7 @@ module.exports = component.register('gaia-camera', {
             debug('successfully got mozCamera', result);
 
             // Store the Gecko's final configuration
+            result.configuration.camera = camera;
             self.updateConfig(result.configuration);
 
             // release camera when press power key
@@ -234,89 +179,6 @@ module.exports = component.register('gaia-camera', {
       })();
     });
   },
-
-  /**
-   * Requests the mozCamera object,
-   * then configures it.
-   *
-   * @private
-   */
-  // requestCamera: function(camera) {
-  //   debug('request camera', camera);
-  //   if (this.isBusy) { return; }
-
-  //   var attempts = this.requestAttempts;
-  //   var config = { mode: this.mode };
-  //   var self = this;
-
-
-  //   // Indicate 'busy'
-  //   this.busy('requestingCamera');
-
-  //   // Make initial request
-  //   request();
-
-  //   /**
-  //    * Requests the camera hardware.
-  //    *
-  //    * @private
-  //    */
-  //   function request() {
-  //     navigator.mozCameras.getCamera(camera, config)
-  //       .then(onSuccess)
-  //       .catch(onError);
-
-  //     self.emit('requesting');
-  //     debug('camera requested', camera, config);
-  //     attempts--;
-  //   }
-
-  //   function onSuccess(result) {
-  //     debug('successfully got mozCamera', arguments);
-
-  //     // Store the Gecko's final configuration
-  //     self.updateConfig(result.configuration);
-
-  //     // release camera when press power key
-  //     // as soon as you open a camera app
-  //     if (document.hidden) {
-  //       self.mozCamera = result.camera;
-  //       self.release();
-  //       return;
-  //     }
-
-  //     self.setupNewCamera(result.camera);
-  //     self.updatePreviewPosition();
-
-  //     // If the camera was configured in the
-  //     // `mozCamera.getCamera()` call, we can
-  //     // fire the 'configured' event now.
-  //     self.emit('configured');
-  //     self.ready();
-  //   }
-
-  //   /**
-  //    * Called when the request for camera
-  //    * hardware fails.
-  //    *
-  //    * If the hardware is 'closed' we attempt
-  //    * to re-request it one second later, until
-  //    * all our attempts have run out.
-  //    *
-  //    * @param  {String} err
-  //    */
-  //   function onError(err) {
-  //     debug('error requesting camera', err);
-
-  //     if (err === 'HardwareClosed' && attempts) {
-  //       self.cameraRequestTimeout = setTimeout(request, 1000);
-  //       return;
-  //     }
-
-  //     self.emit('error', 'request-fail');
-  //     self.ready();
-  //   }
-  // },
 
   /**
    * Configures the newly recieved
@@ -395,41 +257,38 @@ module.exports = component.register('gaia-camera', {
       this.busy();
 
       this.mozCamera.setConfiguration(config)
-      .then(config => {
-        debug('configuration success', config);
-        if (!this.mozCamera) {
-          reject('no camera');
-          return;
-        }
+        .then(config => {
+          debug('configuration success', config);
+          if (!this.mozCamera) { return reject('no camera'); }
 
-        this.mozCameraConfig = config;
+          this.mozCameraConfig = config;
 
-        if (this.needsConfiguring()) {
-          this.configure().then(resolve, reject);
-          return;
-        }
+          // During configuration things may have
+          // changed, and we may need to configure again
+          if (this.needsConfiguring()) {
+            this.configure().then(resolve, reject);
+            return;
+          }
 
-        this.updateConfig(config);
-        this.updatePreviewPosition();
-        this.configureFocus();
-        this.emit('configured');
-        resolve();
-        this.ready();
-      })
-      .catch(err => {
-        debug('Error configuring camera', err);
-        reject(err);
-        this.ready();
-      });
+          this.updateConfig(config);
+          this.updatePreviewPosition();
+          this.configureFocus();
+          this.emit('configured');
+          resolve();
+          this.ready();
+        })
+
+        .catch(err => {
+          debug('Error configuring camera', err);
+          reject(err);
+          this.ready();
+        });
     });
   },
 
   fadeConfigure: function() {
-    if (!this.needsConfiguring()) {
-      return Promise.resolve();
-    }
-
-    this.fadeOut()
+    if (!this.needsConfiguring()) { return Promise.resolve(); }
+    return this.fadeOut()
       .then(() => this.configure())
       .then(wait(280))
       .then(() => this.fadeIn());
@@ -446,7 +305,9 @@ module.exports = component.register('gaia-camera', {
   needsConfiguring: function() {
     var current = this.mozCameraConfig;
     var next = this.createConfig();
-    debug('config dirty', current, next);
+
+    debug('needs configuring check', current, next);
+
     return next.mode !== current.mode ||
       (this.isMode('video') &&
         next.recorderProfile !== current.recorderProfile) ||
@@ -1058,6 +919,8 @@ module.exports = component.register('gaia-camera', {
    */
   onShutter: function() {
     this.emit('shutter');
+    this.els.wrapper.classList.add('shutter');
+    setTimeout(() => this.els.wrapper.classList.remove('shutter'), 600);
   },
 
   /**
@@ -1180,8 +1043,11 @@ module.exports = component.register('gaia-camera', {
     return new Promise((resolve, reject) => {
       debug('set camera: %s', camera);
       if (this.selectedCamera === camera) { return resolve(); }
+      if (this.isBusy) { return reject('busy'); }
       this.selectedCamera = camera;
-      return this.loadCamera();
+      return this.fadeOut()
+        .then(this.loadCamera)
+        .then(() => this.fadeIn());
     });
   },
 
@@ -1522,6 +1388,8 @@ module.exports = component.register('gaia-camera', {
   fadeOut: function(done) {
     debug('fade-out');
     return new Promise((resolve) => {
+      var hidden = this.classList.contains('hidden');
+      if (hidden) { return resolve(); }
       this.classList.add('hidden');
       document.body.classList.remove('no-background');
       clearTimeout(this.fadeTimeout);
@@ -1535,6 +1403,8 @@ module.exports = component.register('gaia-camera', {
   fadeIn: function() {
     debug('fade-in');
     return new Promise((resolve) => {
+      var visible = !this.classList.contains('hidden');
+      if (visible) { return resolve(); }
       this.classList.remove('hidden');
       clearTimeout(this.fadeTimeout);
       this.fadeTimeout = setTimeout(() => {
@@ -1599,14 +1469,6 @@ module.exports = component.register('gaia-camera', {
       align-items: center;
     }
 
-    /**
-     * .shutter
-     */
-
-    .shutter {
-      animation: 400ms shutter-animation;
-    }
-
     /** Frame
      ---------------------------------------------------------*/
 
@@ -1630,6 +1492,14 @@ module.exports = component.register('gaia-camera', {
       flex-shrink: 0;
     }
 
+    /**
+     * .shutter
+     */
+
+    .wrapper.shutter {
+      animation: 400ms shutter-animation;
+    }
+
     /** Video
      ---------------------------------------------------------*/
 
@@ -1643,7 +1513,7 @@ module.exports = component.register('gaia-camera', {
   globalCss: `
     @keyframes shutter-animation {
       0% { opacity: 1; }
-      1% { opacity: 0.2; }
+      1% { opacity: 0.25; }
       100% { opacity: 1 }
     }`
 });

@@ -78,10 +78,10 @@ CameraController.prototype.bindEvents = function() {
   app.on('zoombar:changed', this.onZoomBarChanged);
   app.on('activity:pick', this.onPickActivity);
   app.on('pinch:changed', this.onPinchChanged);
-  app.on('timer:ended', this.capture);
-  app.on('visible', () => this.camera.load());
-  app.on('capture', this.capture);
+  app.on('visible', this.camera.loadCamera);
   app.on('hidden', this.shutdownCamera);
+  app.on('timer:ended', this.capture);
+  app.on('capture', this.capture);
 
   // Settings
   settings.recorderProfiles.on('change:selected', this.updateRecorderProfile);
@@ -310,7 +310,9 @@ CameraController.prototype.updateRecorderProfile = function() {
  */
 CameraController.prototype.setCamera = function(camera) {
   debug('set camera: %s', camera);
-  this.camera.setCamera(camera);
+  this.camera.setCamera(camera).catch(() => {
+    this.settings.cameras.select(this.camera.selectedCamera);
+  });
 };
 
 /**

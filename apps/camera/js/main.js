@@ -48,6 +48,7 @@ var app = window.app = new App({
     controls: require('controllers/controls'),
     focus: require('controllers/focus'),
     faces: require('controllers/faces'),
+    grid: require('controllers/grid'),
     settings: require('controllers/settings'),
     activity: require('controllers/activity'),
     camera: require('controllers/camera'),
