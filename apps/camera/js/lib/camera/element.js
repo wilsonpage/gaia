@@ -1,4 +1,5 @@
 define(function(require, exports, module) {
+/*jshint boss:true*/
 'use strict';
 
 /**
@@ -7,6 +8,7 @@ define(function(require, exports, module) {
 
 var cameraCoordinates = require('lib/camera-coordinates');
 var getVideoMetaData = require('lib/get-video-meta-data');
+var pickThumbnailSize = require('./pick-thumbnail-size');
 var CameraUtils = require('lib/camera-utils');
 var orientation = require('lib/orientation');
 var component = require('gaia-component');
@@ -16,87 +18,12 @@ var debounce = require('lib/debounce');
 var bindAll = require('lib/bind-all');
 var model = require('model');
 
-var scaleSizeTo = {
-  fill: CameraUtils.scaleSizeToFillViewport,
-  fit: CameraUtils.scaleSizeToFitViewport
-};
-
-/**
- * Initialize a new 'Camera'
- *
- * Options:
- *
- *   - {object} `focus`
- *
- * @param {Object} options
- */
-// function Camera(options) {
-//   debug('initializing');
-//   bindAll(this);
-
-//   // Options
-//   options = options || {};
-
-//   // mozCamera config is cached by default
-//   this.cacheConfig = options.cacheConfig !== false;
-
-//   // Minimum video duration length for creating a
-//   // video that contains at least few samples, see bug 899864.
-//   this.minRecordingTime = options.minRecordingTime  || 1000;
-
-//   // Number of bytes left on disk to let us stop recording.
-//   this.recordSpacePadding = options.recordSpacePadding || 1024 * 1024 * 1;
-
-//   // The minimum available disk space to start recording a video.
-//   this.recordSpaceMin = options.recordSpaceMin || 1024 * 1024 * 2;
-
-//   // The number of times to attempt
-//   // hardware request before giving up
-//   this.requestAttempts = options.requestAttempts || 3;
-
-//   // Test hooks
-//   this.getVideoMetaData = options.getVideoMetaData || getVideoMetaData;
-//   this.orientation = options.orientation || orientation;
-//   this.configStorage = options.configStorage || localStorage;
-
-//   this.cameraList = navigator.mozCameras.getListOfCameras();
-//   this.mozCamera = null;
-
-//   this.storage = {};
-
-//   // Video config
-//   this.video = {
-//     filepath: null,
-//     minSpace: this.recordSpaceMin,
-//     spacePadding : this.recordSpacePadding
-//   };
-
-//   this.focus = new Focus(options.focus);
-//   this.suspendedFlashCount = 0;
-
-//   // Indicate this first
-//   // load hasn't happened yet.
-//   this.isFirstLoad = true;
-
-//   // Always boot in 'picture' mode
-//   // with 'back' camera. This may need
-//   // to be configurable at some point.
-//   this.mode = 'picture';
-//   this.selectedCamera = 'back';
-
-//   // Allow `configure` to be called multiple
-//   // times in the same frame, but only ever run once.
-//   this.configure = debounce(this.configure);
-
-//   debug('initialized');
-// }
-
-
 module.exports = component.register('gaia-camera', {
+
   created: function() {
     debug('initializing');
 
-    bindAll(this);
+    // bindAll(this);
     model(this);
 
     this.createShadowRoot().innerHTML = this.template;
@@ -110,22 +37,11 @@ module.exports = component.register('gaia-camera', {
 
     this.els.frame.addEventListener('click', e => this.onFrameClick(e));
 
+    this.updateVideoElapsed = this.updateVideoElapsed.bind(this);
+    this.loadCamera = this.loadCamera.bind(this);
+
     this.zoom = { value: 1 };
     this.mozCameraConfig = {};
-
-    // Minimum video duration length for creating a
-    // video that contains at least few samples, see bug 899864.
-    this.minRecordingTime = 1000;
-
-    // Number of bytes left on disk to let us stop recording.
-    this.recordSpacePadding = 1024 * 1024 * 1;
-
-    // The minimum available disk space to start recording a video.
-    this.recordSpaceMin = 1024 * 1024 * 2;
-
-    // The number of times to attempt
-    // hardware request before giving up
-    this.requestAttempts = 3;
 
     // Test hooks
     this.getVideoMetaData = this.getVideoMetaData || getVideoMetaData;
@@ -152,24 +68,28 @@ module.exports = component.register('gaia-camera', {
 
     this.suspendedFlashCount = 0;
 
-    // Indicate this first
-    // load hasn't happened yet.
-    this.isFirstLoad = true;
-
     // Always boot in 'picture' mode
     // with 'back' camera. This may need
     // to be configurable at some point.
     this.mode = 'picture';
-    this.selectedCamera = 'back';
-
-    // Allow `configure` to be called multiple
-    // times in the same frame, but only ever run once.
-    this.configure = debounce(this.configure);
-
-    this.load();
+    this.setCamera('back');
 
     debug('initialized');
   },
+
+  // Minimum video duration length for creating a
+  // video that contains at least few samples, see bug 899864.
+  minRecordingTime: 1000,
+
+  // Number of bytes left on disk to let us stop recording.
+  recordSpacePadding: 1024 * 1024 * 1,
+
+  // The minimum available disk space to start recording a video.
+  recordSpaceMin: 1024 * 1024 * 2,
+
+  // The number of times to attempt
+  // hardware request before giving up
+  requestAttempts: 3,
 
   /**
    * Loads the currently selected camera.
@@ -190,7 +110,7 @@ module.exports = component.register('gaia-camera', {
 
     // If hardware is still being released
     // we're not allowed to request the camera.
-    if (this.releasing) {
+    if (this.releasePromise) {
       debug('wait for camera release');
       this.once('released', function() { self.load(); });
       return;
@@ -231,97 +151,172 @@ module.exports = component.register('gaia-camera', {
     }
   },
 
+  loadCamera: function() {
+    return new Promise((resolve, reject) => {
+      debug('load camera');
+
+      // Check the
+      if (this.isBusy) { return reject('camera busy'); }
+
+      // If there's already a camera loaded,
+      // release it then try loading again.
+      if (this.mozCamera) {
+        return this.release().then(this.loadCamera);
+      }
+
+      // If a camera is currently being
+      // released, try again once it's done
+      if (this.releasePromise) {
+        return this.releasePromise.then(this.loadCamera);
+      }
+
+      var attempts = this.requestAttempts;
+      var camera = this.selectedCamera;
+      var config = { mode: this.mode };
+      var self = this;
+
+      // Indicate 'busy'
+      this.busy('requestingCamera');
+
+      /**
+       * Requests the camera hardware.
+       *
+       * @private
+       */
+      return (function request() {
+        debug('get camera', camera, config);
+        self.emit('requesting');
+
+        return navigator.mozCameras.getCamera(camera, config)
+          .then(result => {
+            debug('successfully got mozCamera', result);
+
+            // Store the Gecko's final configuration
+            self.updateConfig(result.configuration);
+
+            // release camera when press power key
+            // as soon as you open a camera app
+            if (document.hidden) {
+              self.mozCamera = result.camera;
+              self.release();
+              return reject('app hidden');
+            }
+
+            self.setupNewCamera(result.camera);
+            self.updatePreviewPosition();
+            self.emit('configured');
+            self.ready();
+            resolve();
+          })
+
+          /**
+           * Called when the request for camera
+           * hardware fails.
+           *
+           * If the hardware is 'closed' we attempt
+           * to re-request it one second later, until
+           * all our attempts have run out.
+           *
+           * @param  {String} err
+           */
+          .catch(err => {
+            debug('error requesting camera', err);
+
+            if (err === 'HardwareClosed' && attempts--) {
+              self.cameraRequestTimeout = setTimeout(request, 1000);
+              return;
+            }
+
+            self.emit('error', 'request-fail');
+            self.ready();
+            reject(err);
+          });
+      })();
+    });
+  },
+
   /**
    * Requests the mozCamera object,
    * then configures it.
    *
    * @private
    */
-  requestCamera: function(camera) {
-    debug('request camera', camera);
-    if (this.isBusy) { return; }
+  // requestCamera: function(camera) {
+  //   debug('request camera', camera);
+  //   if (this.isBusy) { return; }
 
-    var attempts = this.requestAttempts;
-    var config = { mode: this.mode };
-    var self = this;
+  //   var attempts = this.requestAttempts;
+  //   var config = { mode: this.mode };
+  //   var self = this;
 
 
-    // Indicate 'busy'
-    this.busy('requestingCamera');
+  //   // Indicate 'busy'
+  //   this.busy('requestingCamera');
 
-    // Make initial request
-    request();
+  //   // Make initial request
+  //   request();
 
-    /**
-     * Requests the camera hardware.
-     *
-     * @private
-     */
-    function request() {
-      navigator.mozCameras.getCamera(camera, config)
-        .then(onSuccess)
-        .catch(onError);
+  //   /**
+  //    * Requests the camera hardware.
+  //    *
+  //    * @private
+  //    */
+  //   function request() {
+  //     navigator.mozCameras.getCamera(camera, config)
+  //       .then(onSuccess)
+  //       .catch(onError);
 
-      self.emit('requesting');
-      debug('camera requested', camera, config);
-      attempts--;
-    }
+  //     self.emit('requesting');
+  //     debug('camera requested', camera, config);
+  //     attempts--;
+  //   }
 
-    function onSuccess(result) {
-      debug('successfully got mozCamera', arguments);
+  //   function onSuccess(result) {
+  //     debug('successfully got mozCamera', arguments);
 
-      // Store the Gecko's final configuration
-      self.updateConfig(result.configuration);
+  //     // Store the Gecko's final configuration
+  //     self.updateConfig(result.configuration);
 
-      // release camera when press power key
-      // as soon as you open a camera app
-      if (document.hidden) {
-        self.mozCamera = result.camera;
-        self.release();
-        return;
-      }
+  //     // release camera when press power key
+  //     // as soon as you open a camera app
+  //     if (document.hidden) {
+  //       self.mozCamera = result.camera;
+  //       self.release();
+  //       return;
+  //     }
 
-      self.setupNewCamera(result.camera);
-      self.configureFocus();
-      self.emit('focusconfigured', {
-        mode: self.mozCamera.focusMode,
-        touchFocus: self.focus.touchFocus,
-        faceDetection: self.focus.faceDetection,
-        maxDetectedFaces: self.focus.maxDetectedFaces
-      });
+  //     self.setupNewCamera(result.camera);
+  //     self.updatePreviewPosition();
 
-      self.loadStreamInto(self.els.video);
-      self.updatePreviewPosition();
+  //     // If the camera was configured in the
+  //     // `mozCamera.getCamera()` call, we can
+  //     // fire the 'configured' event now.
+  //     self.emit('configured');
+  //     self.ready();
+  //   }
 
-      // If the camera was configured in the
-      // `mozCamera.getCamera()` call, we can
-      // fire the 'configured' event now.
-      self.emit('configured');
-      self.ready();
-    }
+  //   /**
+  //    * Called when the request for camera
+  //    * hardware fails.
+  //    *
+  //    * If the hardware is 'closed' we attempt
+  //    * to re-request it one second later, until
+  //    * all our attempts have run out.
+  //    *
+  //    * @param  {String} err
+  //    */
+  //   function onError(err) {
+  //     debug('error requesting camera', err);
 
-    /**
-     * Called when the request for camera
-     * hardware fails.
-     *
-     * If the hardware is 'closed' we attempt
-     * to re-request it one second later, until
-     * all our attempts have run out.
-     *
-     * @param  {String} err
-     */
-    function onError(err) {
-      debug('error requesting camera', err);
+  //     if (err === 'HardwareClosed' && attempts) {
+  //       self.cameraRequestTimeout = setTimeout(request, 1000);
+  //       return;
+  //     }
 
-      if (err === 'HardwareClosed' && attempts) {
-        self.cameraRequestTimeout = setTimeout(request, 1000);
-        return;
-      }
-
-      self.emit('error', 'request-fail');
-      self.ready();
-    }
-  },
+  //     self.emit('error', 'request-fail');
+  //     self.ready();
+  //   }
+  // },
 
   /**
    * Configures the newly recieved
@@ -341,14 +336,23 @@ module.exports = component.register('gaia-camera', {
     this.mozCamera = mozCamera;
 
     // Bind to some events
-    this.mozCamera.onShutter = this.onShutter;
-    this.mozCamera.onClosed = this.onClosed;
-    this.mozCamera.onPreviewStateChange = this.onPreviewStateChange;
-    this.mozCamera.onRecorderStateChange = this.onRecorderStateChange;
+    this.mozCamera.onRecorderStateChange =this.onRecorderStateChange.bind(this);
+    this.mozCamera.onPreviewStateChange = this.onPreviewStateChange.bind(this);
+    this.mozCamera.onShutter = this.onShutter.bind(this);
+    this.mozCamera.onClosed = this.onClosed.bind(this);
 
     this.capabilities = this.formatCapabilities(capabilities);
     this.configureZoom();
 
+    this.configureFocus();
+    this.emit('focusconfigured', {
+      mode: this.mozCamera.focusMode,
+      touchFocus: this.focus.touchFocus,
+      faceDetection: this.focus.faceDetection,
+      maxDetectedFaces: this.focus.maxDetectedFaces
+    });
+
+    this.loadStreamInto(this.els.video);
     this.emit('newcamera', this.capabilities);
     debug('configured new camera');
   },
@@ -370,84 +374,83 @@ module.exports = component.register('gaia-camera', {
     return mixin({ hdr: hdr }, capabilities);
   },
 
-  /**
-   * Configure the camera hardware
-   * with the current `mode`, `previewSize`
-   * and `recorderProfile`.
-   *
-   * @private
-   */
   configure: function() {
     debug('configuring hardware...');
-    var self = this;
+    return new Promise((resolve, reject) => {
+      if (!this.mozCamera) { return reject('no camera'); }
 
-    // Ensure that any requests that
-    // come in whilst busy get run once
-    // camera is ready again.
-    if (this.isBusy) {
-      debug('defering configuration');
-      this.once('ready', this.configure);
-      return;
-    }
+      var config = this.getConfig();
 
-    // Exit here if there is no camera
-    if (!this.mozCamera) {
-      debug('no mozCamera');
-      return;
-    }
+      // Check if the new config is different
+      // from the last camera configuration
+      if (!this.configDirty(config)) {
+        debug('hardware configuration not required');
+        return resolve();
+      }
 
+      // In some extreme cases the mode can
+      // get changed and configured whilst
+      // video recording is in progress.
+      this.stopRecording();
+      this.busy();
 
-    var config = {
+      this.mozCamera.setConfiguration(config)
+      .then(config => {
+        debug('configuration success', config);
+        if (!this.mozCamera) {
+          reject('no camera');
+          return;
+        }
+
+        this.mozCameraConfig = config;
+
+        if (this.configDirty()) {
+          this.configure().then(resolve, reject);
+          return;
+        }
+
+        this.updateConfig(config);
+        this.updatePreviewPosition();
+        this.configureFocus();
+        this.emit('configured');
+        resolve();
+        this.ready();
+      })
+      .catch(err => {
+        debug('Error configuring camera', err);
+        reject(err);
+        this.ready();
+      });
+    });
+  },
+
+  fadeConfigure: function() {
+    this.fadeOut()
+      .then(() => this.configure())
+      .then(wait(280))
+      .then(() => this.fadeIn());
+  },
+
+  getConfig: function() {
+    return {
       mode: this.mode,
       recorderProfile: this.recorderProfile,
       pictureSize: this.pictureSize
     };
-
-    // Check if the new config is different
-    // from the last camera configuration
-    if (this.configMatches(config)) {
-      debug('hardware configuration not required');
-      return;
-    }
-
-    this.configuring = true;
-
-    // In some extreme cases the mode can
-    // get changed and configured whilst
-    // video recording is in progress.
-    this.stopRecording();
-
-    // Indicate 'busy'
-    this.busy();
-
-    this.mozCamera.setConfiguration(config)
-      .then(onSuccess)
-      .catch(onError);
-
-    debug('mozCamera configuring', config);
-
-    function onSuccess(config) {
-      debug('configuration success', config);
-      self.configuring = false;
-      if (!self.mozCamera) { return; }
-      self.updateConfig(config);
-      self.updatePreviewPosition();
-      self.configureFocus();
-      self.emit('configured');
-      self.ready();
-    }
-
-    function onError(err) {
-      debug('Error configuring camera');
-      self.configuring = false;
-      self.ready();
-    }
   },
 
-  configMatches: function(newConfig) {
-    return newConfig.mode === this.mozCameraConfig.mode &&
-      newConfig.pictureSize === this.mozCameraConfig.pictureSize &&
-      newConfig.recorderProfile === this.mozCameraConfig.recorderProfile;
+  configDirty: function(newConfig) {
+    var current = this.mozCameraConfig;
+    var next = newConfig || this.getConfig();
+
+    debug('config dirty', current, next);
+
+    return next.mode !== current.mode ||
+      (this.isMode('video') &&
+        next.recorderProfile !== current.recorderProfile) ||
+      (this.isMode('picture') &&
+        (next.pictureSize.width !== current.pictureSize.width ||
+        next.pictureSize.height !== current.pictureSize.height));
   },
 
   updateConfig: function(config) {
@@ -460,8 +463,8 @@ module.exports = component.register('gaia-camera', {
 
   configureFocus: function() {
     this.focus.configure(this.mozCamera, this.mode);
-    this.focus.onFacesDetected = this.onFacesDetected;
-    this.focus.onAutoFocusChanged = this.onAutoFocusChanged;
+    this.focus.onFacesDetected = this.onFacesDetected.bind(this);
+    this.focus.onAutoFocusChanged = this.onAutoFocusChanged.bind(this);
   },
 
   shutdown: function() {
@@ -507,27 +510,10 @@ module.exports = component.register('gaia-camera', {
    * @param  {Elmement} videoElement
    * @public
    */
-  loadStreamInto: function(videoElement) {
-    debug('loading stream into element');
-    if (!this.mozCamera) {
-      debug('error - `mozCamera` is undefined or null');
-      return;
-    }
-
-    // REVIEW: Something is wrong if we are
-    // calling this without a video element.
-    if (!videoElement) {
-      debug('error - `videoElement` is undefined or null');
-      return;
-    }
-
-    // Don't load the same camera stream again
-    var isCurrent = videoElement.mozSrcObject === this.mozCamera;
-    if (isCurrent) { return debug('camera didn\'t change'); }
-
-    videoElement.mozSrcObject = this.mozCamera;
-    videoElement.play();
-    debug('stream loaded into video');
+  loadStreamInto: function(el) {
+    debug('loading stream into video');
+    el.mozSrcObject = this.mozCamera;
+    el.play();
   },
 
   /**
@@ -537,8 +523,7 @@ module.exports = component.register('gaia-camera', {
    * @private
    */
   previewSizes: function() {
-    if (!this.mozCamera) { return; }
-    return this.mozCamera.capabilities.previewSizes;
+    return this.mozCamera && this.mozCamera.capabilities.previewSizes;
   },
 
   /**
@@ -560,46 +545,21 @@ module.exports = component.register('gaia-camera', {
    * currently set pictureSize then no
    * action is taken.
    *
-   * The camera is 'configured' a soon as the
-   * pictureSize is changed. `.configure` is
-   * debounced so it will only ever run once
-   * per turn.
-   *
-   * Options:
-   *
-   *   - {Boolean} `configure`
-   *
    * @param {Object} size
+   * @return {Promise}
+   * @public
    */
-  setPictureSize: function(size, options) {
-    debug('set picture size', size);
-    if (!size) { return; }
+  setPictureSize: function(size) {
+    return new Promise((resolve, reject) => {
+      debug('set picture size', size);
+      if (!size) { return reject('invalid argument'); }
+      this.pictureSize = size;
+      this.setThumbnailSize();
 
-    // Configure unless `false`
-    var configure = options && options.configure !== false;
-
-    // Don't do waste time re-configuring the
-    // hardware if the pictureSize hasn't changed.
-    if (this.isPictureSize(size)) {
-      debug('pictureSize didn\'t change');
-      return;
-    }
-
-    this.pictureSize = size;
-    this.setThumbnailSize();
-
-    // Configure the hardware only when required
-    if (configure) { this.configure(); }
-
-    debug('pictureSize changed');
-    return this;
-  },
-
-  isPictureSize: function(size) {
-    if (!this.pictureSize) { return false; }
-    var sameWidth = size.width === this.pictureSize.width;
-    var sameHeight = size.height === this.pictureSize.height;
-    return sameWidth && sameHeight;
+      // Configure the hardware only when required
+      if (this.mode === 'picture') { return this.fadeConfigure(); }
+      else { resolve(); }
+    });
   },
 
   /**
@@ -620,15 +580,16 @@ module.exports = component.register('gaia-camera', {
    *
    * @param {String} key
    */
-  setRecorderProfile: function(key, options) {
-    debug('set recorderProfile: %s', key);
-    if (!key) { return; }
+  setRecorderProfile: function(key) {
+    return new Promise((resolve, reject) => {
+      debug('set recorderProfile: %s', key);
+      if (!key) { return reject('invalid argument'); }
+      this.recorderProfile = key;
 
-    this.recorderProfile = key;
-
-    // Only re-configure in 'video' mode
-    if (this.mode === 'video') { this.configure(); }
-    debug('recorderProfile changed: %s', key);
+      // Only re-configure in 'video' mode
+      if (this.mode === 'video') { this.fadeConfigure(); }
+      else { resolve(); }
+    });
   },
 
   isRecorderProfile: function(key) {
@@ -649,7 +610,7 @@ module.exports = component.register('gaia-camera', {
   setThumbnailSize: function() {
     var sizes = this.mozCamera.capabilities.thumbnailSizes;
     var pictureSize = this.mozCamera.getPictureSize();
-    var picked = this.pickThumbnailSize(sizes, pictureSize);
+    var picked = pickThumbnailSize(sizes, pictureSize);
     if (picked) { this.mozCamera.setThumbnailSize(picked); }
   },
 
@@ -687,94 +648,41 @@ module.exports = component.register('gaia-camera', {
    * @param  {Function} done
    */
   release: function(done) {
-    debug('release');
-    done = done || function() {};
-    var self = this;
+    if (this.releasePromise) { return this.releasePromise; }
+    return this.releasePromise = new Promise((resolve, reject) => {
+      debug('release');
 
-    // Clear any pending hardware requests
-    clearTimeout(this.cameraRequestTimeout);
+      // Clear any pending hardware requests
+      clearTimeout(this.cameraRequestTimeout);
 
-    // Ignore if there is no loaded camera
-    if (!this.mozCamera) {
-      done();
-      return;
-    }
+      // Ignore if there is no loaded camera
+      if (!this.mozCamera) { return reject('no mozCamera'); }
 
-    this.busy();
-    this.stopRecording();
-    this.set('focus', 'none');
-    this.mozCamera.release(onSuccess, onError);
-    this.releasing = true;
-    this.mozCamera = null;
+      this.busy();
+      this.stopRecording();
+      this.set('focus', 'none');
 
-    // Reset cached parameters
-    delete this.pictureSize;
+      return this.mozCamera.release()
 
-    function onSuccess() {
-      debug('successfully released');
-      self.ready();
-      self.releasing = false;
-      self.emit('released');
-      done();
-    }
+        .then(() => {
+          debug('successfully released');
+          this.mozCamera = null;
+          this.ready();
+          delete this.pictureSize;
+          delete this.releasePromise;
+          this.emit('released');
+          resolve();
+        })
 
-    function onError(err) {
-      debug('failed to release hardware');
-      self.ready();
-      self.releasing = false;
-      done(err);
-    }
+        .catch(err => {
+          debug('failed to release hardware');
+          delete this.releasePromise;
+          this.ready();
+          reject(err);
+        });
+    });
   },
 
-  // TODO: Perhaps this function should be moved into a separate lib
-  pickThumbnailSize: function(thumbnailSizes, pictureSize) {
-    var screenWidth = window.innerWidth * window.devicePixelRatio;
-    var screenHeight = window.innerHeight * window.devicePixelRatio;
-    var pictureAspectRatio = pictureSize.width / pictureSize.height;
-    var currentThumbnailSize;
-    var i;
-
-    // Coping the array to not modify the original
-    thumbnailSizes = thumbnailSizes.slice(0);
-    if (!thumbnailSizes || !pictureSize) {
-      return;
-    }
-
-    function imageSizeFillsScreen(pixelsWidth, pixelsHeight) {
-      return ((pixelsWidth >= screenWidth || // portrait
-               pixelsHeight >= screenHeight) &&
-              (pixelsWidth >= screenHeight || // landscape
-               pixelsHeight >= screenWidth));
-    }
-
-    // Removes the sizes with the wrong aspect ratio
-    thumbnailSizes = thumbnailSizes.filter(function(thumbnailSize) {
-      var thumbnailAspectRatio = thumbnailSize.width / thumbnailSize.height;
-      return Math.abs(thumbnailAspectRatio - pictureAspectRatio) < 0.05;
-    });
-
-    if (thumbnailSizes.length === 0) {
-      console.error('Error while selecting thumbnail size. ' +
-        'There are no thumbnail sizes that match the ratio of ' +
-        'the selected picture size: ' + JSON.stringify(pictureSize));
-      return;
-    }
-
-    // Sorting the array from smaller to larger sizes
-    thumbnailSizes.sort(function(a, b) {
-      return a.width * a.height - b.width * b.height;
-    });
-
-    for (i = 0; i < thumbnailSizes.length; ++i) {
-      currentThumbnailSize = thumbnailSizes[i];
-      if (imageSizeFillsScreen(currentThumbnailSize.width,
-                               currentThumbnailSize.height)) {
-        return currentThumbnailSize;
-      }
-    }
-
-    return thumbnailSizes[thumbnailSizes.length - 1];
-  },
 
   /**
    * Takes a photo, or begins/ends
@@ -908,89 +816,97 @@ module.exports = component.register('gaia-camera', {
    * @public
    */
   startRecording: function(options) {
-    debug('start recording');
-    var frontCamera = this.selectedCamera === 'front';
-    var rotation = this.orientation.get();
-    var storage = this.storage.video;
-    var video = this.video;
-    var self = this;
+    return new Promise((resolve, reject) => {
+      debug('start recording');
 
-    // Rotation is flipped for front camera
-    if (frontCamera) { rotation = -rotation; }
+      var frontCamera = this.selectedCamera === 'front';
+      var rotation = this.orientation.get();
+      var storage = this.storage.video;
+      var video = this.video;
+      var self = this;
 
-    this.set('recording', true);
-    this.busy();
+      // Rotation is flipped for front camera
+      if (frontCamera) { rotation = -rotation; }
 
-    // Lock orientation during video recording
-    //
-    // REVIEW: This should *not* be here. This
-    // is an App concern and should live in
-    // the `CameraController`.
-    this.orientation.stop();
+      this.set('recording', true);
+      this.busy();
 
-    // First check if there is enough free space
-    this.getFreeVideoStorageSpace(gotStorageSpace);
+      // Lock orientation during video recording
+      //
+      // REVIEW: This should *not* be here. This
+      // is an App concern and should live in
+      // the `CameraController`.
+      this.orientation.stop();
 
-    function gotStorageSpace(err, freeBytes) {
-      if (err) { return self.onRecordingError(); }
+      // First check if there is enough free space
+      this.getFreeVideoStorageSpace(gotStorageSpace);
 
-      var notEnoughSpace = freeBytes < self.video.minSpace;
-      var remaining = freeBytes - self.video.spacePadding;
-      var targetFileSize = self.get('maxFileSizeBytes');
-      var maxFileSizeBytes = targetFileSize || remaining;
+      function gotStorageSpace(err, freeBytes) {
+        if (err) { return self.onRecordingError(); }
 
-      // Don't continue if there
-      // is not enough space
-      if (notEnoughSpace) {
-        self.onRecordingError('nospace2');
-        return;
-      }
+        var notEnoughSpace = freeBytes < self.video.minSpace;
+        var remaining = freeBytes - self.video.spacePadding;
+        var targetFileSize = self.get('maxFileSizeBytes');
+        var maxFileSizeBytes = targetFileSize || remaining;
 
-      // TODO: Callee should
-      // pass in orientation
-      var config = {
-        rotation: rotation,
-        maxFileSizeBytes: maxFileSizeBytes
-      };
-
-      self.createVideoFilepath(createVideoFilepathDone);
-
-      function createVideoFilepathDone(errorMsg, filepath) {
-        if (typeof filepath === 'undefined') {
-          debug(errorMsg);
-          self.onRecordingError('error-video-file-path');
+        // Don't continue if there
+        // is not enough space
+        if (notEnoughSpace) {
+          self.onRecordingError('nospace2');
+          reject('not enought space');
           return;
         }
 
-        video.filepath = filepath;
-        self.emit('willrecord');
-        self.mozCamera.startRecording(
-          config,
-          storage,
-          filepath,
-          onSuccess,
-          onError);
+        // TODO: Callee should
+        // pass in orientation
+        var config = {
+          rotation: rotation,
+          maxFileSizeBytes: maxFileSizeBytes
+        };
+
+        self.createVideoFilepath(createVideoFilepathDone);
+
+        function createVideoFilepathDone(errorMsg, filepath) {
+          debug('created video filepath');
+          if (typeof filepath === 'undefined') {
+            self.onRecordingError('error-video-file-path');
+            reject('error-video-file-path');
+            return;
+          }
+
+          video.filepath = filepath;
+          self.emit('willrecord');
+          self.mozCamera.startRecording(
+            config,
+            storage,
+            filepath,
+            onSuccess,
+            onError);
+        }
       }
-    }
 
-    function onError(err) {
-      // Ignore err as we use our own set of error
-      // codes; instead trigger using the default
-      self.onRecordingError();
-    }
-
-    function onSuccess() {
-      self.startVideoTimer();
-      self.ready();
-
-      // User closed app while
-      // recording was trying to start
-      //
-      // TODO: Not sure this should be here
-      if (document.hidden) {
-        self.stopRecording();
+      function onError(err) {
+        // Ignore err as we use our own set of error
+        // codes; instead trigger using the default
+        self.onRecordingError();
+        reject(err);
       }
-    }
+
+      function onSuccess() {
+        self.startVideoTimer();
+
+        // User closed app while
+        // recording was trying to start
+        //
+        // TODO: Not sure this should be here
+        if (document.hidden) {
+          self.stopRecording();
+        }
+
+        self.ready();
+        resolve();
+      }
+    });
   },
 
   /**
@@ -1040,6 +956,7 @@ module.exports = component.register('gaia-camera', {
         self.emit('ready');
         return;
       }
+
       debug('video file ready', e.path);
       var matchesFile = e.path.indexOf(filepath) > -1;
 
@@ -1053,7 +970,7 @@ module.exports = component.register('gaia-camera', {
 
       // Re-fetch the blob from storage
       var req = storage.get(filepath);
-      req.onerror = self.onRecordingError;
+      req.onerror = self.onRecordingError.bind(self);
       req.onsuccess = onSuccess;
 
       function onSuccess() {
@@ -1254,27 +1171,33 @@ module.exports = component.register('gaia-camera', {
    * selected, no action is taken.
    *
    * @param {String} camera 'front'|'back'
+   * @return {Promise}
    * @public
    */
   setCamera: function(camera) {
-    debug('set camera: %s', camera);
-    if (this.selectedCamera === camera) { return; }
-    this.selectedCamera = camera;
-    this.load();
+    return new Promise((resolve, reject) => {
+      debug('set camera: %s', camera);
+      if (this.selectedCamera === camera) { return resolve(); }
+      this.selectedCamera = camera;
+      return this.loadCamera();
+    });
   },
 
   /**
    * Toggles between 'picture'
    * and 'video' capture modes.
    *
-   * @return {String}
+   * @param {String} mode 'picture'|'video'
+   * @return {Promise}
    * @public
    */
   setMode: function(mode) {
-    debug('setting mode to: %s', mode);
-    if (this.isMode(mode)) { return; }
-    this.mode = mode;
-    this.configure();
+    return new Promise((resolve, reject) => {
+      debug('setting mode to: %s', mode);
+      if (this.isMode(mode)) { return resolve(); }
+      this.mode = mode;
+      return this.fadeConfigure();
+    });
   },
 
   /**
@@ -1436,7 +1359,6 @@ module.exports = component.register('gaia-camera', {
     var sensorAngle = this.getSensorAngle();
     var previewSize = this.previewSize;
     var container;
-    var aspect;
 
     // Invert dimensions if the camera's `sensorAngle` is
     // 0 or 180 degrees.
@@ -1446,37 +1368,35 @@ module.exports = component.register('gaia-camera', {
         height: this.clientHeight,
         aspect: this.clientWidth / this.height
       };
-
-      aspect = previewSize.height / previewSize.width;
     } else {
       container = {
         width: this.clientHeight,
         height: this.clientWidth,
         aspect: this.clientHeight / this.clientWidth
       };
-
-      aspect = previewSize.width / previewSize.height;
     }
 
-    var shouldFill = aspect > container.aspect;
-    var scaleType = this.scaleType || (shouldFill ? 'fill' : 'fit');
+    var sizes = {
+      fill: scaleTo.fill(container, previewSize),
+      fit: scaleTo.fit(container, previewSize)
+    };
 
-    // Calculate the correct scale to apply to the
-    // preview to either 'fill' or 'fit' the viewfinder
-    // container (always preserving the aspect ratio).
-    var landscape = scaleSizeTo[scaleType](container, previewSize);
-    var portrait = { width: landscape.height, height: landscape.width };
+    var scaleType = typeof this.scaleType === 'function' ?
+      this.scaleType(sizes) :
+      this.scaleType || 'fit';
+
+    var landscape = sizes[scaleType];
+    var portrait = {
+      width: landscape.height,
+      height: landscape.width
+    };
 
     // Set the size of the frame to match 'portrait' dimensions
     this.els.frame.style.width = portrait.width + 'px';
     this.els.frame.style.height = portrait.height + 'px';
 
     var transform = '';
-
-    if (mirrored) {
-      transform += 'scale(-1, 1) ';
-    }
-
+    if (mirrored) { transform += 'scale(-1, 1) '; }
     transform += 'rotate(' + sensorAngle + 'deg)';
 
     // Set the size of the video container to match the
@@ -1491,6 +1411,7 @@ module.exports = component.register('gaia-camera', {
     this.setAttr('scaleType', scaleType);
     this.viewfinderSize = portrait;
 
+    this.emit('previewsizechanged', portrait);
     debug('updated preview size/position', landscape, transform);
   },
 
@@ -1594,7 +1515,7 @@ module.exports = component.register('gaia-camera', {
     }
   },
 
-  fadeTime: 360,
+  fadeTime: 200,
 
   fadeOut: function(done) {
     debug('fade-out');
@@ -1618,7 +1539,7 @@ module.exports = component.register('gaia-camera', {
         document.body.classList.add('no-background');
         this.emit('fadedin');
         resolve();
-      }, this.fadeTome);
+      }, this.fadeTime);
     });
   },
 
@@ -1647,7 +1568,7 @@ module.exports = component.register('gaia-camera', {
       height: 100%;
 
       opacity: 1;
-      transition: opacity 360ms ease-in-out;
+      transition: opacity 200ms ease-in-out;
     }
 
     :host.hidden {
@@ -1742,6 +1663,33 @@ function wait(ms) {
   };
 }
 
+var scaleTo = {
+  fill: function(container, image) {
+    var sw = container.width / image.width;
+    var sh = container.height / image.height;
+
+    // Select the larger scale to fill and overflow viewport with image
+    var scale = Math.max(sw, sh);
+
+    return {
+      width: image.width * scale,
+      height: image.height * scale
+    };
+  },
+
+  fit: function(container, image) {
+    var sw = container.width / image.width;
+    var sh = container.height / image.height;
+
+    // Select the smaller scale to fit image completely within the viewport
+    var scale = Math.min(sw, sh);
+
+    return {
+      width: image.width * scale,
+      height: image.height * scale
+    };
+  }
+};
 
 });
 

@@ -44,6 +44,7 @@ CameraController.prototype.bindEvents = function() {
   camera.on('change:previewActive', this.app.firer('camera:previewactive'));
   camera.on('preview:started', this.app.firer('camera:preview:started'));
   camera.on('change:videoElapsed', app.firer('camera:recorderTimeUpdate'));
+  camera.on('previewsizechanged', app.firer('camera:previewsizechanged'));
   camera.on('autofocuschanged', app.firer('camera:autofocuschanged'));
   camera.on('focusconfigured',  app.firer('camera:focusconfigured'));
   camera.on('change:focus', app.firer('camera:focusstatechanged'));
@@ -71,14 +72,14 @@ CameraController.prototype.bindEvents = function() {
   app.on('settings:configured', this.onSettingsConfigured);
   app.on('previewgallery:opened', this.shutdownCamera);
   app.on('previewgallery:closed', this.onGalleryClosed);
-  app.on('stoprecording', this.camera.stopRecording);
+  app.on('stoprecording', () => this.camera.stopRecording());
   app.on('storage:volumechanged', this.onStorageVolumeChanged);
   app.on('storage:changed', this.onStorageChanged);
   app.on('zoombar:changed', this.onZoomBarChanged);
   app.on('activity:pick', this.onPickActivity);
   app.on('pinch:changed', this.onPinchChanged);
   app.on('timer:ended', this.capture);
-  app.on('visible', this.camera.load);
+  app.on('visible', () => this.camera.load());
   app.on('capture', this.capture);
   app.on('hidden', this.shutdownCamera);
 
@@ -109,6 +110,12 @@ CameraController.prototype.configure = function() {
 
   this.settings.cameras.filterOptions(this.camera.cameraList);
 
+  this.camera.scaleType = function(sizes) {
+    var controlsHeight = 110;
+    var gap = window.innerHeight - sizes.fit.width;
+    return gap > controlsHeight ? 'fit' : 'fill';
+  };
+
   this.camera.enableZoom(zoomEnabled);
   this.camera.enableZoomPreviewAdjustment(useZoomPreviewAdjustment);
   this.sensitivity = zoomSensitivity * window.innerWidth;
@@ -136,6 +143,7 @@ CameraController.prototype.onSettingsConfigured = function() {
 
   // Defer this work as it involves
   // expensive mozSettings calls
+  // TODO: Move this into gaia-camera
   // setTimeout(this.updateZoomForMako);
 
   debug('camera configured with final settings');
@@ -153,10 +161,6 @@ CameraController.prototype.onPickActivity = function(data) {
   // This is set so that the video recorder can
   // automatically stop when video size limit is reached.
   this.camera.set('maxFileSizeBytes', data.maxFileSizeBytes);
-
-  // Disable camera config caches when in 'pick' activity
-  // to prevent activity specific configuration persisting.
-  this.camera.cacheConfig = false;
 };
 
 /**
@@ -265,25 +269,8 @@ CameraController.prototype.setMode = function(mode) {
  */
 CameraController.prototype.updatePictureSize = function() {
   debug('update picture-size');
-  var pictureMode = this.settings.mode.selected('key') === 'picture';
   var value = this.settings.pictureSizes.selected('data');
-  var self = this;
-
-  // Don't do anything if the picture size didn't change
-  if (this.camera.isPictureSize(value)) { return; }
-
-  // If not currently in 'picture'
-  // mode, just configure.
-  if (!pictureMode) {
-    this.camera.setPictureSize(value, { configure: false });
-    return;
-  }
-
-  // Make change once the viewfinder is hidden
-  this.app.emit('camera:willchange');
-  this.app.once('viewfinder:hidden', function() {
-    self.camera.setPictureSize(value);
-  });
+  this.camera.setPictureSize(value);
 };
 
 /**
@@ -437,7 +424,8 @@ CameraController.prototype.onCameraClosed = function(reason) {
 CameraController.prototype.onGalleryClosed = function(reason) {
   if (this.app.hidden) { return; }
   this.app.showSpinner();
-  this.camera.load(this.app.clearSpinner);
+  this.camera.loadCamera()
+    .then(this.app.clearSpinner);
 };
 
 /**

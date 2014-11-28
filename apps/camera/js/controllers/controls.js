@@ -40,6 +40,7 @@ ControlsController.prototype.bindEvents = function() {
   this.app.settings.mode.on('change:options', this.configureMode);
 
   // App
+  this.app.once('camera:previewsizechanged', this.onPreviewSizeChanged);
   this.app.on('change:recording', this.onRecordingChange);
   this.app.on('camera:shutter', this.captureHighlightOff);
   this.app.on('newthumbnail', this.onNewThumbnail);
@@ -81,6 +82,7 @@ ControlsController.prototype.createView = function() {
   // Disable view until camera
   // 'ready' enables it.
   this.view.disable();
+  this.view.hide();
 
   // Put it in the DOM
   this.view.appendTo(this.app.el);
@@ -250,6 +252,12 @@ ControlsController.prototype.onViewModeChanged = function() {
 
 ControlsController.prototype.onCancelButtonClick = function() {
   this.app.emit('activitycanceled');
+};
+
+ControlsController.prototype.onPreviewSizeChanged = function(size) {
+  var gap = window.innerHeight - size.height;
+  this.view.el.style.minHeight = Math.max(0, gap) + 'px';
+  this.view.show();
 };
 
 /**

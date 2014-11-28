@@ -8,14 +8,19 @@
  */
 
 .controls {
-  display: flex;
   position: absolute;
-  bottom: 0; left: 0;
+  bottom: 0;
+  left: 0;
   z-index: 1; /* 1 */
+
+  display: flex;
   width: 100%;
-  padding-bottom: 1rem;
+  min-height: 12.2rem;
   overflow: hidden;
   direction: ltr;
+
+  opacity: 1;
+  transition: opacity 240ms
 }
 
 /**
@@ -24,6 +29,14 @@
 
 .controls.disabled {
   pointer-events: none;
+}
+
+/**
+ * .hidden
+ */
+
+.controls.hidden {
+  opacity: 0;
 }
 
 /** Left and Right
@@ -169,6 +182,7 @@
   padding: 0.2rem;
   margin-left: 1.8rem;
   box-sizing: content-box;
+  pointer-events: auto;
   overflow: hidden;
 }
 
