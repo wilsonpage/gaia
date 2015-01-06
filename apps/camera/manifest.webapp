@@ -19,9 +19,11 @@
     "geolocation":{},
     "audio-channel-notification":{},
     "audio-channel-content":{},
-    "feature-detection": {}
+    "feature-detection": {},
+    "nfc": {}
   },
   "activities": {
+    "nfc-ndef-discovered": {},
     "record": {
       "filters": {
         "type": ["photos", "videos"]

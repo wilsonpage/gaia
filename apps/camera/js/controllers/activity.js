@@ -73,7 +73,7 @@ ActivityController.prototype.bindEvents = function() {
 
 ActivityController.prototype.setupListener = function() {
   debug('setup listener');
-  navigator.mozSetMessageHandler('activity', this.onMessage);
+  // navigator.mozSetMessageHandler('activity', this.onMessage);
   debug('listener setup');
 };
 

@@ -140,6 +140,10 @@ ViewfinderController.prototype.bindEvents = function() {
   // App
   this.app.on('pinch:changed', this.onPinchChanged);
   this.app.on('hidden', this.stopStream);
+
+  navigator.mozSetMessageHandler('activity', this.onActivity);
+  navigator.mozNfc.onpeerfound = this.onPeerFound;
+  this.app.on('click', this.onAppClicked);
 };
 
 /**
@@ -418,5 +422,146 @@ ViewfinderController.prototype.onPreviewActive = function(active) {
     this.stopStream();
   }
 };
+
+ViewfinderController.prototype.onPeerFound = function(e) {
+  debug('on peer found', e);
+  this.peer = e.peer;
+  this.setupRTC();
+};
+
+ViewfinderController.prototype.setupRTC = function() {
+  if (this.rtc) { return; }
+  debug('setup rtc');
+
+  var self = this;
+  this.rtc = new window.mozRTCPeerConnection({ iceservers: [] });
+
+  setTimeout(() => {
+    this.rtc.addStream(this.camera.mozCamera);
+  }, 1000);
+
+  this.rtc.ondatachannel = function(e) {
+    debug('ondatachannel', e);
+    self.channel = e.channel || e; // Chrome sends event, FF sends raw channel
+    self.channel.onopen = function (e) {
+      debug('onopen', e);
+    };
+    self.channel.onmessage = function (e) { debug('onmessage', e); };
+  };
+
+  // Once remote stream arrives, show
+  // it in the remote video element
+  this.rtc.onaddstream = function(e) {
+    debug('onaddstream', e);
+    // this.views.viewfinder.stopStream();
+    // self.views.viewfinder.els.video.mozSrcObject = e.stream;
+    // self.views.viewfinder.els.video.play();
+  };
+};
+
+ViewfinderController.prototype.onAppClicked = function(e) {
+  debug('app clicked');
+  if (!this.peer) { return; }
+  // this.views.viewfinder.stopStream();
+  // this.rtc.addStream(this.camera.mozCamera);
+  this.sendOffer();
+};
+
+ViewfinderController.prototype.sendOffer = function() {
+  debug('send offer');
+  var self = this;
+  this.sender = true;
+  this.createOffer(function(offer) {
+    debug('send offer via nfc');
+    self.peer.sendNDEF([new window.MozNDEFRecord({
+      tnf: 'well-known',
+      type: fromUtf8('T'),
+      payload: fromUtf8(JSON.stringify(offer))
+    })]);
+  });
+};
+
+ViewfinderController.prototype.onActivity = function(e) {
+  debug('activity', e);
+
+  var record = e.source.data.records[0];
+  var json = JSON.parse(toUtf8(record.payload));
+  var desc = new window.mozRTCSessionDescription(json);
+
+  switch(json.type) {
+    case 'offer': return this.onOffer(desc);
+    case 'answer': return this.onAnswer(desc);
+  }
+};
+
+ViewfinderController.prototype.onOffer = function(offer) {
+  debug('on offer', offer);
+  var self = this;
+  this.acceptOffer(offer, function(answer) {
+    self.peer.sendNDEF([new window.MozNDEFRecord({
+      tnf: 'well-known',
+      type: fromUtf8('T'),
+      payload: fromUtf8(JSON.stringify(answer))
+    })]);
+  });
+};
+
+ViewfinderController.prototype.onAnswer = function(answer) {
+  debug('on answer', answer);
+  this.rtc.setRemoteDescription(answer, function() {}, function() {});
+};
+
+ViewfinderController.prototype.createOffer = function(done) {
+  debug('create offer');
+  var self = this;
+
+  this.channel = this.rtc.createDataChannel('test', { reliable: true });
+  this.channel.onopen = function (e) { debug('onopen', e); };
+  this.channel.onmessage = function (e) { debug('onmessage', e); };
+
+  this.rtc.createOffer(function(offer) {
+    debug('created offer', offer);
+
+    self.rtc.onicecandidate = function(e) {
+      debug('onicecandidate', e);
+      if (e.candidate === null) { done(self.rtc.localDescription); }
+    };
+
+    self.rtc.setLocalDescription(offer, function() {}, function() {});
+  }, function(err) {});
+};
+
+ViewfinderController.prototype.acceptOffer = function(offer, done) {
+  debug('accept offer', offer);
+  var self = this;
+
+  this.rtc.setRemoteDescription(offer, function() {}, function() {});
+  this.rtc.createAnswer(function(answer) {
+    debug('created answer', answer);
+
+    self.rtc.onicecandidate = function(e) {
+      debug('onicecandidate', e);
+      if (e.candidate === null) { done(self.rtc.localDescription); }
+    };
+
+    self.rtc.setLocalDescription(answer, function() {}, function() {});
+  }, function(err) {});
+};
+
+// navigator.mozSetMessageHandler('activity', function(e) {
+//   debug('activity', e);
+// });
+
+/**
+ * Utils
+ */
+
+function fromUtf8(str) {
+  return new window.TextEncoder('utf-8').encode(str);
+}
+
+function toUtf8(str) {
+  return new window.TextDecoder('utf-8').decode(str);
+}
 
 });
