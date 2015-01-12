@@ -144,6 +144,8 @@ ViewfinderController.prototype.bindEvents = function() {
   navigator.mozSetMessageHandler('activity', this.onActivity);
   navigator.mozNfc.onpeerfound = this.onPeerFound;
   this.app.on('click', this.onAppClicked);
+
+  this.rtc = new window.mozRTCPeerConnection({ iceservers: [] });
 };
 
 /**
@@ -156,6 +158,8 @@ ViewfinderController.prototype.onCameraConfigured = function() {
   debug('configuring');
   this.loadStream();
   this.configurePreview();
+
+  this.rtc.addStream(this.camera.mozCamera);
 };
 
 /**
@@ -434,11 +438,6 @@ ViewfinderController.prototype.setupRTC = function() {
   debug('setup rtc');
 
   var self = this;
-  this.rtc = new window.mozRTCPeerConnection({ iceservers: [] });
-
-  setTimeout(() => {
-    this.rtc.addStream(this.camera.mozCamera);
-  }, 1000);
 
   this.rtc.ondatachannel = function(e) {
     debug('ondatachannel', e);
@@ -463,7 +462,6 @@ ViewfinderController.prototype.onAppClicked = function(e) {
   debug('app clicked');
   if (!this.peer) { return; }
   // this.views.viewfinder.stopStream();
-  // this.rtc.addStream(this.camera.mozCamera);
   this.sendOffer();
 };
 
