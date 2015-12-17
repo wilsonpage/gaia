@@ -1,0 +1,26 @@
+{
+  "name": "fxos-header",
+  "homepage": "https://github.com/fxos-components/fxos-header",
+  "authors": [
+    "Wilson Page <wilsonpage@me.com>"
+  ],
+  "main": "fxos-header.js",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "!.jshintrc",
+    "node_modules",
+    "bower_components",
+    "test",
+    "index.html",
+    "package.json",
+    "webpack.config.js",
+    "README.md"
+  ],
+  "dependencies": {
+    "fxos-icons": "fxos-components/fxos-icons#~2.1.0",
+    "fxos-component": "fxos-components/fxos-component#~1.0.2",
+    "font-fit": "fxos-components/font-fit#~0.3.7",
+    "fxos-theme": "fxos-components/fxos-theme#~2.0.2"
+  }
+}

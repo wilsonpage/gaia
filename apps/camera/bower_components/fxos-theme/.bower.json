@@ -1,0 +1,35 @@
+{
+  "name": "fxos-theme",
+  "homepage": "https://github.com/fxos-components/fxos-theme",
+  "authors": [
+    "Wilson Page <wilsonpage@me.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "!.jshintrc",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "index.html",
+    "README.md"
+  ],
+  "devDependencies": {
+    "gaia-icons": "fxos-components/gaia-icons",
+    "gaia-header": "fxos-components/gaia-header",
+    "gaia-button": "fxos-components/gaia-button",
+    "gaia-switch": "fxos-components/gaia-switch",
+    "gaia-checkbox": "fxos-components/gaia-checkbox"
+  },
+  "version": "2.0.2",
+  "_release": "2.0.2",
+  "_resolution": {
+    "type": "version",
+    "tag": "v2.0.2",
+    "commit": "a1440d028ea8737756fd3b25ae70cc3fbfda5e52"
+  },
+  "_source": "git://github.com/fxos-components/fxos-theme.git",
+  "_target": "~2.0.2",
+  "_originalSource": "fxos-components/fxos-theme"
+}

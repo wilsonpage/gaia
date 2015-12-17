@@ -24,8 +24,7 @@
     "view": "fxos-components/view#~0.1.1",
     "model": "fxos-components/model#~0.1.0",
     "drag": "fxos-components/drag#0.1.4",
-    "gaia-header": "fxos-components/gaia-header#~0.9.5",
-    "gaia-theme": "fxos-components/gaia-theme#~0.4.1",
-    "gaia-icons": "fxos-components/gaia-icons#~1.0.2"
+    "fxos-header": "fxos-components/fxos-header#~1.1.2",
+    "fxos-icons": "fxos-components/fxos-icons#2.1.1"
   }
 }

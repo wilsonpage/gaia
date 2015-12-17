@@ -15,10 +15,10 @@ var attach = require('attach');
 var View = require('view');
 
 /**
- * `<gaia-header>` used in template
+ * `<fxos-header>` used in template
  */
 
-require('gaia-header');
+require('fxos-header');
 
 /**
  * Constants
@@ -54,7 +54,7 @@ return View.extend({
 
     // We're appending new elements to DOM so to make sure headers are
     // properly resized and centered, we emmit a lazyload event.
-    // This will be removed when the gaia-header web component lands.
+    // This will be removed when the fxos-header web component lands.
     window.dispatchEvent(new CustomEvent('lazyload', {
       detail: this.el
     }));
@@ -94,7 +94,7 @@ return View.extend({
 
   template: function() {
     return '<div class="preview-menu js-preview-menu">' +
-        '<gaia-header class="js-header" action="back" ignore-dir>' +
+        '<fxos-header class="js-header" action="back" ignore-dir>' +
           '<h1 data-l10n-id="preview">Preview</h1>' +
           '<button class="preview-share-icon js-share"' +
             'name="share" data-icon="share" ' +
@@ -102,7 +102,7 @@ return View.extend({
           '<button class="preview-option-icon ' +
             'js-options" name="options" data-icon="more" ' +
             'data-l10n-id="more-button"></button>' +
-        '</gaia-header>' +
+        '</fxos-header>' +
       '</div>' +
       '<div class="frame-container js-frame-container">' +
         '<div class="media-frame js-media-frame"></div>' +

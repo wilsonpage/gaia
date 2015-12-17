@@ -2,24 +2,29 @@
 /* Based on https://github.com/endtwist/fontcustom/blob/master/lib/fontcustom/templates/fontcustom.css */
 
 @font-face {
-	font-family: "gaia-icons";
-	src: url("fonts/gaia-icons.ttf") format("truetype");
+	font-family: "fxos-icons";
+	src: url("fonts/fxos-icons.ttf") format("truetype");
 	font-weight: 500;
 	font-style: normal;
 }
 
 [data-icon]:before,
 .ligature-icons {
-	font-family: "gaia-icons";
+	font-family: "fxos-icons";
 	content: attr(data-icon);
 	display: inline-block;
+	width: 1em; /* stop overflow in chrome */
+	font-size: 30px;
 	font-weight: 500;
 	font-style: normal;
+	white-space: nowrap; /* stop wrapping in chrome */
+  text-align: center;
+  overflow: hidden;
 	text-decoration: inherit;
 	text-transform: none;
 	text-rendering: optimizeLegibility;
-	font-size: 30px;
 	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 [data-icon]:not([data-l10n-id]):not([aria-label]):not([aria-hidden="true"]):before {

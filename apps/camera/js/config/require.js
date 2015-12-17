@@ -31,19 +31,19 @@ requirejs.config({
   // a 'package' so they are resolved correctly.
   packages: [
     {
-      name: 'gaia-header',
-      location: '../bower_components/gaia-header',
-      main: 'gaia-header'
+      name: 'fxos-header',
+      location: '../bower_components/fxos-header',
+      main: 'fxos-header'
     },
     {
-      name: 'gaia-icons',
-      location: '../bower_components/gaia-icons',
-      main: 'gaia-icons'
+      name: 'fxos-icons',
+      location: '../bower_components/fxos-icons',
+      main: 'fxos-icons'
     },
     {
-      name: 'gaia-component',
-      location: '../bower_components/gaia-component',
-      main: 'gaia-component'
+      name: 'fxos-component',
+      location: '../bower_components/fxos-component',
+      main: 'fxos-component'
     },
     {
       name: 'font-fit',
