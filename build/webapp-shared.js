@@ -232,9 +232,10 @@ WebappShared.prototype.pushElements = function(path) {
   }
 
   var elementName = String(paths.shift());
+  var supported = /gaia|fxos/.test(elementName);
 
   // Only handle web components for now (start with gaia)
-  if (elementName.indexOf('gaia') !== 0) {
+  if (!supported) {
     return;
   }
 
@@ -243,6 +244,7 @@ WebappShared.prototype.pushElements = function(path) {
   resources.forEach(function(resource) {
     var eachFile = utils.getFile(this.gaia.sharedFolder.path, 'elements',
       elementName, resource);
+
     if (eachFile.exists()) {
       var stagePath = 'shared/' +
         utils.relativePath(this.gaia.sharedFolder.path, eachFile.path);
