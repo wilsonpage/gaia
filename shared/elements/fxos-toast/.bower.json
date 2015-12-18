@@ -1,0 +1,33 @@
+{
+  "name": "fxos-toast",
+  "homepage": "https://github.com/fxos-components/fxos-toast",
+  "authors": [
+    "Wilson Page <wilsonpage@me.com>"
+  ],
+  "main": "script.js",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "index.html",
+    "test",
+    "tests",
+    "examples",
+    "README.md",
+    "webpack.config.js"
+  ],
+  "dependencies": {
+    "fxos-component": "fxos-components/fxos-component#~1.0.0"
+  },
+  "version": "1.0.1",
+  "_release": "1.0.1",
+  "_resolution": {
+    "type": "version",
+    "tag": "v1.0.1",
+    "commit": "2e038fcde91e10f15e62855fd7492332a3e0a1d1"
+  },
+  "_source": "git://github.com/fxos-components/fxos-toast.git",
+  "_target": "*",
+  "_originalSource": "fxos-components/fxos-toast"
+}

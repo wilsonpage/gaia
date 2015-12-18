@@ -15,7 +15,7 @@ apps/callscreen/style/conference_group_ui.css 1 0
 apps/callscreen/style/lockscreen.css 2 0
 apps/callscreen/style/oncall.css 20 1
 apps/callscreen/style/oncall_status_bar.css 4 0
-apps/camera/bower_components/gaia-theme/gaia-theme.css 5 0
+apps/camera/bower_components/fxos-theme/fxos-theme.css 5 0
 apps/camera/style/notification.css 1 0
 apps/camera/style/overlay.css 0 4
 apps/camera/style/preview-gallery.css 0 2

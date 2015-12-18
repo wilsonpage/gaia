@@ -1,0 +1,23 @@
+{
+  "name": "fxos-toast",
+  "homepage": "https://github.com/fxos-components/fxos-toast",
+  "authors": [
+    "Wilson Page <wilsonpage@me.com>"
+  ],
+  "main": "script.js",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "index.html",
+    "test",
+    "tests",
+    "examples",
+    "README.md",
+    "webpack.config.js"
+  ],
+  "dependencies": {
+    "fxos-component": "fxos-components/fxos-component#~1.0.0"
+  }
+}

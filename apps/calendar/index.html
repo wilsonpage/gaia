@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1">
 <meta charset="utf-8">
 <meta name="theme-group" content="theme-productivity">
-<meta name="theme-color" content="var(--header-background)" data-default="var(--header-background)" data-settings="#eeeeee">
+<meta name="theme-color" content="var(--fxos-header-background)" data-default="var(--fxos-header-background)" data-settings="#eeeeee">
 <title>Calendar</title>
 
 <!-- stylesheets -->
@@ -45,11 +45,12 @@
 <script defer src="/shared/elements/gaia_checkbox/script.js"></script>
 <script defer src="/shared/elements/gaia_switch/script.js"></script>
 <script defer src="shared/elements/config.js"></script>
-<link rel="stylesheet" type="text/css" href="app://theme.gaiamobile.org/shared/elements/gaia-theme/gaia-theme.css" />
-<script defer src="shared/elements/gaia-header/dist/gaia-header.js"></script>
-<link rel="stylesheet" type="text/css" href="app://theme.gaiamobile.org/shared/elements/gaia-theme/style.css" />
-<!-- Icons are lazy loaded by gaia-header -->
-<!-- <link rel="stylesheet" type="text/css" href="shared/elements/gaia-icons/gaia-icons.css" /> -->
+<link rel="stylesheet" href="app://theme.gaiamobile.org/shared/elements/fxos-theme/fxos-theme.css" />
+
+<!-- Icons are lazy loaded by fxos-header -->
+<link rel="stylesheet" href="shared/elements/fxos-icons/fxos-icons.css" />
+<script defer src="shared/elements/fxos-component/fxos-component.js"></script>
+<script defer src="shared/elements/fxos-header/fxos-header.js"></script>
 
 <script defer src="/js/bundle.js"></script>
 
@@ -66,16 +67,16 @@
 
 </head>
 
-<body role="application" class="loading theme-productivity">
+<body role="application" class="loading fxos-theme-productivity">
 
 <section is="errors" id="errors" role="status" aria-live="assertive" aria-atomic="true"></section>
 <section is="settings" id="settings" role="region"></section>
 
 <section id="time-views" role="region">
-  <gaia-header id="time-header" action="menu">
+  <fxos-header id="time-header" action="menu">
     <h1 id="current-month-year" aria-labelledby="current-time-indicator"></h1>
     <a href="/event/add/" data-icon="add" data-l10n-id="new-event-link"></a>
-  </gaia-header>
+  </fxos-header>
 
   <div id="progress-indicator">
     <div id="throbber"></div>

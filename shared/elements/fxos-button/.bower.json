@@ -1,0 +1,32 @@
+{
+  "name": "fxos-button",
+  "main": "fxos-button.js",
+  "homepage": "https://github.com/fxos-components/fxos-button",
+  "authors": [
+    "wilsonpage@me.com"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "index.html",
+    "package.json",
+    "README.md"
+  ],
+  "dependencies": {
+    "fxos-component": "fxos-components/fxos-component#~1.0.0"
+  },
+  "version": "1.0.0",
+  "_release": "1.0.0",
+  "_resolution": {
+    "type": "version",
+    "tag": "v1.0.0",
+    "commit": "efceee0cf313c0de6f204814b06d16158903b8b2"
+  },
+  "_source": "git://github.com/fxos-components/fxos-button.git",
+  "_target": "*",
+  "_originalSource": "fxos-components/fxos-button"
+}

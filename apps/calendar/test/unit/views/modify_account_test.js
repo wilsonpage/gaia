@@ -11,7 +11,7 @@ var core = require('core');
 var nextTick = require('common/next_tick');
 var router = require('router');
 
-require('/shared/elements/gaia-header/dist/gaia-header.js');
+require('/shared/elements/fxos-header/dist/fxos-header.js');
 require('dom!modify_event');
 require('dom!show_event');
 
@@ -94,10 +94,10 @@ suite('Views.ModifyAccount', function() {
     div.id = 'test';
     div.innerHTML = [
       '<div id="modify-account-view">',
-        '<gaia-header id="modify-account-header" action="back">',
+        '<fxos-header id="modify-account-header" action="back">',
           '<h1>Account</h1>',
           '<button class="save">Save</button>',
-        '</gaia-header>',
+        '</fxos-header>',
         '<button class="save">save</button>',
         '<button class="cancel">cancel</button>',
         '<button class="delete-cancel">cancel</button>',
@@ -114,9 +114,9 @@ suite('Views.ModifyAccount', function() {
         '<a class="force-oauth2"></a>',
       '</div>',
       '<section id="oauth2">',
-        '<gaia-header id="oauth-header" action="back">',
+        '<fxos-header id="oauth-header" action="back">',
           '<h1 class="oauth-browser-title"> </h1>',
-        '</gaia-header>',
+        '</fxos-header>',
         '<div class="browser-container"></div>',
       '</section>'
     ].join('');

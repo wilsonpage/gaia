@@ -1,0 +1,35 @@
+{
+  "name": "fxos-dialog",
+  "homepage": "https://github.com/fxos-components/fxos-dialog",
+  "authors": [
+    "Wilson Page <wilsonpage@me.com>"
+  ],
+  "main": "fxos-dialog.js",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "index.html",
+    "package.json",
+    "webpack.config.json",
+    "README.md"
+  ],
+  "dependencies": {
+    "fxos-text-input": "fxos-components/fxos-text-input",
+    "fxos-icons": "fxos-components/fxos-icons#~2.0.0",
+    "fxos-component": "fxos-components/fxos-component#~1.0.0"
+  },
+  "version": "2.0.1",
+  "_release": "2.0.1",
+  "_resolution": {
+    "type": "version",
+    "tag": "v2.0.1",
+    "commit": "9ee68ddc0203c96b9a75dee2e5804e22cd848f65"
+  },
+  "_source": "git://github.com/fxos-components/fxos-dialog.git",
+  "_target": "*",
+  "_originalSource": "fxos-components/fxos-dialog"
+}

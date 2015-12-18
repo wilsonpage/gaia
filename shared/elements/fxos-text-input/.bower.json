@@ -1,0 +1,34 @@
+{
+  "name": "fxos-text-input",
+  "authors": [
+    "Wilson Page <wilsonpage@me.com>"
+  ],
+  "main": "fxos-text-input.js",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "index.html",
+    "manifest.webapp",
+    "webpack.config.js",
+    "README.md"
+  ],
+  "dependencies": {
+    "fxos-icons": "fxos-components/fxos-icons#~2.0.0",
+    "fxos-component": "fxos-components/fxos-component#~1.0.0"
+  },
+  "homepage": "https://github.com/fxos-components/fxos-text-input",
+  "version": "1.0.1",
+  "_release": "1.0.1",
+  "_resolution": {
+    "type": "version",
+    "tag": "v1.0.1",
+    "commit": "dbf05c01ca1317803417707fe14062bbc71c65a1"
+  },
+  "_source": "git://github.com/fxos-components/fxos-text-input.git",
+  "_target": "*",
+  "_originalSource": "fxos-components/fxos-text-input"
+}

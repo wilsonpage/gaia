@@ -1,0 +1,14 @@
+{
+  "name": "fxos-theme",
+  "version": "2.0.2",
+  "description": "A collection of css-variables to style fxos-components and apps",
+  "main": "fxos-theme.css",
+  "author": "Wilson Page <wilsonpage@me.com>",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/fxos-components/fxos-theme.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fxos-components/fxos-theme/issues"
+  }
+}

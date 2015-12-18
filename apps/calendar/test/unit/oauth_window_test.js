@@ -26,9 +26,9 @@ suite('OAuthWindow', function() {
     element = document.createElement('section');
     element.innerHTML = [
       '<section role="region">',
-        '<gaia-header id="oauth-header" action="cancel">',
+        '<fxos-header id="oauth-header" action="cancel">',
           '<h1 class="oauth-browser-title"></h1>',
-        '</gaia-header>',
+        '</fxos-header>',
         '<div class="browser-container"></div>',
       '</section>'
     ].join('');

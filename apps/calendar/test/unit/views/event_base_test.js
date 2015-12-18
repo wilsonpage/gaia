@@ -1,7 +1,7 @@
 define(function(require) {
 'use strict';
 
-require('/shared/elements/gaia-header/dist/gaia-header.js');
+require('/shared/elements/fxos-header/dist/fxos-header.js');
 var EventBase = require('views/event_base');
 var EventModel = require('models/event');
 var View = require('view');
@@ -34,9 +34,9 @@ suite('Views.EventBase', function() {
     div.id = 'test';
     div.innerHTML = [
       '<div id="event-test">',
-        '<gaia-header id="event-test-header" action="cancel">',
+        '<fxos-header id="event-test-header" action="cancel">',
           '<button class="primary">primary</button>',
-        '</gaia-header>',
+        '</fxos-header>',
       '</div>'
     ].join('');
 

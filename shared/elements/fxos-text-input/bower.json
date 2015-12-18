@@ -1,0 +1,25 @@
+{
+  "name": "fxos-text-input",
+  "authors": [
+    "Wilson Page <wilsonpage@me.com>"
+  ],
+
+  "main": "fxos-text-input.js",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "index.html",
+    "manifest.webapp",
+    "webpack.config.js",
+    "README.md"
+  ],
+
+  "dependencies": {
+    "fxos-icons": "fxos-components/fxos-icons#~2.0.0",
+    "fxos-component": "fxos-components/fxos-component#~1.0.0"
+  }
+}

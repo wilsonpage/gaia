@@ -123,7 +123,7 @@ body[data-path="/day/"] #view-selector > .day > a:active {
 
 #time-header [type="toolbar"] {
   opacity: 1;
-  transition: opacity var(--transition-duration) ease;
+  transition: opacity var(--fxos-transition-duration) ease;
 }
 
 .settings-drawer-visible #time-header [type="toolbar"] {
@@ -327,7 +327,7 @@ body[data-path^='/settings'] #settings {
 }
 
 /* for accessiblity only, fonts should not be visible */
-gaia-header > a > span {
+fxos-header > a > span {
   font-size: 0;
 }
 

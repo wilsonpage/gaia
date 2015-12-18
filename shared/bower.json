@@ -7,17 +7,14 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "gaia-component": "fxos-components/gaia-component",
-    "gaia-header": "fxos-components/gaia-header#~0.9.5",
-    "gaia-theme": "fxos-components/gaia-theme#~0.4.6",
-    "gaia-icons": "fxos-components/gaia-icons#1.0.2",
-    "gaia-toast": "fxos-components/gaia-toast",
+    "fxos-component": "fxos-components/fxos-component",
+    "fxos-header": "fxos-components/fxos-header#~1.1.2",
+    "fxos-theme": "fxos-components/fxos-theme#~2.0.2",
+    "fxos-icons": "fxos-components/fxos-icons#2.1.1",
+    "fxos-toast": "fxos-components/fxos-toast",
     "gaia-site-icon": "fxos-components/gaia-site-icon",
-    "gaia-dialog": "fxos-components/gaia-dialog",
-    "gaia-button": "fxos-components/gaia-button",
-    "gaia-text-input": "fxos-components/gaia-text-input"
-  },
-  "resolutions": {
-    "gaia-component": "~0.4.0"
+    "fxos-dialog": "fxos-components/fxos-dialog",
+    "fxos-button": "fxos-components/fxos-button",
+    "fxos-text-input": "fxos-components/fxos-text-input"
   }
 }

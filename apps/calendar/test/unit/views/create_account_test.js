@@ -21,9 +21,9 @@ suite('Views.CreateAccount', function() {
     div.id = 'test';
     div.innerHTML = [
       '<div id="create-account-view">',
-        '<gaia-header id="create-account-header" action="back">',
+        '<fxos-header id="create-account-header" action="back">',
           '<h1>Add an account</h1>',
-        '</gaia-header>',
+        '</fxos-header>',
         '<ul id="create-account-presets"></ul>',
       '</div>'
     ].join('');

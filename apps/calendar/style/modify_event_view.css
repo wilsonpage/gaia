@@ -140,7 +140,7 @@ html[dir="rtl"] #modify-event-view li.start-time {
 }
 
 /**
- * 1. COMPLEX: Scoped style-sheets within <gaia-header>
+ * 1. COMPLEX: Scoped style-sheets within <fxos-header>
  *    trump all other rules. !important is required
  *    for an app to over-ride the default appearance
  *    of content within the custom-element. This may

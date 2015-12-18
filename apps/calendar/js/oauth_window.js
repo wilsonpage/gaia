@@ -69,8 +69,8 @@ OAuthWindow.prototype = {
   },
 
   selectors: {
-    browserHeader: 'gaia-header',
-    browserTitle: 'gaia-header > h1',
+    browserHeader: 'fxos-header',
+    browserTitle: 'fxos-header > h1',
     browserContainer: '.browser-container'
   },
 

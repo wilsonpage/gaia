@@ -1,0 +1,24 @@
+{
+  "name": "fxos-button",
+  "main": "fxos-button.js",
+  "homepage": "https://github.com/fxos-components/fxos-button",
+  "authors": [
+    "wilsonpage@me.com"
+  ],
+
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "index.html",
+    "package.json",
+    "README.md"
+  ],
+
+  "dependencies": {
+    "fxos-component": "fxos-components/fxos-component#~1.0.0"
+  }
+}

@@ -2,7 +2,7 @@
 define(function(require) {
 'use strict';
 
-require('/shared/elements/gaia-header/dist/gaia-header.js');
+require('/shared/elements/fxos-header/dist/fxos-header.js');
 require('/shared/test/unit/mocks/mock_moz_intl.js');
 
 var AccountTemplate = require('templates/account');

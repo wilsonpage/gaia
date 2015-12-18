@@ -32,7 +32,7 @@ shared/test/unit/test-agent-server.js
 shared/elements/font-fit/font-fit.js
 shared/elements/gaia-header/dist/gaia-header.js
 shared/elements/gaia-component/gaia-component.js
-shared/elements/gaia-icons/gaia-icons.js
+shared/elements/fxos-icons/fxos-icons.js
 shared/elements/gaia-toast/gaia-toast.js
 shared/elements/gaia-dialog/*.js
 shared/elements/gaia-text-input/*.js

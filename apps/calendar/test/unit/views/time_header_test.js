@@ -28,9 +28,9 @@ suite('Views.TimeHeader', function() {
     div.id = 'test';
     div.innerHTML = [
       '<div id="wrapper"></div>',
-      '<gaia-header id="time-header" action="menu">',
+      '<fxos-header id="time-header" action="menu">',
         '<h1></h1>',
-      '</gaia-header>'
+      '</fxos-header>'
     ].join('');
 
     document.body.appendChild(div);

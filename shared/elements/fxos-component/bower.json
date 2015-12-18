@@ -1,0 +1,21 @@
+{
+  "name": "fxos-component",
+  "homepage": "https://github.com/fxos-components/fxos-component",
+  "main": "fxos-component.js",
+  "license": "MIT",
+
+  "ignore": [
+    "**/.*",
+    "README.md",
+    "package.json",
+    "node_modules",
+    "webpack.config.js",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+
+  "authors": [
+    "Wilson Page <wilsonpage@me.com>"
+  ]
+}
