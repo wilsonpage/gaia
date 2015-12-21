@@ -128,10 +128,10 @@ section[role="region"] > div {
  * the same color as other icons.
  */
 
-gaia-header a:first-child,
-gaia-header button:first-child,
-gaia-header [data-icon="close"] {
-  color: var(--header-action-button-color) !important;
+fxos-header a:first-child,
+fxos-header button:first-child,
+fxos-header [data-icon="close"] {
+  color: var(--fxos-header-action-button-color) !important;
 }
 
 /*
@@ -148,7 +148,7 @@ section[role="region"] > div > ul {
  *    should be hidden.
  */
 
-gaia-header [data-icon] > span {
+fxos-header [data-icon] > span {
   font-size: 0; /* 1 */
 }
 
@@ -176,7 +176,7 @@ ul li > a.menu-item > * {
 
 /**
  * 1. !important required to override scoped
- *    styles in <gaia-header>
+ *    styles in <fxos-header>
  */
 
 #activityDoneButton {

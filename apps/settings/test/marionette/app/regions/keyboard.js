@@ -15,11 +15,11 @@ module.exports = KeyboardPanel;
 
 KeyboardPanel.Selectors = {
   keyboardList: '.allKeyboardList li',
-  header: '#keyboard gaia-header',
+  header: '#keyboard fxos-header',
   panel: '#keyboard',
   selectKeyboards: '#keyboard a[href="#keyboard-selection-addMore"]',
   builtinKeyboardList: '#keyboard-selection-addMore .keyboardAppContainer ul',
-  backButton: '#keyboard-selection-addMore gaia-header'
+  backButton: '#keyboard-selection-addMore fxos-header'
 };
 
 KeyboardPanel.prototype = {

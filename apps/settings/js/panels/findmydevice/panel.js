@@ -11,7 +11,7 @@ define(function(require) {
     return SettingsPanel({
       onInit: function(panel) {
         elements = {
-          header: panel.querySelector('gaia-header'),
+          header: panel.querySelector('fxos-header'),
           login: panel.querySelector('.findmydevice-login'),
           loginButton: panel.querySelector('.findmydevice-login > button'),
           unverifiedError: panel.querySelector(

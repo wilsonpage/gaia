@@ -24,7 +24,7 @@ define(function(require) {
 
         this._elements = {
           panel: panel,
-          header: $('gaia-header'),
+          header: $('fxos-header'),
           rilCallerId: $('#ril-callerId'),
           fdnDesc: $('#fdnSettings-desc'),
           alertPanel: $('.cw-alert'),

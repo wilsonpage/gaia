@@ -110,7 +110,7 @@ define(function(require) {
     return SettingsPanel({
       onInit: function bp_onInit(rootElement) {
         _rootElement = rootElement;
-        _mainHeader = rootElement.querySelector('gaia-header');
+        _mainHeader = rootElement.querySelector('fxos-header');
         _header = _mainHeader.querySelector('h1');
         _apnListViewRoot = rootElement.querySelector('.apn-list');
         _addApnBtn = rootElement.querySelector('button.add-apn');

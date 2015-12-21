@@ -193,7 +193,7 @@ define(function(require) {
       }
 
       // Setup back listener
-      var backHeader = panel.querySelector('gaia-header[action="back"]');
+      var backHeader = panel.querySelector('fxos-header[action="back"]');
       var href = backHeader && backHeader.dataset.href;
       if (backHeader && href) {
         backHeader.addEventListener('action', function() {

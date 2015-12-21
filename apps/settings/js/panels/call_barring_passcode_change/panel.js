@@ -162,7 +162,7 @@ define(function(require) {
 
         _passcodePanel =
           document.getElementById('call-barring-passcode-change');
-        _passcodeHeader = _passcodePanel.querySelector('gaia-header');
+        _passcodeHeader = _passcodePanel.querySelector('fxos-header');
         _passcodeInput = _passcodePanel.querySelector('.passcode-input');
         _passcodeError = _passcodePanel.querySelector('.passcode-error');
         _passcodeDigits =

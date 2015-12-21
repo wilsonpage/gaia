@@ -11,7 +11,7 @@ define(function() {
         this._method = '';
         this._simpinDialog = null;
         elements.panel = panel;
-        elements.dialogTitle = panel.querySelector('gaia-header h1');
+        elements.dialogTitle = panel.querySelector('fxos-header h1');
         elements.dialogDone = panel.querySelector('button[type="submit"]');
         elements.triesLeftMsg = panel.querySelector('.sim-triesLeft');
         elements.errorMsg = panel.querySelector('.sim-errorMsg');
@@ -40,7 +40,7 @@ define(function() {
           elements.pukInput.focus();
         } else {
           elements.pinInput.focus();
-        } 
+        }
       },
       onSubmit: function() {
         return this._simpinDialog.verify();

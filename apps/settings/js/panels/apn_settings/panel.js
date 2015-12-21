@@ -50,7 +50,7 @@ define(function(require) {
         _rootElement = rootElement;
         var apnBtns = rootElement.querySelectorAll('a[data-apn-type]');
         var resetBtn = rootElement.querySelector('button.reset-apn');
-        var header = rootElement.querySelector('gaia-header');
+        var header = rootElement.querySelector('fxos-header');
 
         if (DsdsSettings.getNumberOfIccSlots() > 1) {
           header.dataset.href = '#carrier-detail';

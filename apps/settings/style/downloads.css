@@ -37,7 +37,7 @@
 
 /**
  * 1. Important required to override styles
- *    inside <gaia-header> <style scoped>
+ *    inside <fxos-header> <style scoped>
  *    Once we have ::content selector we
  *    can drop the <style scoped> and this
  *    !important won't be needed anymore.

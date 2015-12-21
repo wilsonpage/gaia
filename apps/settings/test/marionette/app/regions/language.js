@@ -18,7 +18,7 @@ module.exports = LanguagePanel;
 LanguagePanel.Selectors = {
   'languagePanel': '#languages',
   'body': 'body',
-  'header': 'gaia-header',
+  'header': 'fxos-header',
   'languageChangeSelect': '#languages select[name="language.current"]',
   'languageLabel': 'p[data-l10n-id="language"]',
   'languageRegionDateLabel': '#region-date'

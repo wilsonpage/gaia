@@ -78,7 +78,7 @@ suite('Find My Device panel > ', function() {
       }
 
       // grab pointers to useful elements
-      header = document.querySelector('#findmydevice gaia-header');
+      header = document.querySelector('#findmydevice fxos-header');
       signinSection = document.querySelector('.findmydevice-signin');
       settingsSection = document.querySelector('.findmydevice-settings');
       trackingSection = document.querySelector('.findmydevice-tracking');

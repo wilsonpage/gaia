@@ -22,7 +22,7 @@ var Carrier = (function() {
 
   var _elements = {
     detailHeader:
-      document.querySelector('#carrier-detail gaia-header h1'),
+      document.querySelector('#carrier-detail fxos-header h1'),
     carrierInfo:
       document.querySelector('#carrier .carrier-info'),
     advancedSettings:

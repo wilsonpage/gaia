@@ -19,7 +19,7 @@ module.exports = ScreenLockPanel;
 ScreenLockPanel.Selectors = {
   'screenLockLabel': 'label[data-l10n-id="lockScreen"]',
   'screenLockCheckbox': '.lockscreen-enable',
-  'header': 'gaia-header',
+  'header': 'fxos-header',
   'passcodeLockLabel': 'label[data-l10n-id="passcode-lock"]',
   'passcodeInput': '.passcode-input',
   'passcodeCheckbox': '.passcode-enable',

@@ -27,7 +27,7 @@ define(function(require) {
       onInit: function(panel, options) {
         this._verbose = null;
         elements = {
-          panelHeader: panel.querySelector('gaia-header'),
+          panelHeader: panel.querySelector('fxos-header'),
           uninstallButton: panel.querySelector('.uninstall-app > button'),
           list: panel.querySelector('.permissionsListHeader + ul'),
           header: panel.querySelector('.permissionsListHeader'),

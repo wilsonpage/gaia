@@ -10,7 +10,7 @@ define(function(require) {
 
     return DialogPanel({
       _elements: {},
-      
+
       /**
        * create  : when the user turns on passcode settings
        * edit    : when the user presses edit passcode button
@@ -50,8 +50,8 @@ define(function(require) {
 
       onInit: function(panel) {
         this._elements.panel = panel;
-        this._elements.gaiaHeader = panel.querySelector('gaia-header');
-        this._elements.header = panel.querySelector('gaia-header h1');
+        this._elements.gaiaHeader = panel.querySelector('fxos-header');
+        this._elements.header = panel.querySelector('fxos-header h1');
         this._elements.passcodeInput = panel.querySelector('.passcode-input');
         this._elements.passcodeDigits =
           panel.querySelectorAll('.passcode-digit');
@@ -222,7 +222,7 @@ define(function(require) {
         } else {
           var originalPasscode = this._getPasscodeBuffer('original');
           // [Note]
-          // 
+          //
           // We keep this onSubmit function for the scenario when users did
           // type the password correctly and click "Submit" button to `submit`
           // this dialog.
@@ -236,7 +236,7 @@ define(function(require) {
 
       onCancel: function() {
         // [Note]
-        // 
+        //
         // While for the `confirm` & `confirmLock` case, because from UX spec,
         // there is no need to click the submit button, we have to close
         // the dialog programmatically, so we will use `this.cancel()` to

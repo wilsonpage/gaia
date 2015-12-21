@@ -29,8 +29,8 @@ DeviceInfoPanel.Selectors = {
   'developerMenuItem': 'li > #menuItem-developer',
   'aboutPanel': '#about',
   'rootPanel': '#root',
-  'deviceInfoBackBtn': '#about-moreInfo gaia-header',
-  'openSourceNoticesBackBtn': '#about-licensing gaia-header'
+  'deviceInfoBackBtn': '#about-moreInfo fxos-header',
+  'openSourceNoticesBackBtn': '#about-licensing fxos-header'
 };
 
 DeviceInfoPanel.prototype = {

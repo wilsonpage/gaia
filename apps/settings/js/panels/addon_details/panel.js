@@ -13,7 +13,7 @@ define(function(require) {
         this._elements = {
           body: panel.querySelector('.addon-details-body'),
           header: panel.querySelector('.addon-details-header'),
-          gaiaHeader: panel.querySelector('gaia-header'),
+          gaiaHeader: panel.querySelector('fxos-header'),
           enabledState: panel.querySelector('.addon-enabled details'),
           name: panel.querySelector('.addon-details-name'),
           icon: panel.querySelector('.addon-details-icon'),

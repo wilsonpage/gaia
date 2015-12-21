@@ -12,7 +12,7 @@
 }
 
 a.menu-item:after {
-  font-family: "gaia-icons";
+  font-family: "fxos-icons";
   position: absolute;
   top: 0;
   offset-inline-end: 0;
@@ -38,10 +38,9 @@ gaia-switch .menu-item[data-icon] ~ details {
 .menu-item::before {
   position: absolute;
   offset-inline-start: 0;
-  top: 50%;
+  top: 25%;
   width: 3rem;
   text-align: center;
-  line-height: 0;
   color: #657073;
 }
 

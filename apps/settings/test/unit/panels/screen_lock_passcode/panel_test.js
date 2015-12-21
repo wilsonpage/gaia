@@ -404,7 +404,7 @@ suite('ScreenLockPasscode > ', function() {
   function getFakePanelElement() {
     var fakePanel = document.createElement('div');
 
-    var gaiaHeader = document.createElement('gaia-header');
+    var gaiaHeader = document.createElement('fxos-header');
     var h1 = document.createElement('h1');
     gaiaHeader.appendChild(h1);
 

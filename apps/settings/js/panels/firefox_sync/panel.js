@@ -23,7 +23,7 @@ define(function(require) {
         };
 
         this.syncPanel = FirefoxSyncPanel(panel, screens);
-        var header = panel.querySelector('gaia-header');
+        var header = panel.querySelector('fxos-header');
         SettingsUtils.runHeaderFontFit(header);
       },
 

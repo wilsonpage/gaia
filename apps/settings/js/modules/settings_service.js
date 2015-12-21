@@ -64,7 +64,7 @@ define(function(require) {
     };
 
     var _retriveParentPanelId = function ss_retriveParentPanelId(panelId) {
-      var headerSelector = '#' + panelId + ' > gaia-header';
+      var headerSelector = '#' + panelId + ' > fxos-header';
       var header = document.querySelector(headerSelector);
       return (header && header.dataset.href || '').replace('#', '');
     };

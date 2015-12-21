@@ -26,7 +26,7 @@ define(function(require) {
       onInit: function(panel) {
         this._panel = panel;
         this._elements = {
-          header: panel.querySelector('gaia-header'),
+          header: panel.querySelector('fxos-header'),
           networkTypeSelector:
             panel.querySelector('.preferred-network-type select'),
           roamingPreferenceMenuItem:
